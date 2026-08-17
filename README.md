@@ -1,39 +1,59 @@
-# 중1 수학 Ⅳ. 도형의 기초 — 인터랙티브 탐구 웹앱
+# math-unit-contents
 
-중학교 1학년 수학 교과서(김화경 외) **Ⅳ단원 「도형의 기초」(136~175쪽)** 의 활동을
-노트북·태블릿에서 직접 조작하며 체험할 수 있게 만든 수업용 웹 콘텐츠 모음입니다.
+수학 단원의 다양한 체험형 콘텐츠(html)를 모아두고, `index.html`을 통해 한눈에 접근할 수 있게 구성한 저장소입니다.
+노트북·태블릿에서 학생이 직접 조작하며 교과서 활동을 체험하는 것을 목표로 합니다.
 
-**학생 접속 주소** → <https://j33333376-ops.github.io/math1-ch4/>
-
----
+**학생 접속 주소** → <https://j333333766-hub.github.io/math-unit-contents/>
 
 ## 폴더 구조
 
 ```
-.
-├─ index.html              ← 4단원 목차 (여기서 각 활동으로 이동)
-├─ apps/                   ← 개별 콘텐츠 HTML
-│   ├─ 01-pixel-zoom.html          픽셀 돋보기            (137쪽)
-│   ├─ 02-point-line-plane.html    점·선·면 탐구실        (137~139쪽)
-│   └─ 06-mole-game.html           두더지 잡기            (152쪽)
-├─ assets/
-│   ├─ common.css          공통 색·글꼴·'목차로' 버튼·기본 부품
-│   ├─ common.js           목차 버튼 자동 삽입, 학습 기록, 캔버스 도우미(MK)
-│   └─ vendor/
-│       ├─ tex-svg.js      MathJax (수식 표시)
-│       └─ three.min.js    Three.js (3차원 도형)
-├─ _원본/                  변환 전 원본 백업 (저장소에는 올리지 않음)
-└─ .gitignore
+math-unit-contents/
+├── index.html                       # 콘텐츠 목록(메인 허브) 페이지
+├── contents/                        # 실제 콘텐츠 html 파일들을 넣는 폴더
+│   ├── sample-content.html          #  └ 새 콘텐츠를 만들 때 복사해서 쓰는 예시
+│   ├── 01-pixel-zoom.html           # 픽셀 돋보기         (중1 Ⅳ단원 137쪽)
+│   ├── 02-point-line-plane.html     # 점·선·면 탐구실     (중1 Ⅳ단원 137~139쪽)
+│   └── 06-mole-game.html            # 두더지 잡기         (중1 Ⅳ단원 152쪽)
+└── assets/
+    ├── style.css                    # 허브 페이지와 간단한 콘텐츠가 쓰는 스타일시트
+    ├── common.css                   # 색·글꼴 토큰, '목차로' 버튼, 기본 부품
+    ├── common.js                    # 목차 버튼 자동 삽입, 학습 기록, 캔버스 도우미(MK)
+    └── vendor/
+        ├── tex-svg.js               # MathJax (수식 표시)
+        └── three.min.js             # Three.js (3차원 도형)
 ```
 
-라이브러리는 각 HTML에 붙여 넣지 않고 `assets/vendor/`에 **한 벌만** 두고 함께 씁니다.
+`assets/vendor/`의 라이브러리는 각 html에 붙여 넣지 않고 **한 벌만** 두고 함께 씁니다.
 덕분에 콘텐츠 한 개가 30~60KB로 가벼워지고, 한 반 전체가 동시에 열어도 학교 무선망에 부담이 적습니다.
 
----
+## 새 콘텐츠 추가하는 방법
 
-## 새 콘텐츠 만드는 방법
+1. `contents/` 폴더 안에 새 html 파일을 추가합니다.
+   - 간단한 설명형 페이지 → `contents/sample-content.html`을 복사해서 시작
+   - 조작·게임형 페이지 → `contents/06-mole-game.html`을 참고 (아래 공용 자산 사용)
+2. `index.html` 안의 `contentsList` 배열에 새 항목을 한 줄 추가합니다.
 
-### 1. `apps/` 에 HTML 파일 추가
+```js
+const contentsList = [
+  {
+    title: "카드에 보일 제목",
+    desc: "카드에 보일 한 줄 설명",
+    badge: "중1 Ⅳ단원 · 평행선의 성질",   // 학년·단원·소단원을 적어두면 늘어나도 구분이 쉽습니다
+    href: "contents/새파일이름.html"
+  },
+];
+```
+
+3. 커밋 후 push 하면 GitHub Pages에 30초~1분 뒤 자동 반영됩니다.
+
+```bash
+git add -A
+git commit -m "합동 포개기 콘텐츠 추가"
+git push
+```
+
+### 조작형 콘텐츠에서 쓰는 공용 자산
 
 `<head>` 에 아래 두 줄을 넣습니다.
 
@@ -55,23 +75,10 @@
 <a class="home-btn" href="../index.html">← 목차</a>
 ```
 
-### 2. `index.html` 의 `DATA` 목록에 한 줄 추가
+> `common.js`는 `defer`로 실행되므로, 콘텐츠의 인라인 스크립트에서 `MK`를 쓸 때는
+> `DOMContentLoaded` 이후에 시작해야 합니다. (`06-mole-game.html`의 `boot()` 참고)
 
-`status` 를 `"soon"` → `"done"` 으로 바꾸고 `file` 경로만 맞추면 목차에 바로 나타납니다.
-
-### 3. 배포
-
-```bash
-git add -A
-git commit -m "합동 포개기 콘텐츠 추가"
-git push
-```
-
-푸시하고 30초~1분 뒤 GitHub Pages에 자동 반영됩니다.
-
----
-
-## `common.js` 가 제공하는 도구 (`MK`)
+### `common.js` 가 제공하는 도구 (`MK`)
 
 | 함수 | 하는 일 |
 |---|---|
@@ -81,21 +88,30 @@ git push
 | `MK.dist / MK.deg` | 두 점 사이 거리 / 라디안→도 |
 | `MK.randInt / MK.pick` | 문제 무작위 생성용 |
 | `MK.tex(el)` | MathJax 수식 다시 조판 |
-| `MK.visited()` | 학생이 학습한 콘텐츠 목록 (목차의 ✓ 표시에 사용) |
+| `MK.visited()` | 학생이 학습한 콘텐츠 목록 (localStorage `ch4.visited`) |
 
----
+## GitHub Pages로 배포하기
 
-## 개발 예정 목록
+1. 저장소의 **Settings > Pages**로 이동합니다.
+2. **Source**를 `Deploy from a branch`로 설정합니다.
+3. Branch를 `main`, 폴더를 `/(root)`로 선택하고 저장합니다.
+4. 잠시 후 `https://<사용자아이디>.github.io/math-unit-contents/` 주소로 접속하면 됩니다.
+
+## 중1 Ⅳ. 도형의 기초 — 개발 예정 목록
+
+교과서(김화경 외) 136~175쪽 분석에 따른 콘텐츠 계획입니다.
 
 | 소단원 | 콘텐츠 | 교과서 |
 |---|---|---|
-| 1. 점, 선, 면 | ✅ 픽셀 돋보기 / ✅ 점·선·면 탐구실 | 137~140 |
+| 1. 점, 선, 면 | ✅ 픽셀 돋보기 · ✅ 점·선·면 탐구실 | 137~140 |
 | 2. 각 | 각도 실험실 · 수선의 발과 거리 | 141~145 |
-| 3. 위치 관계 | 3D 위치 관계 탐험 | 146~151 |
+| 3. 위치 관계 | 3D 위치 관계 탐험(꼬인 위치) | 146~151 |
 | 4. 평행선의 성질 | ✅ 두더지 잡기 · 평행선 각 탐구실 · 보조선 도전 · 착시 실험실 | 152~156 |
-| 5. 삼각형의 작도 | 가상 작도판 · 삼각형 결정 조건 | 157~164 |
-| 6. 삼각형의 합동 | 합동 포개기 | 165~169 |
+| 5. 삼각형의 작도 | 가상 작도판(자·컴퍼스) · 삼각형 결정 조건 | 157~164 |
+| 6. 삼각형의 합동 | 합동 포개기(SSS·SAS·ASA) | 165~169 |
 | 더 해 보기 | 에그 퍼즐 · 흔들리지 않는 삼각형(트러스) | 174~175 |
+
+> 교과서 원본 PDF 등 저작권 자료는 `.gitignore`로 제외되어 있습니다. 공개 저장소이므로 올리지 않습니다.
 
 ---
 

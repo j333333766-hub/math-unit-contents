@@ -1,287 +1,84 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>중1 수학 Ⅳ. 도형의 기초 — 탐구 목차</title>
-<link rel="stylesheet" href="assets/common.css">
-<style>
-  *{box-sizing:border-box; margin:0; padding:0;}
-  body{
-    font-family:var(--font);
-    background:var(--bg); color:var(--ink);
-    min-height:100vh;
-    padding-bottom:60px;
-  }
-
-  /* ---------- 머리말 ---------- */
-  header{
-    background:linear-gradient(135deg,#3e63dd 0%,#5b8def 55%,#7aa5f7 100%);
-    color:#fff; padding:34px 22px 30px;
-  }
-  .head-inner{max-width:1120px; margin:0 auto;}
-  .eyebrow{
-    display:inline-block; font-size:13px; font-weight:700; letter-spacing:.06em;
-    background:rgba(255,255,255,.2); padding:5px 12px; border-radius:999px; margin-bottom:12px;
-  }
-  header h1{font-size:30px; font-weight:800; letter-spacing:-.02em; line-height:1.25;}
-  header p{margin-top:9px; font-size:15px; opacity:.9; line-height:1.6;}
-
-  .progress{
-    margin-top:20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
-  }
-  .bar{
-    flex:1 1 220px; max-width:420px; height:10px; border-radius:999px;
-    background:rgba(255,255,255,.28); overflow:hidden;
-  }
-  .bar i{display:block; height:100%; width:0; background:#fff; border-radius:999px; transition:width .5s;}
-  .progress .txt{font-size:14px; font-weight:700;}
-  .progress button{
-    font:600 13px/1 var(--font); color:#fff; cursor:pointer;
-    background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.35);
-    padding:7px 12px; border-radius:999px;
-  }
-  .progress button:hover{background:rgba(255,255,255,.3);}
-
-  /* ---------- 본문 ---------- */
-  main{max-width:1120px; margin:0 auto; padding:0 22px;}
-
-  section{margin-top:34px;}
-  .sec-head{display:flex; align-items:baseline; gap:11px; margin-bottom:14px; flex-wrap:wrap;}
-  .sec-no{
-    flex:none; width:30px; height:30px; border-radius:9px;
-    background:var(--accent); color:#fff;
-    display:grid; place-items:center; font-weight:800; font-size:15px;
-    align-self:center;
-  }
-  .sec-head h2{font-size:20px; font-weight:800; letter-spacing:-.01em;}
-  .sec-head .pages{font-size:13px; color:var(--sub); font-weight:600;}
-
-  .grid{
-    display:grid; gap:14px;
-    grid-template-columns:repeat(auto-fill,minmax(258px,1fr));
-  }
-
-  .card{
-    position:relative; display:block; text-decoration:none; color:inherit;
-    background:var(--panel); border:1px solid var(--line);
-    border-radius:var(--radius); padding:17px 17px 15px;
-    box-shadow:var(--shadow); transition:.16s;
-  }
-  a.card:hover{
-    transform:translateY(-3px);
-    border-color:var(--accent);
-    box-shadow:0 8px 22px rgba(62,99,221,.18);
-  }
-  .card .ico{font-size:28px; line-height:1; margin-bottom:9px; display:block;}
-  .card h3{font-size:17px; font-weight:800; letter-spacing:-.01em; margin-bottom:6px;}
-  .card p{font-size:13.5px; color:var(--sub); line-height:1.55;}
-  .card .page{
-    display:inline-block; margin-top:11px; font-size:12px; font-weight:700;
-    color:var(--accent); background:var(--accent-soft);
-    padding:4px 9px; border-radius:7px;
-  }
-
-  /* 준비 중 */
-  .card.soon{opacity:.62; cursor:default; background:#fafbfd;}
-  .card.soon .page{color:var(--sub); background:#eef0f5;}
-
-  /* 오른쪽 위 상태 뱃지 */
-  .badge{
-    position:absolute; top:13px; right:13px;
-    font-size:11.5px; font-weight:700; padding:4px 9px; border-radius:999px;
-  }
-  .badge.done{background:var(--ok-soft); color:var(--ok);}
-  .badge.soon{background:#eef0f5; color:var(--sub);}
-
-  /* ---------- 꼬리말 ---------- */
-  footer{
-    max-width:1120px; margin:44px auto 0; padding:20px 22px 0;
-    border-top:1px solid var(--line);
-    font-size:13px; color:var(--sub); line-height:1.7;
-  }
-  footer b{color:var(--ink);}
-
-  @media (max-width:600px){
-    header{padding:26px 18px 24px;}
-    header h1{font-size:24px;}
-    main,footer{padding-left:18px; padding-right:18px;}
-  }
-</style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>수학 단원 콘텐츠 체험관</title>
+<link rel="stylesheet" href="assets/style.css" />
 </head>
 <body>
 
-<header>
-  <div class="head-inner">
-    <span class="eyebrow">중학교 1학년 수학</span>
-    <h1>Ⅳ. 도형의 기초</h1>
-    <p>교과서 속 활동을 직접 움직이고, 만들고, 확인해 보는 탐구 목록입니다.<br>
-       하고 싶은 활동을 눌러서 시작하세요.</p>
-    <div class="progress">
-      <div class="bar"><i id="barFill"></i></div>
-      <div class="txt" id="progTxt">0 / 0 활동</div>
-      <button id="btnReset">기록 지우기</button>
-    </div>
-  </div>
+<header class="page-header">
+  <h1>수학 단원 콘텐츠 체험관</h1>
+  <p>아래 카드를 눌러 이 단원의 다양한 콘텐츠를 체험해 보세요.</p>
 </header>
 
-<main id="main"></main>
-
-<footer>
-  <p><b>선생님께:</b> 새 콘텐츠를 추가할 때는 <code>apps/</code> 폴더에 HTML 파일을 넣고,
-     이 파일 아래쪽 <code>DATA</code> 목록에 한 줄만 추가하면 목차에 자동으로 나타납니다.</p>
-  <p style="margin-top:6px;">교과서: 중학교 수학 1 (김화경 외) Ⅳ단원 136~175쪽</p>
-</footer>
+<main>
+  <div id="card-grid" class="card-grid"></div>
+  <div id="empty-notice" class="empty-notice" style="display:none;">
+    아직 등록된 콘텐츠가 없습니다. <code>contents</code> 폴더에 html 파일을 추가하고,
+    아래 <code>contentsList</code> 배열에 항목을 추가해 주세요.
+  </div>
+</main>
 
 <script>
-/* ===========================================================
-   콘텐츠 목록
-   status: "done" = 완성 / "soon" = 준비 중
-   새 콘텐츠를 만들면 file 을 채우고 status 를 "done" 으로 바꾼다.
-   =========================================================== */
-const DATA = [
-  {
-    no:1, title:"점, 선, 면", pages:"137~140쪽",
-    items:[
-      { ico:"🔍", name:"픽셀 돋보기", file:"apps/01-pixel-zoom.html", status:"done",
-        page:"137쪽 도입",
-        desc:"사진을 끝까지 확대해서 화면이 작은 점(화소)으로 이루어져 있다는 걸 눈으로 확인해요." },
-      { ico:"📐", name:"점·선·면 탐구실", file:"apps/02-point-line-plane.html", status:"done",
-        page:"137~139쪽",
-        desc:"입체도형을 돌려 보며 교점·교선을 세고, 직선·반직선·선분을 구별하고, 중점을 직접 찾아요." },
-    ]
-  },
-  {
-    no:2, title:"각", pages:"141~145쪽",
-    items:[
-      { ico:"📏", name:"각도 실험실", file:"apps/03-angle-lab.html", status:"soon",
-        page:"141~143쪽",
-        desc:"화면 각도기로 직접 재고, 반직선을 돌리며 평각·직각을 만들고, 맞꼭지각이 왜 같은지 확인해요." },
-      { ico:"⊥", name:"수선의 발과 거리", file:"apps/04-perp-foot.html", status:"soon",
-        page:"144쪽",
-        desc:"모눈종이에 수선의 발을 찍고, 점을 움직이며 길이가 가장 짧아지는 자리를 찾아요." },
-    ]
-  },
-  {
-    no:3, title:"점, 직선, 평면의 위치 관계", pages:"146~151쪽",
-    items:[
-      { ico:"🧊", name:"3D 위치 관계 탐험", file:"apps/05-space-3d.html", status:"soon",
-        page:"146~151쪽",
-        desc:"입체도형을 손으로 돌리며 모서리 두 개를 고르면 평행·만남·꼬인 위치를 바로 판정해 줘요." },
-    ]
-  },
-  {
-    no:4, title:"평행선의 성질", pages:"152~156쪽",
-    items:[
-      { ico:"🔨", name:"두더지 잡기", file:"apps/06-mole-game.html", status:"done",
-        page:"152쪽 발견하기",
-        desc:"두더지가 나온 자리의 동위각·엇각을 제한 시간 안에 찾아 두드리는 게임이에요." },
-      { ico:"⫽", name:"평행선 각 탐구실", file:"apps/07-parallel-angles.html", status:"soon",
-        page:"153~154쪽",
-        desc:"직선을 기울여 보며 평행할 때만 동위각과 엇각의 크기가 같아지는 것을 확인해요." },
-      { ico:"✏️", name:"보조선 도전", file:"apps/08-aux-line.html", status:"soon",
-        page:"154~155쪽",
-        desc:"직접 보조선을 그어서 ∠x를 구해요. 여러 가지 방법으로 풀 수 있어요." },
-      { ico:"🌀", name:"착시 실험실", file:"apps/09-illusion.html", status:"soon",
-        page:"156쪽",
-        desc:"폰조·뮐러리어·헤링·쵤너 착시를 직접 조작하고, 착시 요소를 지워서 진짜 모습을 확인해요." },
-    ]
-  },
-  {
-    no:5, title:"삼각형의 작도", pages:"157~164쪽",
-    items:[
-      { ico:"🧭", name:"가상 작도판", file:"apps/10-construction.html", status:"soon",
-        page:"157~162쪽",
-        desc:"눈금 없는 자와 컴퍼스만으로 선분·각·삼각형을 단계에 따라 직접 작도해요." },
-      { ico:"🔺", name:"삼각형 결정 조건", file:"apps/11-triangle-condition.html", status:"soon",
-        page:"159·163쪽",
-        desc:"세 변의 길이를 바꿔 삼각형이 되는 조건을 찾고, 모양이 하나로 정해지는지 실험해요." },
-    ]
-  },
-  {
-    no:6, title:"삼각형의 합동", pages:"165~169쪽",
-    items:[
-      { ico:"🪞", name:"합동 포개기", file:"apps/12-congruence.html", status:"soon",
-        page:"165~167쪽",
-        desc:"삼각형을 옮기고 돌리고 뒤집어 포개 보고, SSS·SAS·ASA 합동 조건을 판별해요." },
-    ]
-  },
-  {
-    no:"＋", title:"더 해 보기", pages:"174~175쪽",
-    items:[
-      { ico:"🥚", name:"에그 퍼즐", file:"apps/13-egg-puzzle.html", status:"soon",
-        page:"174쪽 창의 활동",
-        desc:"작도로 달걀 모양을 만들고 아홉 조각으로 잘라 나비·로켓 등 여러 모양을 만들어요." },
-      { ico:"🌉", name:"흔들리지 않는 삼각형", file:"apps/14-truss.html", status:"soon",
-        page:"175쪽 수학 STORY",
-        desc:"사각형 뼈대와 삼각형 뼈대를 옆에서 밀어 보며 트러스 구조가 튼튼한 이유를 알아봐요." },
-    ]
-  },
-];
+  /*
+    새 콘텐츠를 추가하는 방법
+    1) contents 폴더 안에 새 html 파일을 만든다. (예: contents/기울기-탐구.html)
+    2) 아래 contentsList 배열에 한 줄을 추가한다.
+       title: 카드에 보일 제목
+       desc : 카드에 보일 한 줄 설명
+       badge: 콘텐츠 유형 (예: "개념", "예제", "연습문제", "탐구활동")
+       href : contents 폴더 안 파일 경로
+  */
+  const contentsList = [
+    {
+      title: "픽셀 돋보기",
+      desc: "사진을 끝까지 확대해서 화면이 작은 점(화소)으로 이루어져 있다는 걸 눈으로 확인해요. (교과서 137쪽)",
+      badge: "중1 Ⅳ단원 · 점, 선, 면",
+      href: "contents/01-pixel-zoom.html"
+    },
+    {
+      title: "점·선·면 탐구실",
+      desc: "입체도형을 돌려 보며 교점·교선을 세고, 직선·반직선·선분을 구별하고, 중점을 직접 찾아요. (교과서 137~139쪽)",
+      badge: "중1 Ⅳ단원 · 점, 선, 면",
+      href: "contents/02-point-line-plane.html"
+    },
+    {
+      title: "두더지 잡기 — 동위각과 엇각",
+      desc: "두더지가 나온 자리의 동위각·엇각을 제한 시간 안에 찾아 두드리는 게임이에요. (교과서 152쪽)",
+      badge: "중1 Ⅳ단원 · 평행선의 성질",
+      href: "contents/06-mole-game.html"
+    },
+    {
+      title: "샘플 콘텐츠",
+      desc: "새 콘텐츠를 만들 때 참고할 수 있는 예시 페이지입니다.",
+      badge: "예시",
+      href: "contents/sample-content.html"
+    }
+    // 여기에 콘텐츠를 계속 추가하세요.
+    // { title: "...", desc: "...", badge: "...", href: "contents/....html" },
+  ];
 
-/* ---------- 그리기 ---------- */
-const KEY = "ch4.visited";
-let visited = [];
-try{ visited = JSON.parse(localStorage.getItem(KEY) || "[]"); }catch(e){}
+  const grid = document.getElementById("card-grid");
+  const emptyNotice = document.getElementById("empty-notice");
 
-function fileName(path){ return path.split("/").pop(); }
-
-function render(){
-  const main = document.getElementById("main");
-  main.innerHTML = "";
-  let total = 0, done = 0;
-
-  DATA.forEach(sec => {
-    const s = document.createElement("section");
-
-    const head = document.createElement("div");
-    head.className = "sec-head";
-    head.innerHTML =
-      `<div class="sec-no">${sec.no}</div>` +
-      `<h2>${sec.title}</h2>` +
-      `<span class="pages">교과서 ${sec.pages}</span>`;
-    s.appendChild(head);
-
-    const grid = document.createElement("div");
-    grid.className = "grid";
-
-    sec.items.forEach(it => {
-      const ready = it.status === "done";
-      const seen  = ready && visited.includes(fileName(it.file));
-      if(ready){ total++; if(seen) done++; }
-
-      const el = document.createElement(ready ? "a" : "div");
-      el.className = "card" + (ready ? "" : " soon");
-      if(ready) el.href = it.file;
-
-      el.innerHTML =
-        `<span class="badge ${seen ? "done" : "soon"}">${
-            ready ? (seen ? "✓ 학습함" : "시작하기") : "준비 중"
-        }</span>` +
-        `<span class="ico">${it.ico}</span>` +
-        `<h3>${it.name}</h3>` +
-        `<p>${it.desc}</p>` +
-        `<span class="page">${it.page}</span>`;
-
-      grid.appendChild(el);
+  if (contentsList.length === 0) {
+    emptyNotice.style.display = "block";
+  } else {
+    contentsList.forEach(item => {
+      const a = document.createElement("a");
+      a.className = "card";
+      a.href = item.href;
+      a.innerHTML = `
+        <span class="badge">${item.badge ?? "콘텐츠"}</span>
+        <h2>${item.title}</h2>
+        <p>${item.desc ?? ""}</p>
+      `;
+      grid.appendChild(a);
     });
-
-    s.appendChild(grid);
-    main.appendChild(s);
-  });
-
-  document.getElementById("progTxt").textContent = `${done} / ${total} 활동`;
-  document.getElementById("barFill").style.width =
-    total ? (done / total * 100) + "%" : "0%";
-}
-
-document.getElementById("btnReset").addEventListener("click", () => {
-  try{ localStorage.removeItem(KEY); }catch(e){}
-  visited = [];
-  render();
-});
-
-render();
+  }
 </script>
+
 </body>
 </html>
