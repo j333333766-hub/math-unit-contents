@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D 위치 관계 탐험 — 꼬인 위치까지 눈으로</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js" data-home="../index.html" defer></script>
+<script src="../assets/vendor/three.min.js"></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 350px; gap:12px;}
+  .stage{
+    position:relative; min-width:0; overflow:hidden;
+    background:linear-gradient(160deg,#f7f9ff 0%,#eef2fb 100%);
+    border:1px solid var(--line); border-radius:var(--radius);
+  }
+  /* 크기는 three 의 setSize 가 style 로 직접 넣는다 (캔버스를 관찰하면 되먹임 루프가 생김) */
+  #gl{position:absolute; left:0; top:0; display:block; touch-action:none; cursor:grab;}
+  #gl.drag{cursor:grabbing;}
+  #labels{position:absolute; inset:0; pointer-events:none; overflow:hidden;}
+  .vlab{
+    position:absolute; transform:translate(-50%,-50%);
+    font:italic 700 19px 'Times New Roman', serif; color:#1d2433;
+    text-shadow:0 0 4px #fff,0 0 4px #fff,0 0 4px #fff,0 0 4px #fff;
+  }
+  #tip{
+    position:absolute; left:50%; bottom:12px; transform:translateX(-50%);
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#ffffffcc; padding:7px 15px; border-radius:999px; border:1px solid var(--line);
+    pointer-events:none; white-space:nowrap;
+  }
+  #shapes{position:absolute; left:12px; top:12px; display:flex; flex-wrap:wrap; gap:5px; max-width:calc(100% - 24px);}
+  #shapes button{
+    font:600 12.5px/1 var(--font); padding:7px 11px; border-radius:8px;
+    border:1px solid var(--line); background:#ffffffd9; color:var(--ink); cursor:pointer;
+  }
+  #shapes button:hover{border-color:var(--accent); color:var(--accent);}
+  #shapes button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  #reset{
+    position:absolute; right:12px; top:12px;
+    font:600 12.5px/1 var(--font); padding:7px 11px; border-radius:8px;
+    border:1px solid var(--line); background:#ffffffd9; color:var(--sub); cursor:pointer;
+  }
+  #reset:hover{border-color:var(--accent); color:var(--accent);}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+
+  /* 고른 것 표시 */
+  .picks{display:flex; align-items:center; gap:8px; margin-top:10px;}
+  .pick{
+    flex:1; text-align:center; padding:11px 6px; border-radius:10px;
+    background:#f7f9fd; border:1px dashed var(--line);
+    font:italic 700 19px 'Times New Roman', serif; color:var(--sub);
+  }
+  .pick.set{border-style:solid; background:#fff;}
+  .pick.p1.set{border-color:#e5484d; color:#e5484d;}
+  .pick.p2.set{border-color:#3e63dd; color:#3e63dd;}
+  .picks .amp{font-size:15px; font-weight:800; color:var(--sub);}
+
+  .verdict{margin-top:10px; padding:13px; border-radius:11px; text-align:center;}
+  .verdict .k{font-size:20px; font-weight:800;}
+  .verdict .d{font-size:13px; margin-top:5px; line-height:1.6;}
+  .verdict.meet{background:#eef2ff; color:#2f4bb5;}
+  .verdict.para{background:var(--ok-soft); color:var(--ok);}
+  .verdict.skew{background:var(--warn-soft); color:#a75c00;}
+  .verdict.inface{background:#f4edff; color:#6c33a8;}
+  .verdict.none{background:#f7f9fd; color:var(--sub);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .legend{display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--sub); margin-top:9px;}
+  .legend span{display:flex; align-items:center; gap:5px;}
+  .legend i{width:11px; height:11px; border-radius:3px; display:block;}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .stage{height:54vh; min-height:340px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🧊 3D 위치 관계 탐험</h1>
+  <nav>
+    <button class="on" data-tab="edge">① 모서리와 모서리</button>
+    <button data-tab="face">② 모서리와 면</button>
+    <button data-tab="quiz">③ 모두 찾기 도전</button>
+  </nav>
+  <a class="home-btn" href="../index.html">← 목차</a>
+</header>
+
+<main>
+  <div class="stage">
+    <canvas id="gl"></canvas>
+    <div id="labels"></div>
+    <div id="shapes"></div>
+    <button id="reset">↺ 처음 각도로</button>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ============ ① 모서리와 모서리 ============ -->
+    <section id="pEdge">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 두 모서리의 위치 관계</h2>
+        <p>입체도형을 <b>끌어서 돌려 보고</b>, 모서리 <b>두 개</b>를 눌러 보세요.
+           두 모서리가 어떤 위치 관계인지 바로 알려 줍니다.</p>
+        <div class="picks">
+          <div class="pick p1" id="e1">?</div>
+          <div class="amp">와</div>
+          <div class="pick p2" id="e2">?</div>
+        </div>
+        <div id="edgeVerdict"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnPlane">🟪 한 평면 보기</button>
+          <button class="btn sm" id="btnClear">🧹 다시 고르기</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>공간에서 두 직선의 위치 관계</h2>
+        <p><b>① 한 점에서 만난다</b> — 두 모서리가 한 꼭짓점에서 만나요.<br>
+           <b>② 평행하다</b> — 한 평면 위에 있으면서 만나지 않아요.<br>
+           <b>③ 꼬인 위치에 있다</b> — 만나지도 않고 평행하지도 않아요.
+           이때 두 직선은 <b>한 평면 위에 있지 않아요.</b></p>
+        <div class="legend">
+          <span><i style="background:#e5484d"></i>첫째 모서리</span>
+          <span><i style="background:#3e63dd"></i>둘째 모서리</span>
+          <span><i style="background:#8e4ec6"></i>두 직선을 품는 평면</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ② 모서리와 면 ============ -->
+    <section id="pFace" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 모서리와 면의 위치 관계</h2>
+        <p><b>모서리 하나</b>와 <b>면 하나</b>를 눌러 보세요.</p>
+        <div class="picks">
+          <div class="pick p1" id="f1">?</div>
+          <div class="amp">와</div>
+          <div class="pick p2" id="f2">?</div>
+        </div>
+        <div id="faceVerdict"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnClear2">🧹 다시 고르기</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>공간에서 직선과 평면의 위치 관계</h2>
+        <p><b>① 한 점에서 만난다</b><br>
+           <b>② 직선이 평면에 포함된다</b><br>
+           <b>③ 평행하다</b> — 만나지 않아요.<br><br>
+           직선이 평면과 만나고, 그 점을 지나는 평면 위 <b>모든 직선과 수직</b>이면
+           직선과 평면은 <b>수직(직교)</b>이라고 해요.</p>
+      </div>
+    </section>
+
+    <!-- ============ ③ 도전 ============ -->
+    <section id="pQuiz" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 모두 찾기 도전</h2>
+        <p id="quizAsk"></p>
+        <div id="quizPicked" style="margin-top:9px;"></div>
+        <div id="quizFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnQuizCheck">✅ 채점</button>
+          <button class="btn sm" id="btnQuizNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>도움말</h2>
+        <p>도형을 <b>여러 방향으로 돌려 보면서</b> 확인하세요.
+           같은 평면 위에 있는지 헷갈릴 때는 활동 1 의 <b>한 평면 보기</b> 를 써 보세요.</p>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   1. 입체도형 데이터
+   꼭짓점 이름은 교과서 표기를 따른다.
+   ============================================================ */
+const SHAPES = {
+  cube: {
+    label: "직육면체",
+    verts: {
+      A:[-1.35, 0.95,-1.0], B:[ 1.35, 0.95,-1.0], C:[ 1.35, 0.95, 1.0], D:[-1.35, 0.95, 1.0],
+      E:[-1.35,-0.95,-1.0], F:[ 1.35,-0.95,-1.0], G:[ 1.35,-0.95, 1.0], H:[-1.35,-0.95, 1.0]
+    },
+    edges: [["A","B"],["B","C"],["C","D"],["D","A"],
+            ["E","F"],["F","G"],["G","H"],["H","E"],
+            ["A","E"],["B","F"],["C","G"],["D","H"]],
+    faces: [["A","B","C","D"],["E","F","G","H"],
+            ["A","B","F","E"],["B","C","G","F"],["C","D","H","G"],["D","A","E","H"]]
+  },
+  prism3: {
+    label: "삼각기둥",
+    verts: {
+      A:[ 0.0, 0.95,-1.15], B:[-1.2, 0.95, 0.75], C:[ 1.2, 0.95, 0.75],
+      D:[ 0.0,-0.95,-1.15], E:[-1.2,-0.95, 0.75], F:[ 1.2,-0.95, 0.75]
+    },
+    edges: [["A","B"],["B","C"],["C","A"],
+            ["D","E"],["E","F"],["F","D"],
+            ["A","D"],["B","E"],["C","F"]],
+    faces: [["A","B","C"],["D","E","F"],
+            ["A","B","E","D"],["B","C","F","E"],["C","A","D","F"]]
+  },
+  pyr4: {
+    label: "사각뿔",
+    verts: {
+      A:[ 0.0, 1.25, 0.0],
+      B:[-1.15,-0.85,-1.0], C:[ 1.15,-0.85,-1.0], D:[ 1.15,-0.85, 1.0], E:[-1.15,-0.85, 1.0]
+    },
+    edges: [["A","B"],["A","C"],["A","D"],["A","E"],
+            ["B","C"],["C","D"],["D","E"],["E","B"]],
+    faces: [["B","C","D","E"],["A","B","C"],["A","C","D"],["A","D","E"],["A","E","B"]]
+  },
+  tetra: {
+    label: "삼각뿔",
+    verts: {
+      A:[ 0.0, 1.15, 0.0],
+      B:[ 0.0,-0.8,-1.25], C:[ 1.15,-0.8, 0.7], D:[-1.15,-0.8, 0.7]
+    },
+    edges: [["A","B"],["A","C"],["A","D"],["B","C"],["C","D"],["D","B"]],
+    faces: [["B","C","D"],["A","B","C"],["A","C","D"],["A","D","B"]]
+  },
+  prism6: {
+    label: "육각기둥",
+    verts: (function(){
+      const top = "ABCDEF".split(""), bot = "GHIJKL".split(""), v = {};
+      for(let i = 0; i < 6; i++){
+        const a = Math.PI/6 + i*Math.PI/3;
+        const x = Math.cos(a)*1.25, z = Math.sin(a)*1.25;
+        v[top[i]] = [x, 0.85, z];
+        v[bot[i]] = [x, -0.85, z];
+      }
+      return v;
+    })(),
+    edges: (function(){
+      const top = "ABCDEF".split(""), bot = "GHIJKL".split(""), e = [];
+      for(let i = 0; i < 6; i++){
+        e.push([top[i], top[(i+1)%6]]);
+        e.push([bot[i], bot[(i+1)%6]]);
+        e.push([top[i], bot[i]]);
+      }
+      return e;
+    })(),
+    faces: (function(){
+      const top = "ABCDEF".split(""), bot = "GHIJKL".split("");
+      const f = [top.slice(), bot.slice()];
+      for(let i = 0; i < 6; i++)
+        f.push([top[i], top[(i+1)%6], bot[(i+1)%6], bot[i]]);
+      return f;
+    })()
+  }
+};
+
+let shapeKey = "cube";
+const S = () => SHAPES[shapeKey];
+const P = n => new THREE.Vector3(...S().verts[n]);
+const edgeName = e => e[0] + e[1];
+const faceName = f => f.join("");
+
+/* ---------- 위치 관계 판정 ---------- */
+function edgeRel(e1, e2){
+  if(edgeName(e1) === edgeName(e2)) return {k:"same"};
+  const shared = e1.filter(v => e2.indexOf(v) >= 0);
+  if(shared.length) return {k:"meet", at:shared[0]};
+  const d1 = P(e1[1]).clone().sub(P(e1[0]));
+  const d2 = P(e2[1]).clone().sub(P(e2[0]));
+  const cr = new THREE.Vector3().crossVectors(d1, d2);
+  if(cr.length() < 1e-6) return {k:"para"};
+  const w = P(e2[0]).clone().sub(P(e1[0]));
+  if(Math.abs(w.dot(cr)) < 1e-6) return {k:"cross"};   // 한 평면 위 — 연장하면 만난다
+  return {k:"skew"};
+}
+function faceNormal(f){
+  const a = P(f[0]), b = P(f[1]), c = P(f[2]);
+  return new THREE.Vector3().crossVectors(b.clone().sub(a), c.clone().sub(a)).normalize();
+}
+function edgeFaceRel(e, f){
+  const inFace = e.every(v => f.indexOf(v) >= 0);
+  if(inFace) return {k:"in"};
+  const n = faceNormal(f);
+  const d = P(e[1]).clone().sub(P(e[0])).normalize();
+  if(Math.abs(n.dot(d)) < 1e-6){
+    /* 방향이 면과 나란함 → 면 위에 있지 않으므로 평행 */
+    return {k:"para"};
+  }
+  const perp = new THREE.Vector3().crossVectors(n, d).length() < 1e-6;
+  const shared = e.filter(v => f.indexOf(v) >= 0);
+  return {k:"meet", perp, at:shared[0] || null};
+}
+
+/* ============================================================
+   2. Three.js 무대
+   ============================================================ */
+const canvas = $("gl"), labelBox = $("labels");
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+
+const COL = {
+  edge:0x8d99b3, edgeHi:0x1d2433,
+  p1:0xe5484d, p2:0x3e63dd,
+  vert:0x5b6a8a, face:0x9fc4f0, faceHi:0xf5820b, plane:0x8e4ec6,
+  quizPick:0x2f9e63
+};
+let group = new THREE.Group();
+scene.add(group);
+let edgeMeshes = [], faceMeshes = [], vertMeshes = [], planeMesh = null;
+let vertLabels = {};
+
+/* 두 점을 잇는 굵은 막대 */
+function makeEdge(a, b, r){
+  const A = P(a), B = P(b);
+  const dir = B.clone().sub(A);
+  const g = new THREE.CylinderGeometry(r, r, dir.length(), 14);
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({color:COL.edge}));
+  m.position.copy(A.clone().add(B).multiplyScalar(0.5));
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+  return m;
+}
+/* 다각형 면 (부채꼴 삼각분할) */
+function makeFace(f){
+  const pos = [];
+  for(let i = 1; i < f.length - 1; i++){
+    [f[0], f[i], f[i+1]].forEach(n => { const p = P(n); pos.push(p.x, p.y, p.z); });
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+    color:COL.face, transparent:true, opacity:0.22, side:THREE.DoubleSide, depthWrite:false
+  }));
+}
+
+function buildShape(){
+  while(group.children.length) group.remove(group.children[0]);
+  edgeMeshes = []; faceMeshes = []; vertMeshes = [];
+  planeMesh = null;
+  labelBox.innerHTML = ""; vertLabels = {};
+
+  S().faces.forEach(f => {
+    const m = makeFace(f);
+    m.userData = {type:"face", f};
+    group.add(m); faceMeshes.push(m);
+  });
+  S().edges.forEach(e => {
+    const m = makeEdge(e[0], e[1], 0.045);
+    m.userData = {type:"edge", e};
+    group.add(m); edgeMeshes.push(m);
+  });
+  Object.keys(S().verts).forEach(n => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12),
+                             new THREE.MeshBasicMaterial({color:COL.vert}));
+    m.position.copy(P(n));
+    group.add(m); vertMeshes.push(m);
+    const d = document.createElement("div");
+    d.className = "vlab"; d.textContent = n;
+    labelBox.appendChild(d); vertLabels[n] = d;
+  });
+  /* 다음 프레임을 그리기 전에 눌러도 맞도록 월드 좌표를 미리 갱신해 둔다 */
+  scene.updateMatrixWorld(true);
+  clearPicks();
+}
+
+/* 두 직선을 품는 평면 (평행하거나 한 평면 위일 때만) */
+function showPlane(e1, e2){
+  hidePlane();
+  const d1 = P(e1[1]).clone().sub(P(e1[0]));
+  const d2 = P(e2[1]).clone().sub(P(e2[0]));
+  let n = new THREE.Vector3().crossVectors(d1, d2);
+  if(n.length() < 1e-6){                       // 평행이면 다른 벡터로 법선을 만든다
+    n = new THREE.Vector3().crossVectors(d1, P(e2[0]).clone().sub(P(e1[0])));
+  }
+  if(n.length() < 1e-6) return;
+  n.normalize();
+  const center = P(e1[0]).clone().add(P(e1[1])).add(P(e2[0])).add(P(e2[1])).multiplyScalar(0.25);
+  const g = new THREE.PlaneGeometry(4.6, 4.6);
+  planeMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+    color:COL.plane, transparent:true, opacity:0.2, side:THREE.DoubleSide, depthWrite:false
+  }));
+  planeMesh.position.copy(center);
+  planeMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
+  group.add(planeMesh);
+}
+function hidePlane(){
+  if(planeMesh){ group.remove(planeMesh); planeMesh = null; }
+}
+
+/* ---------- 카메라 조작 ---------- */
+let rot = {th:0.75, ph:0.42}, distCam = 7.4;
+function placeCamera(){
+  camera.position.set(
+    distCam*Math.cos(rot.ph)*Math.sin(rot.th),
+    distCam*Math.sin(rot.ph),
+    distCam*Math.cos(rot.ph)*Math.cos(rot.th)
+  );
+  camera.lookAt(0, 0, 0);
+}
+/* 캔버스가 아니라 바깥 상자를 재야 크기가 되먹임으로 커지지 않는다 */
+const stage = document.querySelector(".stage");
+let VW = 0, VH = 0;
+function resize(){
+  const r = stage.getBoundingClientRect();
+  const w = Math.round(r.width), h = Math.round(r.height);
+  if(!w || !h || (w === VW && h === VH)) return;
+  VW = w; VH = h;
+  renderer.setSize(w, h);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+function updateLabels(){
+  const w = VW, h = VH;
+  Object.keys(vertLabels).forEach(n => {
+    const v = P(n).clone().multiplyScalar(1.16).project(camera);
+    const el = vertLabels[n];
+    el.style.left = ((v.x + 1)/2*w) + "px";
+    el.style.top  = ((-v.y + 1)/2*h) + "px";
+    el.style.opacity = (v.z > 1) ? 0 : 1;
+  });
+}
+function render(){
+  placeCamera();
+  renderer.render(scene, camera);
+  updateLabels();
+  requestAnimationFrame(render);
+}
+
+/* ============================================================
+   3. 고르기 · 판정
+   ============================================================ */
+let mode = "edge";
+let pick1 = null, pick2 = null;      // {type:'edge'|'face', e|f}
+let quiz = {base:null, kind:"skew", picked:[], tries:0, ok:0, streak:0, done:false};
+
+function paint(){
+  edgeMeshes.forEach(m => {
+    const nm = edgeName(m.userData.e);
+    let c = COL.edge, r = 0.045;
+    if(pick1 && pick1.type === "edge" && edgeName(pick1.e) === nm){ c = COL.p1; r = 0.075; }
+    else if(pick2 && pick2.type === "edge" && edgeName(pick2.e) === nm){ c = COL.p2; r = 0.075; }
+    else if(mode === "quiz"){
+      if(quiz.base && edgeName(quiz.base) === nm){ c = COL.p1; r = 0.075; }
+      else if(quiz.picked.indexOf(nm) >= 0){ c = COL.quizPick; r = 0.07; }
+    }
+    m.material.color.setHex(c);
+    const want = r/0.045;
+    m.scale.set(want, 1, want);
+  });
+  faceMeshes.forEach(m => {
+    const nm = faceName(m.userData.f);
+    const on = (pick2 && pick2.type === "face" && faceName(pick2.f) === nm) ||
+               (pick1 && pick1.type === "face" && faceName(pick1.f) === nm);
+    m.material.color.setHex(on ? COL.faceHi : COL.face);
+    m.material.opacity = on ? 0.42 : 0.16;
+  });
+}
+
+function clearPicks(){
+  pick1 = pick2 = null;
+  hidePlane();
+  $("e1").textContent = "?"; $("e1").className = "pick p1";
+  $("e2").textContent = "?"; $("e2").className = "pick p2";
+  $("f1").textContent = "?"; $("f1").className = "pick p1";
+  $("f2").textContent = "?"; $("f2").className = "pick p2";
+  $("edgeVerdict").innerHTML = "";
+  $("faceVerdict").innerHTML = "";
+  paint();
+}
+
+function onPick(obj){
+  const u = obj.userData;
+  if(mode === "quiz"){
+    if(u.type !== "edge") return;
+    const nm = edgeName(u.e);
+    if(quiz.base && edgeName(quiz.base) === nm) return;
+    const i = quiz.picked.indexOf(nm);
+    if(i >= 0) quiz.picked.splice(i, 1); else quiz.picked.push(nm);
+    renderQuizPicked(); paint();
+    return;
+  }
+  if(mode === "edge"){
+    if(u.type !== "edge") return;
+    if(!pick1) pick1 = {type:"edge", e:u.e};
+    else if(!pick2){
+      if(edgeName(pick1.e) === edgeName(u.e)) return;
+      pick2 = {type:"edge", e:u.e};
+    }else{ pick1 = {type:"edge", e:u.e}; pick2 = null; hidePlane(); }
+    $("e1").textContent = pick1 ? "모서리 " + edgeName(pick1.e) : "?";
+    $("e1").className = "pick p1" + (pick1 ? " set" : "");
+    $("e2").textContent = pick2 ? "모서리 " + edgeName(pick2.e) : "?";
+    $("e2").className = "pick p2" + (pick2 ? " set" : "");
+    $("edgeVerdict").innerHTML = (pick1 && pick2) ? edgeVerdictHTML(pick1.e, pick2.e) : "";
+    if(!(pick1 && pick2)) hidePlane();
+  }else{
+    if(u.type === "edge"){ pick1 = {type:"edge", e:u.e}; }
+    else { pick2 = {type:"face", f:u.f}; }
+    $("f1").textContent = pick1 ? "모서리 " + edgeName(pick1.e) : "?";
+    $("f1").className = "pick p1" + (pick1 ? " set" : "");
+    $("f2").textContent = pick2 ? "면 " + faceName(pick2.f) : "?";
+    $("f2").className = "pick p2" + (pick2 ? " set" : "");
+    $("faceVerdict").innerHTML = (pick1 && pick2) ? faceVerdictHTML(pick1.e, pick2.f) : "";
+  }
+  paint();
+}
+
+function edgeVerdictHTML(e1, e2){
+  const r = edgeRel(e1, e2);
+  const n1 = edgeName(e1), n2 = edgeName(e2);
+  if(r.k === "meet")
+    return `<div class="verdict meet"><div class="k">한 점에서 만난다</div>
+      <div class="d">두 모서리가 꼭짓점 <b>${r.at}</b> 에서 만나요.</div></div>`;
+  if(r.k === "para")
+    return `<div class="verdict para"><div class="k">평행하다</div>
+      <div class="d">한 평면 위에 있으면서 만나지 않아요. 기호로 <b>${n1} ∥ ${n2}</b> 예요.</div></div>`;
+  if(r.k === "cross")
+    return `<div class="verdict meet"><div class="k">한 평면 위에 있다</div>
+      <div class="d">두 모서리가 <b>한 평면 위</b>에 있어요. 직선으로 늘이면 한 점에서 만나므로
+      <b>꼬인 위치가 아니에요.</b></div></div>`;
+  return `<div class="verdict skew"><div class="k">꼬인 위치에 있다</div>
+    <div class="d">만나지도 않고 평행하지도 않아요. 두 모서리는 <b>한 평면 위에 있지 않아요.</b>
+    도형을 돌려서 확인해 보세요.</div></div>`;
+}
+function faceVerdictHTML(e, f){
+  const r = edgeFaceRel(e, f);
+  const ne = edgeName(e), nf = faceName(f);
+  if(r.k === "in")
+    return `<div class="verdict inface"><div class="k">면에 포함된다</div>
+      <div class="d">모서리 ${ne} 가 면 ${nf} 위에 <b>통째로 놓여</b> 있어요.</div></div>`;
+  if(r.k === "para")
+    return `<div class="verdict para"><div class="k">평행하다</div>
+      <div class="d">모서리 ${ne} 와 면 ${nf} 은 만나지 않아요. 기호로 <b>${ne} ∥ 면 ${nf}</b> 예요.</div></div>`;
+  return `<div class="verdict meet"><div class="k">한 점에서 만난다${r.perp ? " (수직)" : ""}</div>
+    <div class="d">${r.at ? `꼭짓점 <b>${r.at}</b> 에서 만나요. ` : ""}
+    ${r.perp ? `이때 모서리와 면은 <b>수직</b>이에요. 기호로 <b>${ne} ⊥ 면 ${nf}</b>.`
+             : `수직은 아니에요.`}</div></div>`;
+}
+
+/* ---------- 활동 3 ---------- */
+const KIND_KO = {skew:"꼬인 위치에 있는", para:"평행한", meet:"한 점에서 만나는"};
+function newQuiz(){
+  const keys = Object.keys(SHAPES);
+  setShape(keys[Math.floor(Math.random()*keys.length)], true);
+  const kinds = ["skew", "para", "meet"];
+  for(let t = 0; t < 40; t++){
+    const kind = kinds[Math.floor(Math.random()*kinds.length)];
+    const base = S().edges[Math.floor(Math.random()*S().edges.length)];
+    const ans = S().edges.filter(e => edgeRel(base, e).k === kind).map(edgeName);
+    if(ans.length >= 1 && ans.length <= 6){
+      quiz.base = base; quiz.kind = kind; quiz.picked = []; quiz.done = false;
+      $("quizAsk").innerHTML =
+        `<b>${S().label}</b>에서 <b>모서리 ${edgeName(base)}</b>와 ` +
+        `<b>${KIND_KO[kind]}</b> 모서리를 <b>모두</b> 찾아 눌러 보세요.`;
+      $("quizFb").innerHTML = "";
+      renderQuizPicked(); paint();
+      return;
+    }
+  }
+}
+function quizAnswer(){
+  return S().edges.filter(e => edgeRel(quiz.base, e).k === quiz.kind).map(edgeName);
+}
+function renderQuizPicked(){
+  $("quizPicked").innerHTML = quiz.picked.length
+    ? `<div class="fb info">고른 모서리 : <b>${quiz.picked.join(", ")}</b> (${quiz.picked.length}개)</div>`
+    : `<div class="fb info">아직 고른 모서리가 없어요. 도형에서 눌러 보세요.</div>`;
+}
+
+/* ============================================================
+   4. 입력
+   ============================================================ */
+const ray = new THREE.Raycaster();
+let down = null, moved = false;
+
+canvas.addEventListener("pointerdown", ev => {
+  down = {x:ev.clientX, y:ev.clientY, th:rot.th, ph:rot.ph};
+  moved = false;
+  canvas.classList.add("drag");
+  try{ canvas.setPointerCapture(ev.pointerId); }catch(e){}
+});
+canvas.addEventListener("pointermove", ev => {
+  if(!down) return;
+  const dx = ev.clientX - down.x, dy = ev.clientY - down.y;
+  if(Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+  rot.th = down.th - dx*0.008;
+  rot.ph = Math.max(-1.35, Math.min(1.35, down.ph + dy*0.008));
+});
+canvas.addEventListener("pointerup", ev => {
+  canvas.classList.remove("drag");
+  if(down && !moved) doPick(ev);
+  down = null;
+});
+canvas.addEventListener("pointercancel", () => { down = null; canvas.classList.remove("drag"); });
+canvas.addEventListener("wheel", ev => {
+  ev.preventDefault();
+  distCam = Math.max(4.2, Math.min(12, distCam + (ev.deltaY > 0 ? 0.5 : -0.5)));
+}, {passive:false});
+
+/* 같은 자리를 다시 누르면 그 뒤에 있는 모서리·면이 차례로 골라진다 */
+let lastHit = {x:-999, y:-999, i:0};
+function doPick(ev){
+  const r = canvas.getBoundingClientRect();
+  const m = new THREE.Vector2(
+    ((ev.clientX - r.left)/r.width)*2 - 1,
+    -((ev.clientY - r.top)/r.height)*2 + 1
+  );
+  ray.setFromCamera(m, camera);
+  const targets = (mode === "face") ? edgeMeshes.concat(faceMeshes) : edgeMeshes;
+  const hits = ray.intersectObjects(targets, false);
+  if(!hits.length) return;
+  const same = Math.abs(ev.clientX - lastHit.x) < 7 && Math.abs(ev.clientY - lastHit.y) < 7;
+  const i = same ? (lastHit.i + 1) % hits.length : 0;
+  lastHit = {x:ev.clientX, y:ev.clientY, i};
+  onPick(hits[i].object);
+}
+
+/* ============================================================
+   5. 버튼
+   ============================================================ */
+function setShape(k, quiet){
+  shapeKey = k;
+  document.querySelectorAll("#shapes button").forEach(b =>
+    b.classList.toggle("on", b.dataset.k === k));
+  buildShape();
+  if(!quiet && mode === "quiz") newQuiz();
+}
+(function buildShapeButtons(){
+  const w = $("shapes");
+  Object.keys(SHAPES).forEach(k => {
+    const b = document.createElement("button");
+    b.textContent = SHAPES[k].label; b.dataset.k = k;
+    b.addEventListener("click", () => { setShape(k); if(mode === "quiz") newQuiz(); });
+    w.appendChild(b);
+  });
+})();
+$("reset").addEventListener("click", () => { rot = {th:0.75, ph:0.42}; distCam = 7.4; });
+$("btnClear").addEventListener("click", clearPicks);
+$("btnClear2").addEventListener("click", clearPicks);
+$("btnPlane").addEventListener("click", e => {
+  if(!(pick1 && pick2 && pick1.type === "edge" && pick2.type === "edge")){
+    $("edgeVerdict").insertAdjacentHTML("beforeend",
+      `<div class="fb warn">먼저 모서리 두 개를 골라 주세요.</div>`);
+    return;
+  }
+  const r = edgeRel(pick1.e, pick2.e);
+  if(r.k === "skew"){
+    $("edgeVerdict").insertAdjacentHTML("beforeend",
+      `<div class="fb warn">두 모서리는 <b>꼬인 위치</b>라서 둘을 함께 품는 평면이 <b>없어요.</b>
+       이것이 바로 꼬인 위치의 뜻이에요!</div>`);
+    return;
+  }
+  if(planeMesh){ hidePlane(); e.currentTarget.classList.remove("on"); e.currentTarget.textContent = "🟪 한 평면 보기"; }
+  else { showPlane(pick1.e, pick2.e); e.currentTarget.classList.add("on"); e.currentTarget.textContent = "🟪 평면 숨기기"; }
+});
+
+$("btnQuizCheck").addEventListener("click", () => {
+  if(quiz.done) return;
+  const want = quizAnswer().slice().sort();
+  const got = quiz.picked.slice().sort();
+  const ok = want.length === got.length && want.every((v, i) => v === got[i]);
+  quiz.done = true; quiz.tries++;
+  if(ok){ quiz.ok++; quiz.streak++; } else { quiz.streak = 0; }
+  const missed = want.filter(v => got.indexOf(v) < 0);
+  const extra = got.filter(v => want.indexOf(v) < 0);
+  $("quizFb").innerHTML =
+    `<div class="fb ${ok ? "ok" : "no"}">` +
+    (ok ? `🎉 정답! 모서리 <b>${want.join(", ")}</b> 예요.`
+        : `아쉬워요. 정답은 <b>${want.join(", ")}</b> 예요.` +
+          (missed.length ? `<br>놓친 것 : <b>${missed.join(", ")}</b>` : "") +
+          (extra.length  ? `<br>잘못 고른 것 : <b>${extra.join(", ")}</b>` : "")) +
+    `</div>`;
+  $("qTry").textContent = quiz.tries; $("qOk").textContent = quiz.ok; $("qStreak").textContent = quiz.streak;
+});
+$("btnQuizNext").addEventListener("click", newQuiz);
+
+document.querySelectorAll("header nav button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("header nav button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    mode = b.dataset.tab;
+    $("pEdge").classList.toggle("hidden", mode !== "edge");
+    $("pFace").classList.toggle("hidden", mode !== "face");
+    $("pQuiz").classList.toggle("hidden", mode !== "quiz");
+    clearPicks();
+    $("tip").textContent = mode === "face"
+      ? "드래그: 회전 · 휠: 확대 · 모서리와 면을 누르기 (같은 자리를 다시 누르면 뒤에 있는 것)"
+      : "드래그: 회전 · 휠: 확대 · 모서리를 누르기 (같은 자리를 다시 누르면 뒤에 있는 것)";
+    if(mode === "quiz") newQuiz();
+    paint();
+  });
+});
+
+/* ============================================================
+   6. 시작
+   ============================================================ */
+function boot(){
+  buildShape();
+  setShape("cube", true);
+  resize();
+  if(window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+  window.addEventListener("resize", resize);
+  $("tip").textContent = "드래그: 회전 · 휠: 확대 · 모서리를 누르기 (같은 자리를 다시 누르면 뒤에 있는 것)";
+  render();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
