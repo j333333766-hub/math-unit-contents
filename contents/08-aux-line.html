@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>보조선 도전 — 평행선 사이의 꺾인 각</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js" data-home="../index.html" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 352px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn:disabled{opacity:.45; cursor:not-allowed;}
+
+  .steps{margin-top:6px;}
+  .steps .st{
+    display:flex; gap:9px; align-items:flex-start; padding:9px 0;
+    border-top:1px dashed var(--line); font-size:13.5px; line-height:1.55; color:var(--sub);
+  }
+  .steps .st:first-child{border-top:none;}
+  .steps .st .no{
+    flex:none; width:22px; height:22px; border-radius:50%; margin-top:1px;
+    background:#eef0f5; color:var(--sub);
+    display:grid; place-items:center; font-size:12px; font-weight:800;
+  }
+  .steps .st.on{color:var(--ink);}
+  .steps .st.on .no{background:var(--accent-soft); color:var(--accent);}
+  .steps .st.done .no{background:var(--ok-soft); color:var(--ok);}
+  .steps .st b{color:var(--ink);}
+
+  .slider{margin-top:10px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label .v{font-size:14px;}
+  .s-a input{accent-color:#2f9e63;} .s-a .v{color:#2f9e63;}
+  .s-b input{accent-color:#f5820b;} .s-b .v{color:#f5820b;}
+  input[type=range]{width:100%;}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .ansrow{display:flex; align-items:center; gap:8px; margin-top:10px;}
+  .ansrow .lab{font:italic 700 19px 'Times New Roman',serif;}
+  .ansrow input{
+    width:96px; font:700 17px var(--font); padding:9px 10px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+  .ansrow .unit{font-size:15px; font-weight:700; color:var(--sub);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>✏️ 보조선 도전</h1>
+  <nav>
+    <button class="on" data-tab="learn">① 보조선 그어 보기</button>
+    <button data-tab="solve">② 스스로 풀기</button>
+  </nav>
+  <a class="home-btn" href="../index.html">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap"><canvas id="board"></canvas></div>
+
+  <aside>
+    <!-- ============ ① 배우기 ============ -->
+    <section id="pLearn">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 어떻게 구할까?</h2>
+        <p><b><i>l</i> ∥ <i>m</i></b> 일 때 <b>∠x</b> 의 크기를 구해 봅시다.
+           그냥은 잘 안 보이죠? <b>보조선</b> 하나면 풀립니다. (교과서 154쪽)</p>
+        <div class="steps" id="steps">
+          <div class="st on"><div class="no">1</div><div>꺾인 점 <b>P</b> 를 지나면서 <b><i>l</i> 에 평행한</b> 보조선을 긋는다.</div></div>
+          <div class="st"><div class="no">2</div><div>보조선과 <i>l</i> 사이의 <b>엇각</b>이 같으므로 위쪽 각 = <b id="s2">∠a</b></div></div>
+          <div class="st"><div class="no">3</div><div>보조선과 <i>m</i> 사이의 <b>엇각</b>이 같으므로 아래쪽 각 = <b id="s3">∠b</b></div></div>
+          <div class="st"><div class="no">4</div><div><b id="s4">∠x = ∠a + ∠b</b></div></div>
+        </div>
+        <div class="row" style="margin-top:11px;">
+          <button class="btn primary" id="btnStep">➊ 보조선 긋기</button>
+          <button class="btn sm" id="btnReset">🔄 처음부터</button>
+        </div>
+        <div id="learnFb"></div>
+      </div>
+      <div class="blk">
+        <h2>각 바꿔 보기</h2>
+        <p>값을 바꿔도 <b>∠x = ∠a + ∠b</b> 가 늘 성립하는지 확인해 보세요.</p>
+        <div class="slider s-a">
+          <label><span>∠a</span><span class="v" id="va">40°</span></label>
+          <input type="range" id="ra" min="20" max="65" step="1" value="40">
+        </div>
+        <div class="slider s-b">
+          <label><span>∠b</span><span class="v" id="vb">35°</span></label>
+          <input type="range" id="rb" min="20" max="65" step="1" value="35">
+        </div>
+        <div class="fb info" id="sumBox"></div>
+      </div>
+      <div class="blk">
+        <h2>왜 평행한 보조선일까?</h2>
+        <p>보조선이 <i>l</i> 과 평행하면 <i>m</i> 과도 평행해요.
+           그래야 <b>엇각</b>을 두 번 쓸 수 있어서 ∠x 가 두 조각으로 깔끔하게 나뉩니다.
+           아무 방향으로나 그으면 쓸 수 있는 성질이 없어요.</p>
+      </div>
+    </section>
+
+    <!-- ============ ② 스스로 풀기 ============ -->
+    <section id="pSolve" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 스스로 풀기</h2>
+        <p id="solveAsk"></p>
+        <div class="ansrow">
+          <span class="lab">∠x =</span>
+          <input type="number" id="solveIn" placeholder="?" inputmode="numeric">
+          <span class="unit">°</span>
+        </div>
+        <div id="solveFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnCheck">✅ 확인</button>
+          <button class="btn sm" id="btnHint">💡 보조선 힌트</button>
+          <button class="btn sm" id="btnNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>어느 쪽으로 꺾여도</h2>
+        <p>꺾인 점이 <b>왼쪽</b>에 있든 <b>오른쪽</b>에 있든,
+           <b>P 를 지나면서 <i>l</i> 에 평행한 보조선</b>을 그으면
+           ∠x 가 두 조각으로 나뉘고 각각 <b>엇각</b>으로 ∠a, ∠b 와 같아요.
+           그래서 늘 <b>∠x = ∠a + ∠b</b> 입니다.</p>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const DW = 900, DH = 560;
+const INK = "#1d2433", SUB = "#68738a";
+const BLUE = "#3e63dd", GREEN = "#2f9e63", ORANGE = "#f5820b", PURPLE = "#8e4ec6", RED = "#e5484d";
+const rad = d => d*Math.PI/180;
+let tab = "learn";
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+function seg(a, b, color, w, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.restore();
+}
+function dot(P, color, r){
+  ctx.fillStyle = "#fff"; ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(P.x, P.y, r || 7, 0, 7); ctx.fill(); ctx.stroke();
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function ital(t, x, y, color, size){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "italic 700 " + size + "px 'Times New Roman', serif";
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+/* 두 점 방향 사이의 각 호 (P 를 꼭짓점으로 Q → R) */
+function arcAt(P, Q, R, radius, color, label){
+  const a1 = Math.atan2(-(Q.y - P.y), Q.x - P.x);
+  const a2 = Math.atan2(-(R.y - P.y), R.x - P.x);
+  let d = a2 - a1;
+  while(d <= -Math.PI) d += 2*Math.PI;
+  while(d > Math.PI) d -= 2*Math.PI;
+  ctx.beginPath(); ctx.moveTo(P.x, P.y);
+  ctx.arc(P.x, P.y, radius, -a1, -(a1 + d), d > 0);
+  ctx.closePath();
+  ctx.fillStyle = color + "30"; ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 2.8; ctx.stroke();
+  if(label){
+    const mid = a1 + d/2;
+    txt(label, P.x + Math.cos(mid)*(radius + 30), P.y - Math.sin(mid)*(radius + 30), color, 19, true);
+  }
+}
+
+/* ============================================================
+   기하 — l ∥ m 사이에서 한 번 꺾인 선
+   P 는 왼쪽, A 는 l 위, B 는 m 위(둘 다 P 의 오른쪽)
+   ∠x = ∠a + ∠b  (안쪽으로 꺾인 모양)
+   ============================================================ */
+const YL = 130, YM = 430;
+const P0 = {x:250, y:290};
+
+function figure(a, b, outward){
+  const P = {x:P0.x, y:P0.y};
+  const A = {x:P.x + (P.y - YL)/Math.tan(rad(a)), y:YL};
+  const B = outward
+    ? {x:P.x + (YM - P.y)/Math.tan(rad(b)), y:YM}      /* 바깥쪽 모양에서도 계산식은 같다 */
+    : {x:P.x + (YM - P.y)/Math.tan(rad(b)), y:YM};
+  return {P, A, B};
+}
+
+/* ============================================================
+   ① 배우기
+   ============================================================ */
+let La = 40, Lb = 35, step = 0;
+
+function drawLearn(){
+  const {P, A, B} = figure(La, Lb);
+  /* 평행선 */
+  seg({x:40, y:YL}, {x:860, y:YL}, BLUE, 4.6);
+  seg({x:40, y:YM}, {x:860, y:YM}, BLUE, 4.6);
+  ital("l", 62, YL - 26, BLUE, 26);
+  ital("m", 62, YM + 28, BLUE, 26);
+  /* 평행 표시 */
+  [[YL], [YM]].forEach(([y]) => {
+    ctx.strokeStyle = BLUE; ctx.lineWidth = 3; ctx.lineCap = "round";
+    for(const s of [0, 14]){
+      ctx.beginPath();
+      ctx.moveTo(770 + s, y - 8); ctx.lineTo(780 + s, y); ctx.lineTo(770 + s, y + 8);
+      ctx.stroke();
+    }
+  });
+
+  /* 보조선 */
+  if(step >= 1){
+    seg({x:60, y:P.y}, {x:840, y:P.y}, PURPLE, 3, [9,7]);
+    txt("보조선", 120, P.y - 20, PURPLE, 16, true);
+    ctx.strokeStyle = PURPLE; ctx.lineWidth = 3;
+    for(const s of [0, 14]){
+      ctx.beginPath();
+      ctx.moveTo(770 + s, P.y - 8); ctx.lineTo(780 + s, P.y); ctx.lineTo(770 + s, P.y + 8);
+      ctx.stroke();
+    }
+  }
+
+  /* 꺾인 선 */
+  seg(A, P, INK, 5); seg(P, B, INK, 5);
+
+  /* 각 표시 */
+  arcAt(A, {x:A.x - 100, y:A.y}, P, 44, GREEN, step >= 1 ? "" : (La + "°"));
+  if(step < 1) txt("∠a = " + La + "°", A.x - 78, A.y + 40, GREEN, 18, true);
+  else txt(La + "°", A.x - 62, A.y + 36, GREEN, 18, true);
+
+  arcAt(B, P, {x:B.x - 100, y:B.y}, 44, ORANGE, "");
+  txt(Lb + "°", B.x - 62, B.y - 36, ORANGE, 18, true);
+
+  if(step >= 2) arcAt(P, {x:P.x + 100, y:P.y}, A, 52, GREEN, La + "°");
+  if(step >= 3) arcAt(P, B, {x:P.x + 100, y:P.y}, 74, ORANGE, Lb + "°");
+  if(step >= 4){
+    arcAt(P, B, A, 108, RED, "");
+    txt("∠x = " + (La + Lb) + "°", P.x + 150, P.y, RED, 22, true);
+  }else if(step === 0){
+    arcAt(P, B, A, 60, RED, "");
+    txt("∠x = ?", P.x + 108, P.y, RED, 21, true);
+  }
+
+  dot(A, INK, 7); dot(B, INK, 7); dot(P, RED, 8);
+  ital("A", A.x + 22, A.y - 20, INK, 22);
+  ital("B", B.x + 22, B.y + 22, INK, 22);
+  ital("P", P.x - 26, P.y + 6, RED, 23);
+}
+function updateLearn(){
+  $("va").textContent = La + "°"; $("vb").textContent = Lb + "°";
+  $("s2").textContent = "∠a = " + La + "°";
+  $("s3").textContent = "∠b = " + Lb + "°";
+  $("s4").innerHTML = `∠x = ∠a + ∠b = ${La}° + ${Lb}° = <b>${La + Lb}°</b>`;
+  $("sumBox").innerHTML = `지금은 ∠a = <b>${La}°</b>, ∠b = <b>${Lb}°</b> 이므로 ∠x = <b>${La + Lb}°</b> 예요.`;
+  document.querySelectorAll("#steps .st").forEach((el, i) => {
+    el.classList.toggle("done", i < step);
+    el.classList.toggle("on", i === step);
+  });
+  const labels = ["➊ 보조선 긋기", "➋ 위쪽 엇각 보기", "➌ 아래쪽 엇각 보기", "➍ 답 구하기", "✅ 다 했어요"];
+  $("btnStep").textContent = labels[Math.min(step, 4)];
+  $("btnStep").disabled = step >= 4;
+  $("learnFb").innerHTML = step >= 4
+    ? `<div class="fb ok">🎉 보조선 하나로 ∠x 가 <b>${La}° + ${Lb}° = ${La + Lb}°</b> 임을 알아냈어요!</div>`
+    : "";
+  draw();
+}
+$("btnStep").addEventListener("click", () => { if(step < 4){ step++; updateLearn(); } });
+$("btnReset").addEventListener("click", () => { step = 0; updateLearn(); });
+$("ra").addEventListener("input", e => { La = +e.target.value; updateLearn(); });
+$("rb").addEventListener("input", e => { Lb = +e.target.value; updateLearn(); });
+
+/* ============================================================
+   ② 스스로 풀기
+   ============================================================ */
+let S = {a:0, b:0, mirror:false, hint:false, done:false, tries:0, ok:0, streak:0};
+function newSolve(){
+  /* 꺾인 방향(왼쪽/오른쪽)만 바꿔 가며 낸다. 어느 쪽이든 ∠x = ∠a + ∠b */
+  S.mirror = Math.random() < 0.5;
+  S.a = 20 + Math.floor(Math.random()*8)*5;
+  S.b = 20 + Math.floor(Math.random()*8)*5;
+  S.hint = false; S.done = false;
+  $("btnHint").classList.remove("on");
+  $("solveAsk").innerHTML = `<b><i>l</i> ∥ <i>m</i></b> 일 때 <b>∠x</b> 의 크기를 구하세요.`;
+  const inp = $("solveIn"); inp.value = ""; inp.className = "";
+  $("solveFb").innerHTML = "";
+  draw();
+}
+const solveAnswer = () => S.a + S.b;
+
+function drawSolve(){
+  seg({x:40, y:YL}, {x:860, y:YL}, BLUE, 4.6);
+  seg({x:40, y:YM}, {x:860, y:YM}, BLUE, 4.6);
+  ital("l", 62, YL - 26, BLUE, 26);
+  ital("m", 62, YM + 28, BLUE, 26);
+
+  const sgn = S.mirror ? -1 : 1;                 // -1 이면 꺾인 점이 오른쪽
+  const P = {x:S.mirror ? 660 : 250, y:290};
+  const A = {x:P.x + sgn*(P.y - YL)/Math.tan(rad(S.a)), y:YL};
+  const B = {x:P.x + sgn*(YM - P.y)/Math.tan(rad(S.b)), y:YM};
+
+  if(S.hint){
+    seg({x:60, y:P.y}, {x:840, y:P.y}, PURPLE, 3, [9,7]);
+    txt("보조선", S.mirror ? 800 : 120, P.y - 20, PURPLE, 16, true);
+  }
+  seg(A, P, INK, 5); seg(P, B, INK, 5);
+
+  /* ∠a : 직선 l 을 따라 P 쪽 반대 방향으로 잰다 */
+  arcAt(A, {x:A.x - sgn*100, y:A.y}, P, 44, GREEN, "");
+  txt(S.a + "°", A.x - sgn*62, A.y + 36, GREEN, 18, true);
+  arcAt(B, P, {x:B.x - sgn*100, y:B.y}, 44, ORANGE, "");
+  txt(S.b + "°", B.x - sgn*62, B.y - 36, ORANGE, 18, true);
+
+  arcAt(P, B, A, 62, RED, "");
+  txt(S.done ? ("∠x = " + solveAnswer() + "°") : "∠x = ?",
+      P.x + sgn*128, P.y - 14, RED, 21, true);
+
+  dot(A, INK, 7); dot(B, INK, 7); dot(P, RED, 8);
+  ital("P", P.x - sgn*28, P.y + 6, RED, 23);
+}
+$("btnCheck").addEventListener("click", () => {
+  if(S.done) return;
+  const inp = $("solveIn");
+  if(inp.value === ""){ $("solveFb").innerHTML = `<div class="fb warn">답을 적어 주세요.</div>`; return; }
+  const want = solveAnswer();
+  const ok = Math.abs(+inp.value - want) < 0.5;
+  S.done = true; S.tries++;
+  if(ok){ S.ok++; S.streak++; } else { S.streak = 0; }
+  inp.className = ok ? "good" : "bad";
+  const why = `P 를 지나는 보조선을 그으면 ∠x 가 두 조각으로 나뉘고, 각각 <b>엇각</b>으로 ` +
+              `${S.a}°, ${S.b}° 예요. ∠x = ${S.a}° + ${S.b}° = <b>${want}°</b>.`;
+  $("solveFb").innerHTML = `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답! " : `아쉬워요. 답은 <b>${want}°</b>. `}${why}</div>`;
+  $("qTry").textContent = S.tries; $("qOk").textContent = S.ok; $("qStreak").textContent = S.streak;
+  S.hint = true;
+  draw();
+});
+$("btnHint").addEventListener("click", e => {
+  S.hint = !S.hint; e.currentTarget.classList.toggle("on", S.hint); draw();
+});
+$("btnNext").addEventListener("click", newSolve);
+$("solveIn").addEventListener("keydown", e => { if(e.key === "Enter") $("btnCheck").click(); });
+
+/* ============================================================
+   그리기 / 탭
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff"; ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);
+  if(tab === "learn") drawLearn(); else drawSolve();
+  ctx.restore();
+}
+document.querySelectorAll("header nav button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("header nav button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    $("pLearn").classList.toggle("hidden", tab !== "learn");
+    $("pSolve").classList.toggle("hidden", tab !== "solve");
+    if(tab === "learn") updateLearn(); else newSolve();
+  });
+});
+
+function boot(){
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  newSolve();
+  tab = "learn"; step = 0;
+  updateLearn();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
