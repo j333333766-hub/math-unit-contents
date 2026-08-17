@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>가상 작도판 — 눈금 없는 자와 컴퍼스</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js" data-home="../index.html" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 360px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0; display:flex; flex-direction:column;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+
+  /* 도구 막대 */
+  .tools{
+    display:flex; align-items:center; gap:5px; padding:8px 10px; flex:none; flex-wrap:wrap;
+    border-bottom:1px solid var(--line); background:#fbfcfe;
+  }
+  .tools .tool{
+    display:flex; align-items:center; gap:6px;
+    font:600 13px/1 var(--font); padding:8px 11px; border-radius:9px;
+    border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .tools .tool:hover{border-color:var(--accent); color:var(--accent);}
+  .tools .tool.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .tools .sep{width:1px; height:24px; background:var(--line); margin:0 3px;}
+  .tools .spacer{flex:1;}
+  .tools .compass-state{
+    font-size:12px; font-weight:700; padding:6px 11px; border-radius:999px;
+    background:#eef0f5; color:var(--sub); white-space:nowrap;
+  }
+  .tools .compass-state.armed{background:var(--warn-soft); color:#a75c00;}
+
+  .canvas-box{position:relative; flex:1; min-height:0;}
+  #board{width:100%; height:100%; display:block; touch-action:none; cursor:crosshair;}
+  #hintbar{
+    position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#ffffffd9; padding:6px 14px; border-radius:999px; border:1px solid var(--line);
+    pointer-events:none; white-space:nowrap; max-width:92%; overflow:hidden; text-overflow:ellipsis;
+  }
+  #hintbar:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+
+  .tasks{display:grid; gap:6px;}
+  .tasks .btn{text-align:left; padding:11px 12px;}
+  .tasks .btn .n{color:var(--sub); font-size:12px; margin-right:6px;}
+  .tasks .btn.done{background:var(--ok-soft); border-color:var(--ok); color:var(--ok);}
+
+  /* 단계 목록 */
+  .steps{margin-top:4px;}
+  .steps .st{
+    display:flex; gap:9px; align-items:flex-start; padding:9px 0;
+    border-top:1px dashed var(--line); font-size:13.5px; line-height:1.55; color:var(--sub);
+  }
+  .steps .st:first-child{border-top:none;}
+  .steps .st .no{
+    flex:none; width:22px; height:22px; border-radius:50%; margin-top:1px;
+    background:#eef0f5; color:var(--sub);
+    display:grid; place-items:center; font-size:12px; font-weight:800;
+  }
+  .steps .st.on{color:var(--ink); font-weight:600;}
+  .steps .st.on .no{background:var(--accent); color:#fff;}
+  .steps .st.done{color:var(--ok);}
+  .steps .st.done .no{background:var(--ok-soft); color:var(--ok);}
+  .steps .st b{color:var(--ink);}
+  .steps .st.done b{color:var(--ok);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:58vh; min-height:360px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+    .tools .tool{padding:8px 9px; font-size:12.5px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🧭 가상 작도판</h1>
+  <nav>
+    <button class="on" data-tab="guide">① 따라 하기</button>
+    <button data-tab="free">② 자유 작도</button>
+  </nav>
+  <a class="home-btn" href="../index.html">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <div class="tools" id="tools">
+      <button class="tool on" data-tool="point">📍 점</button>
+      <button class="tool" data-tool="seg">📏 선분</button>
+      <button class="tool" data-tool="ray">↗ 반직선</button>
+      <button class="tool" data-tool="line">↔ 직선</button>
+      <button class="tool" data-tool="compass">🧭 컴퍼스</button>
+      <button class="tool" id="btnRemeasure">↺ 다시 재기</button>
+      <div class="sep"></div>
+      <button class="tool" data-tool="erase">🧹 지우개</button>
+      <button class="tool" id="btnUndo">↩︎ 되돌리기</button>
+      <button class="tool" id="btnClear">전체 지우기</button>
+      <div class="spacer"></div>
+      <div class="compass-state" id="compassState">컴퍼스: 안 잼</div>
+    </div>
+    <div class="canvas-box">
+      <canvas id="board"></canvas>
+      <div id="hintbar"></div>
+    </div>
+  </div>
+
+  <aside>
+    <!-- ============ ① 따라 하기 ============ -->
+    <section id="pGuide">
+      <div class="blk">
+        <h2><span class="tag">따라 하기</span> 무엇을 작도할까요?</h2>
+        <div class="tasks" id="taskList"></div>
+      </div>
+      <div class="blk">
+        <h2 id="guideTitle">순서대로 해 보세요</h2>
+        <div class="steps" id="stepList"></div>
+        <div id="guideFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnHint">💡 힌트</button>
+          <button class="btn sm" id="btnRestart">🔄 처음부터</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>작도란</h2>
+        <p><b>눈금 없는 자</b>와 <b>컴퍼스</b>만으로 도형을 그리는 것을 <b>작도</b>라고 해요.<br>
+           · 눈금 없는 자 — 두 점을 잇거나 선을 연장할 때만 씁니다. <b>길이를 재면 안 돼요.</b><br>
+           · 컴퍼스 — 원을 그리거나 <b>주어진 길이를 옮길 때</b> 씁니다.</p>
+      </div>
+    </section>
+
+    <!-- ============ ② 자유 작도 ============ -->
+    <section id="pFree" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">자유 작도</span> 도전 과제</h2>
+        <p>재료를 고르고 <b>스스로</b> 작도해 보세요. 다 되면 [완성 확인]을 누르세요.</p>
+        <div class="tasks" id="freeList" style="margin-top:9px;"></div>
+      </div>
+      <div class="blk">
+        <h2 id="freeTitle">지금 과제</h2>
+        <p id="freeGoal"></p>
+        <div id="freeFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnCheckFree">✅ 완성 확인</button>
+          <button class="btn sm" id="btnResetFree">🔄 재료만 남기고 지우기</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>도구 쓰는 법</h2>
+        <p><b>컴퍼스</b> — ① 길이를 잴 두 점을 차례로 누르고 ② 원의 중심을 누르면 원이 그려져요.
+           한 번 잰 길이는 <b>계속 남아 있어</b> 여러 번 쓸 수 있고,
+           <b>다른 길이</b>를 재려면 <b>[↺ 다시 재기]</b> 를 누르세요.<br>
+           <b>점</b> — 선이나 원 위, 두 선이 만나는 곳을 누르면 <b>그 위의 점·교점</b>으로 딱 붙어요.</p>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const DW = 960, DH = 620;
+const INK = "#1d2433", SUB = "#8b96ab", GIVEN = "#e5484d", DRAWN = "#3e63dd";
+const CIRC = "#9aa9c9", OK = "#2f9e63", ORANGE = "#f5820b";
+
+/* ============================================================
+   1. 상태
+   ============================================================ */
+let P = [];      // 점  {x, y, name, given}
+let O = [];      // 도형 {t:'seg'|'ray'|'line', a, b} | {t:'circle', c, r, given}
+let tool = "point";
+let pending = [];
+let compass = {armed:false, r:0, label:""};
+let history = [];
+let mode = "guide";
+let hintOn = false;
+
+const snap = () => history.push(JSON.stringify({P, O, compass}));
+function undo(){
+  if(!history.length) return;
+  const s = JSON.parse(history.pop());
+  P = s.P; O = s.O; compass = s.compass;
+  pending = []; refresh();
+}
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+function toDesign(px, py){ const v = view(); return {x:(px - v.ox)/v.s, y:(py - v.oy)/v.s}; }
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+/* ============================================================
+   2. 도형 계산
+   ============================================================ */
+function ends(o){ return [P[o.a], P[o.b]]; }
+function paramOk(o, t){
+  if(o.t === "line") return true;
+  if(o.t === "ray")  return t >= -1e-6;
+  return t >= -1e-6 && t <= 1 + 1e-6;          // seg
+}
+/* 직선류 × 직선류 */
+function interLL(o1, o2){
+  const [A, B] = ends(o1), [C, D] = ends(o2);
+  const r = {x:B.x - A.x, y:B.y - A.y}, s = {x:D.x - C.x, y:D.y - C.y};
+  const den = r.x*s.y - r.y*s.x;
+  if(Math.abs(den) < 1e-9) return [];
+  const t = ((C.x - A.x)*s.y - (C.y - A.y)*s.x)/den;
+  const u = ((C.x - A.x)*r.y - (C.y - A.y)*r.x)/den;
+  if(!paramOk(o1, t) || !paramOk(o2, u)) return [];
+  return [{x:A.x + r.x*t, y:A.y + r.y*t}];
+}
+/* 직선류 × 원 */
+function interLC(o1, oc){
+  const [A, B] = ends(o1), C = P[oc.c], R = oc.r;
+  const d = {x:B.x - A.x, y:B.y - A.y};
+  const f = {x:A.x - C.x, y:A.y - C.y};
+  const a = d.x*d.x + d.y*d.y;
+  const b = 2*(f.x*d.x + f.y*d.y);
+  const c = f.x*f.x + f.y*f.y - R*R;
+  const disc = b*b - 4*a*c;
+  if(disc < 0) return [];
+  const sq = Math.sqrt(disc);
+  return [(-b - sq)/(2*a), (-b + sq)/(2*a)]
+    .filter(t => paramOk(o1, t))
+    .map(t => ({x:A.x + d.x*t, y:A.y + d.y*t}));
+}
+/* 원 × 원 */
+function interCC(o1, o2){
+  const A = P[o1.c], B = P[o2.c], r1 = o1.r, r2 = o2.r;
+  const d = dist(A, B);
+  if(d < 1e-9 || d > r1 + r2 || d < Math.abs(r1 - r2)) return [];
+  const a = (r1*r1 - r2*r2 + d*d)/(2*d);
+  const h2 = r1*r1 - a*a;
+  if(h2 < 0) return [];
+  const h = Math.sqrt(h2);
+  const M = {x:A.x + (B.x - A.x)*a/d, y:A.y + (B.y - A.y)*a/d};
+  const ux = -(B.y - A.y)/d, uy = (B.x - A.x)/d;
+  return [{x:M.x + ux*h, y:M.y + uy*h}, {x:M.x - ux*h, y:M.y - uy*h}];
+}
+function interAll(){
+  const out = [];
+  for(let i = 0; i < O.length; i++) for(let j = i + 1; j < O.length; j++){
+    const a = O[i], b = O[j];
+    let ps = [];
+    if(a.t !== "circle" && b.t !== "circle") ps = interLL(a, b);
+    else if(a.t === "circle" && b.t === "circle") ps = interCC(a, b);
+    else if(a.t === "circle") ps = interLC(b, a);
+    else ps = interLC(a, b);
+    ps.forEach(p => out.push(p));
+  }
+  return out;
+}
+/* 도형 위로 투영 */
+function projectOn(o, p){
+  if(o.t === "circle"){
+    const C = P[o.c];
+    const d = dist(C, p) || 1;
+    return {x:C.x + (p.x - C.x)*o.r/d, y:C.y + (p.y - C.y)*o.r/d};
+  }
+  const [A, B] = ends(o);
+  const d = {x:B.x - A.x, y:B.y - A.y};
+  let t = ((p.x - A.x)*d.x + (p.y - A.y)*d.y)/(d.x*d.x + d.y*d.y);
+  if(o.t === "seg") t = Math.max(0, Math.min(1, t));
+  if(o.t === "ray") t = Math.max(0, t);
+  return {x:A.x + d.x*t, y:A.y + d.y*t};
+}
+function distToObj(o, p){ return dist(projectOn(o, p), p); }
+
+/* 클릭 위치를 점으로 확정 (기존점 → 교점 → 도형 위 → 자유) */
+function resolve(p, create){
+  /* 보조점(주어진 반직선의 방향을 정하려고 찍어 둔 점)은 스냅 대상에서 뺀다 */
+  for(let i = 0; i < P.length; i++) if(!P[i].helper && dist(P[i], p) < 13) return i;
+  let best = null, bd = 13;
+  interAll().forEach(q => { const d = dist(q, p); if(d < bd){ bd = d; best = q; } });
+  if(!best){
+    let bo = null; bd = 9;
+    O.forEach(o => { const d = distToObj(o, p); if(d < bd){ bd = d; bo = o; } });
+    if(bo) best = projectOn(bo, p);
+  }
+  if(!create) return -1;
+  const q = best || p;
+  for(let i = 0; i < P.length; i++) if(dist(P[i], q) < 6) return i;
+  P.push({x:q.x, y:q.y, name:""});
+  return P.length - 1;
+}
+
+/* ============================================================
+   3. 그리기
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);
+
+  /* 원 */
+  O.filter(o => o.t === "circle").forEach(o => {
+    ctx.save();
+    ctx.setLineDash([7, 6]);
+    ctx.strokeStyle = CIRC; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(P[o.c].x, P[o.c].y, o.r, 0, 7); ctx.stroke();
+    ctx.restore();
+  });
+  /* 선 */
+  O.filter(o => o.t !== "circle").forEach(o => {
+    const [A, B] = ends(o);
+    const d = {x:B.x - A.x, y:B.y - A.y};
+    const L = Math.hypot(d.x, d.y) || 1;
+    const u = {x:d.x/L, y:d.y/L};
+    let s = A, e = B;
+    if(o.t === "line"){ s = {x:A.x - u.x*2000, y:A.y - u.y*2000}; e = {x:B.x + u.x*2000, y:B.y + u.y*2000}; }
+    if(o.t === "ray"){ e = {x:A.x + u.x*2000, y:A.y + u.y*2000}; }
+    ctx.strokeStyle = o.given ? GIVEN : DRAWN;
+    ctx.lineWidth = o.given ? 4.6 : 3.6;
+    ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke();
+    if(o.label){                                  // 주어진 선분의 이름 (a, b, c)
+      const m = {x:(A.x + B.x)/2, y:(A.y + B.y)/2};
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.font = "italic 700 22px 'Times New Roman', serif";
+      ctx.fillStyle = GIVEN;
+      ctx.fillText(o.label, m.x, m.y - 22);
+    }
+  });
+  /* 점 */
+  P.forEach((p, i) => {
+    if(p.helper) return;                       // 보조점은 그리지 않는다
+    const sel = pending.indexOf(i) >= 0;
+    const col = sel ? ORANGE : (p.given ? GIVEN : DRAWN);
+    ctx.fillStyle = "#fff"; ctx.strokeStyle = col; ctx.lineWidth = 2.8;
+    ctx.beginPath(); ctx.arc(p.x, p.y, sel ? 7.5 : 5.5, 0, 7); ctx.fill(); ctx.stroke();
+    if(p.name){
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.font = "italic 700 20px 'Times New Roman', serif";
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 5; ctx.lineJoin = "round";
+      ctx.strokeText(p.name, p.x + 16, p.y - 16);
+      ctx.fillStyle = col; ctx.fillText(p.name, p.x + 16, p.y - 16);
+    }
+  });
+  /* 힌트 반짝임 */
+  if(hintOn && mode === "guide"){
+    const h = curTask() && curTask().steps[gStep] && curTask().steps[gStep].hint;
+    const spots = (typeof h === "function") ? (h() || []) : [];
+    spots.forEach(q => {
+      ctx.strokeStyle = ORANGE; ctx.lineWidth = 3;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath(); ctx.arc(q.x, q.y, 20, 0, 7); ctx.stroke();
+      ctx.setLineDash([]);
+    });
+  }
+  ctx.restore();
+}
+
+/* ============================================================
+   4. 조작
+   ============================================================ */
+cv.addEventListener("pointerdown", ev => {
+  const p = toDesign(ev.offsetX, ev.offsetY);
+  if(tool === "erase"){
+    let bo = -1, bd = 10;
+    O.forEach((o, i) => {
+      const d = (o.t === "circle") ? Math.abs(dist(P[o.c], p) - o.r) : distToObj(o, p);
+      if(d < bd){ bd = d; bo = i; }
+    });
+    if(bo >= 0 && !O[bo].given){ snap(); O.splice(bo, 1); refresh(); return; }
+    let bp = -1; bd = 12;
+    P.forEach((q, i) => { const d = dist(q, p); if(d < bd && !q.given){ bd = d; bp = i; } });
+    if(bp >= 0 && !O.some(o => o.a === bp || o.b === bp || o.c === bp)){ snap(); P.splice(bp, 1); reindex(bp); refresh(); }
+    return;
+  }
+  snap();
+  const i = resolve(p, true);
+  if(tool === "point"){ pending = []; refresh(); return; }
+  if(tool === "compass"){
+    if(!compass.armed){
+      pending.push(i);
+      if(pending.length === 2){
+        compass = {armed:true, r:dist(P[pending[0]], P[pending[1]]), label:label2(pending)};
+        pending = [];
+      }
+    }else{
+      O.push({t:"circle", c:i, r:compass.r});
+      pending = [];
+    }
+    refresh(); return;
+  }
+  pending.push(i);
+  if(pending.length === 2){
+    if(pending[0] !== pending[1]) O.push({t:tool, a:pending[0], b:pending[1]});
+    pending = [];
+  }
+  refresh();
+});
+function reindex(removed){
+  O.forEach(o => {
+    ["a","b","c"].forEach(k => { if(o[k] !== undefined && o[k] > removed) o[k]--; });
+  });
+}
+function label2(idx){
+  const n1 = P[idx[0]].name, n2 = P[idx[1]].name;
+  return (n1 && n2) ? (n1 + n2) : "잰 길이";
+}
+
+document.querySelectorAll(".tools .tool[data-tool]").forEach(b => {
+  b.addEventListener("click", () => {
+    /* 도구를 다시 눌러도 잰 길이는 유지한다 (풀려면 [↺ 다시 재기]) */
+    tool = b.dataset.tool; pending = [];
+    document.querySelectorAll(".tools .tool[data-tool]").forEach(x => x.classList.toggle("on", x === b));
+    refresh();
+  });
+});
+$("btnRemeasure").addEventListener("click", () => {
+  snap();
+  compass = {armed:false, r:0, label:""};
+  tool = "compass"; pending = [];
+  document.querySelectorAll(".tools .tool[data-tool]").forEach(x =>
+    x.classList.toggle("on", x.dataset.tool === "compass"));
+  refresh();
+});
+$("btnUndo").addEventListener("click", undo);
+$("btnClear").addEventListener("click", () => {
+  snap();
+  P = P.filter(p => p.given);
+  O = O.filter(o => o.given);
+  compass = {armed:false, r:0, label:""};
+  pending = []; refresh();
+});
+
+function hintText(){
+  if(tool === "compass"){
+    return compass.armed
+      ? "컴퍼스에 길이가 담겼어요 — 원의 중심이 될 점을 누르세요"
+      : (pending.length === 1 ? "길이를 잴 두 번째 점을 누르세요" : "길이를 잴 첫 번째 점을 누르세요");
+  }
+  if(tool === "erase") return "지우고 싶은 선이나 원을 누르세요 (주어진 것은 못 지워요)";
+  if(tool === "point") return "선·원 위나 두 선이 만나는 곳을 누르면 딱 붙어요";
+  const nm = {seg:"선분", ray:"반직선", line:"직선"}[tool];
+  return pending.length === 1 ? `${nm}의 끝점이 될 두 번째 점을 누르세요` : `${nm}을 시작할 점을 누르세요`;
+}
+function refresh(){
+  $("compassState").textContent = compass.armed ? `컴퍼스: ${compass.label} 만큼 벌림` : "컴퍼스: 안 잼";
+  $("compassState").classList.toggle("armed", compass.armed);
+  $("hintbar").textContent = hintText();
+  if(mode === "guide") checkGuide();
+  draw();
+}
+
+/* ============================================================
+   5. 검사 도우미
+   ============================================================ */
+const near = (u, v, e) => Math.abs(u - v) < (e === undefined ? 5 : e);
+function pt(name){ return P.find(p => p.name === name); }
+function ptIdx(name){ return P.findIndex(p => p.name === name); }
+function hasCircle(centerName, r){
+  const ci = ptIdx(centerName);
+  if(ci < 0) return null;
+  return O.find(o => o.t === "circle" && o.c === ci && near(o.r, r, 4)) || null;
+}
+function anyCircleAt(centerName){
+  const ci = ptIdx(centerName);
+  if(ci < 0) return null;
+  return O.find(o => o.t === "circle" && o.c === ci) || null;
+}
+function hasLink(n1, n2, types){
+  const i = ptIdx(n1), j = ptIdx(n2);
+  if(i < 0 || j < 0) return null;
+  return O.find(o => o.t !== "circle" && (types ? types.indexOf(o.t) >= 0 : true) &&
+    ((o.a === i && o.b === j) || (o.a === j && o.b === i))) || null;
+}
+/* 좌표 근처에 (이름 없는) 점이 찍혔는지 → 찍혔으면 이름을 붙여 준다 */
+/* 목표 좌표에 점이 찍혔으면 이름을 붙여 준다.
+   배열 순서가 아니라 '가장 가까운' 점을 골라야 옆에 있는 다른 점을 잘못 집지 않는다 */
+function claimPoint(x, y, name, tol){
+  const t = tol || 10;
+  let best = -1, bd = t;
+  for(let i = 0; i < P.length; i++){
+    if(P[i].helper) continue;
+    if(P[i].name && P[i].name !== name) continue;
+    const d = dist(P[i], {x, y});
+    if(d < bd){ bd = d; best = i; }
+  }
+  if(best < 0) return false;
+  P[best].name = name;
+  return true;
+}
+function pointOnObj(o){ return P.filter(p => distToObj(o, p) < 4); }
+const givenLen = {};                                   // 과제에서 주어진 길이
+
+/* ============================================================
+   6. 작도 과제 정의
+   ============================================================ */
+function addPt(x, y, name, given, helper){ P.push({x, y, name:name || "", given:!!given, helper:!!helper}); return P.length - 1; }
+function addObj(o, given){ o.given = !!given; O.push(o); return O.length - 1; }
+
+const TASKS = [
+  /* ---------- ① 길이가 같은 선분 (157쪽) ---------- */
+  {
+    key:"seg", name:"길이가 같은 선분 옮기기", page:"157쪽",
+    setup(){
+      const a = addPt(120, 110, "A", true), b = addPt(400, 110, "B", true);
+      addObj({t:"seg", a, b}, true);
+      givenLen.AB = dist(P[a], P[b]);
+    },
+    goal:"주어진 선분 AB 와 길이가 같은 선분 PQ 를 작도하세요.",
+    steps:[
+      { say:"컴퍼스로 <b>ABÓ 의 길이</b>를 재세요. (컴퍼스로 A, B 를 차례로 누르기)",
+        check:() => compass.armed && near(compass.r, givenLen.AB, 3),
+        hint:() => [pt("A"), pt("B")].filter(Boolean) },
+      { say:"눈금 없는 자로 <b>직선 <i>l</i></b> 을 긋고, 그 위에 점 <b>P</b> 를 잡으세요.",
+        check(){
+          const L = O.find(o => o.t === "line" && !o.given);
+          if(!L) return false;
+          const on = pointOnObj(L);
+          if(!on.length) return false;
+          if(!on.some(p => p.name === "P")) on[0].name = "P";
+          return true;
+        },
+        hint:() => [{x:200, y:400}, {x:700, y:400}] },
+      { say:"점 <b>P</b> 를 중심으로 <b>반지름이 ABÓ</b> 인 원을 그리세요.",
+        check:() => !!hasCircle("P", givenLen.AB),
+        hint:() => [pt("P")].filter(Boolean) },
+      { say:"원과 직선 <i>l</i> 의 <b>교점 Q</b> 를 찍으면 PQÓ 가 작도돼요.",
+        check(){
+          const C = hasCircle("P", givenLen.AB), L = O.find(o => o.t === "line" && !o.given);
+          if(!C || !L) return false;
+          return interLC(L, C).some(q => claimPoint(q.x, q.y, "Q"));
+        },
+        hint(){
+          const C = hasCircle("P", givenLen.AB), L = O.find(o => o.t === "line" && !o.given);
+          return (C && L) ? interLC(L, C) : [];
+        } }
+    ],
+    done:"🎉 <b>PQÓ = ABÓ</b> 입니다! 컴퍼스는 <b>길이를 옮기는</b> 도구예요."
+  },
+
+  /* ---------- ② 크기가 같은 각 (158쪽) ---------- */
+  {
+    key:"ang", name:"크기가 같은 각 옮기기", page:"158쪽",
+    setup(){
+      const A = addPt(150, 400, "A", true);
+      const u = addPt(430, 330, "", true, true), w = addPt(400, 520, "", true, true);
+      addObj({t:"ray", a:A, b:u}, true);
+      addObj({t:"ray", a:A, b:w}, true);
+      const B = addPt(560, 470, "B", true), x = addPt(900, 470, "", true, true);
+      addObj({t:"ray", a:B, b:x}, true);
+    },
+    goal:"주어진 ∠A 와 크기가 같은 ∠B 를 작도하세요.",
+    steps:[
+      { say:"점 <b>A</b> 를 중심으로 원을 그려 ∠A 의 두 변과의 교점 <b>M, N</b> 을 찍으세요.",
+        check(){
+          const C = anyCircleAt("A");
+          if(!C) return false;
+          const rays = O.filter(o => o.t === "ray" && o.given && o.a === ptIdx("A"));
+          if(rays.length < 2) return false;
+          const hits = rays.map(r => interLC(r, C)[0]).filter(Boolean);
+          if(hits.length < 2) return false;
+          return claimPoint(hits[0].x, hits[0].y, "M") && claimPoint(hits[1].x, hits[1].y, "N");
+        },
+        hint:() => [pt("A")].filter(Boolean) },
+      { say:"점 <b>B</b> 를 중심으로 <b>반지름 AMÓ</b> 인 원을 그려 반직선과의 교점 <b>P</b> 를 찍으세요.",
+        check(){
+          const M = pt("M"), A = pt("A");
+          if(!M || !A) return false;
+          const C = hasCircle("B", dist(A, M));
+          if(!C) return false;
+          const ray = O.find(o => o.t === "ray" && o.given && o.a === ptIdx("B"));
+          if(!ray) return false;
+          return interLC(ray, C).some(q => claimPoint(q.x, q.y, "P"));
+        },
+        hint:() => [pt("B")].filter(Boolean) },
+      { say:"점 <b>P</b> 를 중심으로 <b>반지름 MNÓ</b> 인 원을 그려, 앞의 원과의 교점 <b>Q</b> 를 찍으세요.",
+        check(){
+          const M = pt("M"), N = pt("N"), A = pt("A");
+          if(!M || !N || !A) return false;
+          const C1 = hasCircle("B", dist(A, M)), C2 = hasCircle("P", dist(M, N));
+          if(!C1 || !C2) return false;
+          return interCC(C1, C2).some(q => claimPoint(q.x, q.y, "Q"));
+        },
+        hint:() => [pt("P")].filter(Boolean) },
+      { say:"<b>반직선 BQ</b> 를 그으면 ∠B = ∠A 가 돼요.",
+        check:() => !!hasLink("B", "Q", ["ray", "seg", "line"]),
+        hint:() => [pt("B"), pt("Q")].filter(Boolean) }
+    ],
+    done:"🎉 두 원의 반지름을 그대로 옮겨서 <b>각의 크기를 복사</b>했어요!"
+  },
+
+  /* ---------- ③ 세 변 (SSS, 160쪽) ---------- */
+  {
+    key:"sss", name:"세 변으로 삼각형 작도", page:"160쪽",
+    setup(){
+      const p1 = addPt(90, 70, "", true),  p2 = addPt(330, 70, "", true);
+      const p3 = addPt(430, 70, "", true), p4 = addPt(620, 70, "", true);
+      const p5 = addPt(700, 70, "", true), p6 = addPt(870, 70, "", true);
+      addObj({t:"seg", a:p1, b:p2, label:"a"}, true);
+      addObj({t:"seg", a:p3, b:p4, label:"b"}, true);
+      addObj({t:"seg", a:p5, b:p6, label:"c"}, true);
+      givenLen.a = dist(P[p1], P[p2]);
+      givenLen.b = dist(P[p3], P[p4]);
+      givenLen.c = dist(P[p5], P[p6]);
+      const B = addPt(250, 470, "B", true), e = addPt(800, 470, "", true, true);
+      addObj({t:"line", a:B, b:e}, true);
+    },
+    goal:"주어진 세 선분 a, b, c 를 세 변으로 하는 △ABC 를 작도하세요. (a = BCÓ, b = CAÓ, c = ABÓ)",
+    steps:[
+      { say:"컴퍼스로 <b>a</b> 를 재어 <b>B</b> 를 중심으로 원을 그리고, 직선과의 교점을 <b>C</b> 로 잡으세요.",
+        check(){
+          const C = hasCircle("B", givenLen.a);
+          const L = O.find(o => o.t === "line" && o.given);
+          if(!C || !L) return false;
+          return interLC(L, C).some(q => q.x > P[ptIdx("B")].x && claimPoint(q.x, q.y, "C"));
+        },
+        hint:() => [pt("B")].filter(Boolean) },
+      { say:"컴퍼스로 <b>c</b> 를 재어 <b>B</b> 를 중심으로 원을 그리세요.",
+        check:() => !!hasCircle("B", givenLen.c),
+        hint:() => [pt("B")].filter(Boolean) },
+      { say:"컴퍼스로 <b>b</b> 를 재어 <b>C</b> 를 중심으로 원을 그리고, 두 원의 교점을 <b>A</b> 로 잡으세요.",
+        check(){
+          const C1 = hasCircle("B", givenLen.c), C2 = hasCircle("C", givenLen.b);
+          if(!C1 || !C2) return false;
+          return interCC(C1, C2).some(q => claimPoint(q.x, q.y, "A"));
+        },
+        hint:() => [pt("C")].filter(Boolean) },
+      { say:"자로 <b>A 와 B</b>, <b>A 와 C</b> 를 이으면 △ABC 완성!",
+        check:() => !!hasLink("A", "B") && !!hasLink("A", "C"),
+        hint:() => [pt("A"), pt("B"), pt("C")].filter(Boolean) }
+    ],
+    done:"🎉 세 변의 길이가 주어지면 삼각형은 <b>하나로 정해져요</b> (SSS)."
+  },
+
+  /* ---------- ④ 두 변과 끼인각 (SAS, 161쪽) ---------- */
+  {
+    key:"sas", name:"두 변과 끼인각으로 작도", page:"161쪽",
+    setup(){
+      const p1 = addPt(90, 70, "", true), p2 = addPt(330, 70, "", true);
+      const p5 = addPt(430, 70, "", true), p6 = addPt(600, 70, "", true);
+      addObj({t:"seg", a:p1, b:p2, label:"a"}, true);
+      addObj({t:"seg", a:p5, b:p6, label:"c"}, true);
+      givenLen.a = dist(P[p1], P[p2]);
+      givenLen.c = dist(P[p5], P[p6]);
+      const B = addPt(240, 500, "B", true);
+      const u = addPt(880, 500, "", true, true), w = addPt(700, 200, "", true, true);
+      addObj({t:"ray", a:B, b:u}, true);
+      addObj({t:"ray", a:B, b:w}, true);
+    },
+    goal:"∠B 는 이미 작도해 두었습니다. 두 변 a, c 를 옮겨 △ABC 를 완성하세요.",
+    steps:[
+      { say:"컴퍼스로 <b>a</b> 를 재어 <b>B</b> 중심 원을 그리고, ∠B 의 <b>아래쪽 변</b>과의 교점을 <b>C</b> 로 잡으세요.",
+        check(){
+          const C = hasCircle("B", givenLen.a);
+          const rays = O.filter(o => o.t === "ray" && o.given);
+          if(!C || rays.length < 2) return false;
+          const flat = rays.find(r => Math.abs(P[r.b].y - P[r.a].y) < 30);
+          if(!flat) return false;
+          return interLC(flat, C).some(q => claimPoint(q.x, q.y, "C"));
+        },
+        hint:() => [pt("B")].filter(Boolean) },
+      { say:"컴퍼스로 <b>c</b> 를 재어 <b>B</b> 중심 원을 그리고, ∠B 의 <b>다른 변</b>과의 교점을 <b>A</b> 로 잡으세요.",
+        check(){
+          const C = hasCircle("B", givenLen.c);
+          const rays = O.filter(o => o.t === "ray" && o.given);
+          if(!C || rays.length < 2) return false;
+          const up = rays.find(r => Math.abs(P[r.b].y - P[r.a].y) >= 30);
+          if(!up) return false;
+          return interLC(up, C).some(q => claimPoint(q.x, q.y, "A"));
+        },
+        hint:() => [pt("B")].filter(Boolean) },
+      { say:"자로 <b>A 와 C</b> 를 이으면 △ABC 완성!",
+        check:() => !!hasLink("A", "C"),
+        hint:() => [pt("A"), pt("C")].filter(Boolean) }
+    ],
+    done:"🎉 두 변과 <b>그 끼인각</b>이 주어지면 삼각형은 하나로 정해져요 (SAS)."
+  },
+
+  /* ---------- ⑤ 한 변과 양 끝 각 (ASA, 162쪽) ---------- */
+  {
+    key:"asa", name:"한 변과 양 끝 각으로 작도", page:"162쪽",
+    setup(){
+      const B = addPt(260, 500, "B", true), C = addPt(700, 500, "C", true);
+      addObj({t:"seg", a:B, b:C}, true);
+      const u = addPt(640, 250, "", true, true);
+      addObj({t:"ray", a:B, b:u}, true);
+      const w = addPt(380, 210, "", true, true);
+      addObj({t:"ray", a:C, b:w}, true);
+      givenLen.a = dist(P[B], P[C]);
+    },
+    goal:"BCÓ 와 그 양 끝 각 ∠B, ∠C 가 작도되어 있습니다. △ABC 를 완성하세요.",
+    steps:[
+      { say:"두 반직선이 만나는 <b>교점 A</b> 를 찍으세요.",
+        check(){
+          const r1 = O.find(o => o.t === "ray" && o.given && o.a === ptIdx("B"));
+          const r2 = O.find(o => o.t === "ray" && o.given && o.a === ptIdx("C"));
+          if(!r1 || !r2) return false;
+          return interLL(r1, r2).some(q => claimPoint(q.x, q.y, "A"));
+        },
+        hint(){
+          const r1 = O.find(o => o.t === "ray" && o.given && o.a === ptIdx("B"));
+          const r2 = O.find(o => o.t === "ray" && o.given && o.a === ptIdx("C"));
+          return (r1 && r2) ? interLL(r1, r2) : [];
+        } },
+      { say:"자로 <b>AB</b>, <b>AC</b> 를 그어 삼각형을 또렷하게 만드세요.",
+        check:() => !!hasLink("A", "B") && !!hasLink("A", "C"),
+        hint:() => [pt("A"), pt("B"), pt("C")].filter(Boolean) }
+    ],
+    done:"🎉 한 변과 <b>그 양 끝 각</b>이 주어지면 삼각형은 하나로 정해져요 (ASA)."
+  }
+];
+
+/* ============================================================
+   7. 따라 하기 모드
+   ============================================================ */
+let taskIdx = 0, gStep = 0, doneSet = {};
+const curTask = () => TASKS[taskIdx];
+
+function loadTask(i, keepDone){
+  taskIdx = i; gStep = 0;
+  P = []; O = []; pending = []; history = [];
+  compass = {armed:false, r:0, label:""};
+  hintOn = false; $("btnHint").classList.remove("on");
+  curTask().setup();
+  renderTaskList(); renderSteps();
+  $("guideTitle").textContent = curTask().name + " — 순서대로";
+  $("guideFb").innerHTML = `<div class="fb info">${curTask().goal}</div>`;
+  refresh();
+}
+function renderTaskList(){
+  const w = $("taskList"); w.innerHTML = "";
+  TASKS.forEach((t, i) => {
+    const b = document.createElement("button");
+    b.className = "btn" + (i === taskIdx ? " on" : "") + (doneSet[t.key] ? " done" : "");
+    b.innerHTML = `<span class="n">${i + 1}</span>${t.name} <span class="n">(${t.page})</span>` +
+                  (doneSet[t.key] ? " ✓" : "");
+    b.addEventListener("click", () => loadTask(i));
+    w.appendChild(b);
+  });
+}
+function renderSteps(){
+  const w = $("stepList"); w.innerHTML = "";
+  curTask().steps.forEach((s, i) => {
+    const d = document.createElement("div");
+    d.className = "st" + (i < gStep ? " done" : (i === gStep ? " on" : ""));
+    d.innerHTML = `<div class="no">${i < gStep ? "✓" : (i + 1)}</div><div>${s.say}</div>`;
+    w.appendChild(d);
+  });
+}
+function checkGuide(){
+  const t = curTask();
+  let moved = false;
+  while(gStep < t.steps.length && t.steps[gStep].check()){ gStep++; moved = true; }
+  if(moved){
+    renderSteps();
+    if(gStep >= t.steps.length){
+      doneSet[t.key] = true; renderTaskList();
+      $("guideFb").innerHTML = `<div class="fb ok">${t.done}</div>`;
+    }else{
+      $("guideFb").innerHTML = `<div class="fb ok">잘했어요! 다음 단계로 가 볼까요?</div>`;
+    }
+  }
+}
+$("btnHint").addEventListener("click", e => {
+  hintOn = !hintOn; e.currentTarget.classList.toggle("on", hintOn); draw();
+});
+$("btnRestart").addEventListener("click", () => loadTask(taskIdx, true));
+
+/* ============================================================
+   8. 자유 작도 모드
+   ============================================================ */
+let freeIdx = 0;
+function loadFree(i){
+  freeIdx = i; mode = "free";
+  P = []; O = []; pending = []; history = [];
+  compass = {armed:false, r:0, label:""};
+  TASKS[i].setup();
+  renderFreeList();
+  $("freeTitle").textContent = TASKS[i].name;
+  $("freeGoal").innerHTML = TASKS[i].goal;
+  $("freeFb").innerHTML = "";
+  refresh();
+}
+function renderFreeList(){
+  const w = $("freeList"); w.innerHTML = "";
+  TASKS.forEach((t, i) => {
+    const b = document.createElement("button");
+    b.className = "btn" + (i === freeIdx ? " on" : "");
+    b.innerHTML = `<span class="n">${i + 1}</span>${t.name} <span class="n">(${t.page})</span>`;
+    b.addEventListener("click", () => loadFree(i));
+    w.appendChild(b);
+  });
+}
+$("btnCheckFree").addEventListener("click", () => {
+  const t = TASKS[freeIdx];
+  let k = 0;
+  while(k < t.steps.length && t.steps[k].check()) k++;
+  $("freeFb").innerHTML = (k >= t.steps.length)
+    ? `<div class="fb ok">${t.done}</div>`
+    : `<div class="fb warn">아직 완성되지 않았어요. <b>${k} / ${t.steps.length}</b> 단계까지 되었습니다.
+       막히면 [따라 하기] 탭에서 순서를 확인해 보세요.</div>`;
+  draw();
+});
+$("btnResetFree").addEventListener("click", () => loadFree(freeIdx));
+
+/* ============================================================
+   9. 탭 · 시작
+   ============================================================ */
+document.querySelectorAll("header nav button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("header nav button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    mode = b.dataset.tab;
+    $("pGuide").classList.toggle("hidden", mode !== "guide");
+    $("pFree") .classList.toggle("hidden", mode !== "free");
+    if(mode === "guide") loadTask(taskIdx);
+    else loadFree(freeIdx);
+  });
+});
+
+function boot(){
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  renderFreeList();
+  mode = "guide";
+  loadTask(0);
+  /* 로컬에서 개발·점검할 때만 내부 상태를 들여다볼 수 있게 열어 둔다 */
+  if(location.hostname === "127.0.0.1" || location.hostname === "localhost"){
+    window.__DBG = () => ({P, O, compass, tool, gStep, view:view()});
+  }
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
