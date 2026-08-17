@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>착시 실험실 — 눈을 믿을까, 수학을 믿을까</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js" data-home="../index.html" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 350px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn.good{background:var(--ok-soft); border-color:var(--ok); color:var(--ok);}
+  .btn.bad{background:var(--no-soft); border-color:var(--no); color:var(--no);}
+
+  .guess{display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:10px;}
+  .guess .btn{padding:11px 4px; font-size:13.5px;}
+  .guess.two{grid-template-columns:1fr 1fr;}
+
+  .slider{margin-top:11px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+
+  .term{border-left:4px solid var(--accent); background:#f5f7ff; padding:11px 13px; border-radius:9px; margin-top:9px;}
+  .term h3{font-size:13.5px; font-weight:800; margin-bottom:4px;}
+  .term p{font-size:13px; color:var(--sub); line-height:1.6;}
+
+  .proof{counter-reset:st; margin-top:8px;}
+  .proof .step{
+    display:flex; gap:9px; align-items:flex-start; padding:8px 0;
+    border-top:1px dashed var(--line); font-size:13.5px; line-height:1.55; color:var(--sub);
+  }
+  .proof .step:first-child{border-top:none;}
+  .proof .step .no{
+    flex:none; width:21px; height:21px; border-radius:50%; margin-top:1px;
+    background:var(--accent-soft); color:var(--accent);
+    display:grid; place-items:center; font-size:12px; font-weight:800;
+  }
+  .proof .step.off{opacity:.35;}
+  .proof .step b{color:var(--ink);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:300px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🌀 착시 실험실</h1>
+  <nav>
+    <button class="on" data-tab="ponzo">① 폰조</button>
+    <button data-tab="muller">② 뮐러리어</button>
+    <button data-tab="hering">③ 헤링</button>
+    <button data-tab="zollner">④ 쵤너</button>
+  </nav>
+  <a class="home-btn" href="../index.html">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap"><canvas id="board"></canvas></div>
+
+  <aside>
+    <!-- ================= ① 폰조 ================= -->
+    <section id="pPonzo">
+      <div class="blk">
+        <h2><span class="tag">착시 1</span> 폰조 착시</h2>
+        <p>사다리꼴 위에 놓인 두 <b style="color:#e5484d">빨간 선분</b> 중
+           어느 쪽이 더 <b>길어 보이나요?</b></p>
+        <div class="guess" id="gPonzo">
+          <button class="btn" data-a="up">위쪽</button>
+          <button class="btn" data-a="down">아래쪽</button>
+          <button class="btn" data-a="same">같다</button>
+        </div>
+        <div id="fbPonzo"></div>
+      </div>
+      <div class="blk">
+        <h2>확인해 보기</h2>
+        <div class="row">
+          <button class="btn sm" data-tog="ponzoBg">사다리꼴 지우기</button>
+          <button class="btn sm" id="btnPonzoStack">📏 나란히 놓고 비교</button>
+        </div>
+        <div class="slider">
+          <label><span>사다리꼴 기울기</span><span class="v" id="vPonzo">강함</span></label>
+          <input type="range" id="rngPonzo" min="0" max="100" step="1" value="78">
+        </div>
+        <div class="fb info">사다리꼴을 지우면 두 선분의 길이가 <b>똑같다</b>는 걸 바로 알 수 있어요.</div>
+      </div>
+      <div class="blk">
+        <h2>왜 그럴까?</h2>
+        <div class="term">
+          <h3>멀리 있는 것 = 원래 크다</h3>
+          <p>사다리꼴의 두 사선은 <b>멀어질수록 좁아지는 길</b>처럼 보여요.
+             그래서 뇌는 위쪽 선분을 <b>더 멀리 있는 것</b>으로 판단하고,
+             “같은 크기로 보이는데 더 멀리 있다면 실제로는 더 크겠구나” 하고 착각해요.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ② 뮐러리어 ================= -->
+    <section id="pMuller" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">착시 2</span> 뮐러리어 착시</h2>
+        <p>화살표 방향만 반대인 두 <b style="color:#e5484d">빨간 선분</b> 중
+           어느 쪽이 더 <b>길어 보이나요?</b></p>
+        <div class="guess" id="gMuller">
+          <button class="btn" data-a="up">위쪽</button>
+          <button class="btn" data-a="down">아래쪽</button>
+          <button class="btn" data-a="same">같다</button>
+        </div>
+        <div id="fbMuller"></div>
+      </div>
+      <div class="blk">
+        <h2>확인해 보기</h2>
+        <div class="row">
+          <button class="btn sm" data-tog="mullerBg">화살표 지우기</button>
+          <button class="btn sm" data-tog="mullerGuide">끝점 비교선 보기</button>
+        </div>
+        <div class="slider">
+          <label><span>화살표 벌어진 각</span><span class="v" id="vMuller">40°</span></label>
+          <input type="range" id="rngMuller" min="0" max="75" step="1" value="40">
+        </div>
+        <div class="fb info">각을 <b>0°</b>로 줄이면 화살표가 사라지면서 착시도 함께 사라져요.</div>
+      </div>
+      <div class="blk">
+        <h2>왜 그럴까?</h2>
+        <div class="term">
+          <h3>끝을 어디까지로 볼까</h3>
+          <p>바깥으로 벌어진 화살표는 선분을 <b>바깥까지</b> 이어진 것처럼,
+             안으로 모인 화살표는 <b>안쪽에서 끊긴</b> 것처럼 느끼게 해요.
+             선분 자체가 아니라 <b>주변 도형</b>이 판단을 흔드는 거예요.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ③ 헤링 ================= -->
+    <section id="pHering" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 헤링 착시</h2>
+        <p>두 <b style="color:#e5484d">빨간 직선</b>은 서로 평행할까요?
+           (교과서 156쪽 활동 1)</p>
+        <div class="guess two" id="gHering">
+          <button class="btn" data-a="yes">⫽ 평행하다</button>
+          <button class="btn" data-a="no">✕ 평행하지 않다</button>
+        </div>
+        <div id="fbHering"></div>
+      </div>
+      <div class="blk">
+        <h2>평행선의 성질로 확인하기</h2>
+        <p>방사선 하나를 <b>두 직선을 가로지르는 직선</b>으로 삼아 동위각을 재 봅시다.</p>
+        <div class="slider">
+          <label><span>가로지르는 직선 고르기</span><span class="v" id="vHering">70°</span></label>
+          <input type="range" id="rngHering" min="20" max="160" step="1" value="70">
+        </div>
+        <div class="row" style="margin-top:9px;">
+          <button class="btn sm primary" data-tog="heringProof">📐 동위각 표시</button>
+          <button class="btn sm" data-tog="heringBg">방사선 지우기</button>
+        </div>
+        <div class="proof" id="heringProof">
+          <div class="step off"><div class="no">1</div><div>방사선 하나를 골라 <b>가로지르는 직선</b>으로 본다.</div></div>
+          <div class="step off"><div class="no">2</div><div>두 교점에서 생기는 <b>동위각</b>의 크기를 잰다.</div></div>
+          <div class="step off"><div class="no">3</div><div id="heringConc">두 동위각의 크기가 <b>같으므로</b> 두 직선은 <b>평행하다.</b></div></div>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>기억할 것</h2>
+        <div class="term">
+          <h3>눈은 속아도 근거는 속지 않는다</h3>
+          <p>휘어 보여도 <b>동위각의 크기가 같으면</b> 두 직선은 평행합니다.
+             수학에서는 <b>보이는 대로</b>가 아니라 <b>성질로 따져서</b> 판단해요.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ④ 쵤너 ================= -->
+    <section id="pZollner" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">착시 4</span> 쵤너 착시</h2>
+        <p>짧은 빗금이 그어진 <b style="color:#e5484d">빨간 직선</b>들은
+           서로 평행할까요?</p>
+        <div class="guess two" id="gZollner">
+          <button class="btn" data-a="yes">⫽ 평행하다</button>
+          <button class="btn" data-a="no">✕ 평행하지 않다</button>
+        </div>
+        <div id="fbZollner"></div>
+      </div>
+      <div class="blk">
+        <h2>확인해 보기</h2>
+        <div class="row">
+          <button class="btn sm" data-tog="zollnerBg">빗금 지우기</button>
+          <button class="btn sm" data-tog="zollnerGuide">기준 수평선 보기</button>
+        </div>
+        <div class="slider">
+          <label><span>빗금 기울기</span><span class="v" id="vZollner">45°</span></label>
+          <input type="range" id="rngZollner" min="0" max="80" step="1" value="45">
+        </div>
+        <div class="fb info">빗금 기울기를 <b>0°</b>로 하면 착시가 사라져요.
+          <b>45°</b> 부근에서 가장 강하게 휘어 보입니다.</div>
+      </div>
+      <div class="blk">
+        <h2>왜 그럴까?</h2>
+        <div class="term">
+          <h3>이웃한 각이 끌어당긴다</h3>
+          <p>빗금이 직선과 이루는 <b>작은 각</b>을 뇌가 실제보다 크게 느껴요.
+             그래서 빗금이 기울어진 쪽으로 직선이 딸려 기운 것처럼 보입니다.</p>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const DW = 900, DH = 560;
+const RED = "#e5484d", INK = "#39404f", SOFT = "#aeb6c4", BLUE = "#3e63dd", OK = "#2f9e63";
+
+let tab = "ponzo";
+const st = {
+  ponzoBg:true, ponzoSlope:78, ponzoStack:0,        // stack: 0~1 애니메이션
+  mullerBg:true, mullerGuide:false, mullerAngle:40,
+  heringBg:true, heringProof:false, heringAngle:70,
+  zollnerBg:true, zollnerGuide:false, zollnerAngle:45
+};
+
+/* ---------- 캔버스 ---------- */
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+const rad = d => d*Math.PI/180;
+
+function seg(x1,y1,x2,y2,color,w,dash){
+  ctx.save();
+  if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.restore();
+}
+/* halo = true 이면 복잡한 배경 위에서도 읽히도록 흰 테두리를 두른다 */
+function label(t,x,y,color,size,halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round";
+    ctx.strokeText(t, x, y);
+  }
+  ctx.fillStyle = color;
+  ctx.fillText(t, x, y);
+}
+
+/* ============================================================
+   ① 폰조 착시
+   ============================================================ */
+const PZ = {cx:450, yTop:60, yBot:512, wTop:110, wBot:620, L:190};
+function ponzoWidthAt(y){
+  const t = (y - PZ.yTop)/(PZ.yBot - PZ.yTop);
+  const k = st.ponzoSlope/100;                       // 0이면 직사각형, 1이면 많이 좁아짐
+  const wTop = PZ.wBot - (PZ.wBot - PZ.wTop)*k;
+  return wTop + (PZ.wBot - wTop)*t;
+}
+function drawPonzo(){
+  const yUp = 136, yDn = 462;
+  if(st.ponzoBg){
+    /* 사다리꼴 두 사선 */
+    for(const s of [-1, 1]){
+      seg(PZ.cx + s*ponzoWidthAt(PZ.yTop)/2, PZ.yTop,
+          PZ.cx + s*ponzoWidthAt(PZ.yBot)/2, PZ.yBot, INK, 2.4);
+    }
+    /* 가로대 */
+    [0.06, 0.3, 0.54, 0.78, 1].forEach(t => {
+      const y = PZ.yTop + (PZ.yBot - PZ.yTop)*t, w = ponzoWidthAt(y);
+      seg(PZ.cx - w/2, y, PZ.cx + w/2, y, SOFT, 1.8);
+    });
+  }
+  /* 두 빨간 선분 — 길이는 언제나 똑같다 */
+  const k = st.ponzoStack;
+  const y1 = yUp + (yDn - 46 - yUp)*k;               // '나란히 놓고 비교' 애니메이션
+  seg(PZ.cx - PZ.L/2, y1, PZ.cx + PZ.L/2, y1, RED, 7);
+  seg(PZ.cx - PZ.L/2, yDn, PZ.cx + PZ.L/2, yDn, RED, 7);
+
+  if(k > 0.98){
+    seg(PZ.cx - PZ.L/2, y1 - 16, PZ.cx - PZ.L/2, yDn + 16, OK, 2, [7,6]);
+    seg(PZ.cx + PZ.L/2, y1 - 16, PZ.cx + PZ.L/2, yDn + 16, OK, 2, [7,6]);
+    label("두 선분의 길이는 똑같아요!", PZ.cx, yDn + 46, OK, 20);
+  }
+}
+
+/* ============================================================
+   ② 뮐러리어 착시
+   ============================================================ */
+const ML = {cx:450, L:340, yUp:190, yDn:360, fin:62};
+function drawMuller(){
+  const a = st.mullerAngle;
+  [[ML.yUp, 1], [ML.yDn, -1]].forEach(([y, dir]) => {
+    const x1 = ML.cx - ML.L/2, x2 = ML.cx + ML.L/2;
+    seg(x1, y, x2, y, RED, 7);
+    if(st.mullerBg && a > 0.5){
+      /* dir = 1 : 바깥쪽 화살표(<—>),  dir = -1 : 안쪽 화살표(>—<) */
+      [[x1, 1], [x2, -1]].forEach(([x, s]) => {
+        const dx = s*dir*ML.fin*Math.cos(rad(a));
+        const dy = ML.fin*Math.sin(rad(a));
+        seg(x, y, x + dx, y - dy, INK, 4);
+        seg(x, y, x + dx, y + dy, INK, 4);
+      });
+    }
+  });
+  if(st.mullerGuide){
+    [ML.cx - ML.L/2, ML.cx + ML.L/2].forEach(x =>
+      seg(x, ML.yUp - 40, x, ML.yDn + 40, OK, 2, [7,6]));
+    label("끝점이 정확히 맞아요 — 길이가 같습니다", ML.cx, ML.yDn + 66, OK, 19);
+  }
+}
+
+/* ============================================================
+   ③ 헤링 착시
+   ============================================================ */
+const HR = {cx:450, cy:280, y1:196, y2:364, x0:50, x1:850};
+function drawHering(){
+  if(st.heringBg){
+    for(let d = 4; d < 180; d += 7.5){
+      const u = {x:Math.cos(rad(d)), y:-Math.sin(rad(d))};
+      seg(HR.cx - u.x*1400, HR.cy - u.y*1400, HR.cx + u.x*1400, HR.cy + u.y*1400, "#5b6373", 1.5);
+    }
+  }
+  seg(HR.x0, HR.y1, HR.x1, HR.y1, RED, 6);
+  seg(HR.x0, HR.y2, HR.x1, HR.y2, RED, 6);
+
+  if(st.heringProof){
+    const d = st.heringAngle, u = {x:Math.cos(rad(d)), y:-Math.sin(rad(d))};
+    /* 고른 방사선을 굵게 */
+    seg(HR.cx - u.x*1400, HR.cy - u.y*1400, HR.cx + u.x*1400, HR.cy + u.y*1400, BLUE, 3.4);
+
+    /* 두 빨간 직선과의 교점 */
+    [HR.y1, HR.y2].forEach((yy, i) => {
+      const t = (yy - HR.cy)/u.y;
+      const px = HR.cx + u.x*t;
+      /* 동위각(오른쪽 위) 호 */
+      ctx.beginPath();
+      ctx.moveTo(px, yy);
+      ctx.arc(px, yy, 46, rad(-d), 0);
+      ctx.closePath();
+      ctx.fillStyle = OK + "38"; ctx.fill();
+      ctx.strokeStyle = OK; ctx.lineWidth = 3; ctx.stroke();
+
+      ctx.fillStyle = "#fff"; ctx.strokeStyle = BLUE; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(px, yy, 5.5, 0, 7); ctx.fill(); ctx.stroke();
+
+      const mid = rad(-d/2);
+      label(Math.round(d) + "°", px + Math.cos(mid)*78, yy + Math.sin(mid)*78, OK, 21, true);
+      label("∠" + (i+1), px + Math.cos(mid)*78, yy + Math.sin(mid)*78 - 25, OK, 16, true);
+    });
+    label("∠1 = ∠2  →  두 직선은 평행!", HR.cx, 522, OK, 22, true);
+  }
+}
+
+/* ============================================================
+   ④ 쵤너 착시
+   ============================================================ */
+const ZL = {x0:70, x1:830, ys:[110, 180, 250, 320, 390, 460], hatch:30, gap:27};
+function drawZollner(){
+  ZL.ys.forEach((y, i) => {
+    if(st.zollnerGuide) seg(ZL.x0 - 20, y, ZL.x1 + 20, y, "#c9d2e4", 12);
+    seg(ZL.x0, y, ZL.x1, y, RED, 5);
+    if(st.zollnerBg && st.zollnerAngle > 0.5){
+      const a = rad(st.zollnerAngle * (i % 2 === 0 ? 1 : -1));
+      const dx = Math.cos(a)*ZL.hatch/2, dy = -Math.sin(a)*ZL.hatch/2;
+      for(let x = ZL.x0 + 8; x <= ZL.x1 - 8; x += ZL.gap)
+        seg(x - dx, y - dy, x + dx, y + dy, INK, 3);
+    }
+  });
+  if(st.zollnerGuide) label("회색 띠는 완전한 수평선이에요", 450, 516, "#5b6a8a", 19);
+}
+
+/* ============================================================
+   그리기 루프
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(v.ox, v.oy, DW*v.s, DH*v.s);
+  ctx.clip();
+  ctx.translate(v.ox, v.oy);
+  ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, DW, DH);
+
+  if(tab === "ponzo")   drawPonzo();
+  if(tab === "muller")  drawMuller();
+  if(tab === "hering")  drawHering();
+  if(tab === "zollner") drawZollner();
+
+  ctx.restore();
+}
+function loop(){
+  /* 폰조 '나란히 놓기' 애니메이션 */
+  if(st.ponzoTarget !== undefined){
+    const d = st.ponzoTarget - st.ponzoStack;
+    if(Math.abs(d) > 0.004) st.ponzoStack += d*0.11;
+    else st.ponzoStack = st.ponzoTarget;
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ============================================================
+   조작
+   ============================================================ */
+/* 토글 버튼 (data-tog) */
+document.querySelectorAll("[data-tog]").forEach(b => {
+  const key = b.dataset.tog;
+  const baseOn = b.textContent;
+  /* 켜졌을 때 보여줄 문구 — 치환이 연달아 먹지 않도록 한 번만 고른다 */
+  const baseOff =
+      baseOn.includes("지우기") ? baseOn.replace("지우기", "다시 보기")
+    : baseOn.includes("표시")   ? baseOn.replace("표시", "숨기기")
+    : baseOn.includes("보기")   ? baseOn.replace("보기", "숨기기")
+    : baseOn;
+  b.addEventListener("click", () => {
+    st[key] = !st[key];
+    const isDefaultOn = key.endsWith("Bg");          // Bg 는 기본이 켜짐(보이는 상태)
+    const active = isDefaultOn ? !st[key] : st[key];
+    b.classList.toggle("on", active);
+    b.textContent = active ? baseOff : baseOn;
+    if(key === "heringProof") updateHeringProof();
+    draw();
+  });
+});
+function updateHeringProof(){
+  document.querySelectorAll("#heringProof .step").forEach(s =>
+    s.classList.toggle("off", !st.heringProof));
+}
+
+/* 슬라이더 */
+$("rngPonzo").addEventListener("input", e => {
+  st.ponzoSlope = +e.target.value;
+  $("vPonzo").textContent = st.ponzoSlope < 25 ? "거의 없음" : st.ponzoSlope < 70 ? "보통" : "강함";
+  draw();
+});
+$("rngMuller").addEventListener("input", e => {
+  st.mullerAngle = +e.target.value; $("vMuller").textContent = st.mullerAngle + "°"; draw();
+});
+$("rngHering").addEventListener("input", e => {
+  st.heringAngle = +e.target.value; $("vHering").textContent = st.heringAngle + "°"; draw();
+});
+$("rngZollner").addEventListener("input", e => {
+  st.zollnerAngle = +e.target.value; $("vZollner").textContent = st.zollnerAngle + "°"; draw();
+});
+
+/* 폰조 나란히 비교 */
+$("btnPonzoStack").addEventListener("click", e => {
+  const on = (st.ponzoTarget !== 1);
+  st.ponzoTarget = on ? 1 : 0;
+  e.currentTarget.classList.toggle("on", on);
+  e.currentTarget.textContent = on ? "↩︎ 원래 자리로" : "📏 나란히 놓고 비교";
+});
+
+/* 예상 고르기 */
+function guess(wrapId, fbId, correct, msgs){
+  document.querySelectorAll("#" + wrapId + " .btn").forEach(b => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll("#" + wrapId + " .btn").forEach(x => {
+        x.classList.remove("good", "bad");
+        if(x.dataset.a === correct) x.classList.add("good");
+      });
+      const ok = b.dataset.a === correct;
+      if(!ok) b.classList.add("bad");
+      $(fbId).innerHTML = `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 " : ""}${msgs[b.dataset.a]}</div>`;
+    });
+  });
+}
+guess("gPonzo", "fbPonzo", "same", {
+  up:   "그렇게 보이죠? 하지만 <b>두 선분의 길이는 같습니다.</b> 아래 [나란히 놓고 비교]로 확인해 보세요.",
+  down: "아래쪽이 길어 보였나요? 사실 <b>두 선분의 길이는 같습니다.</b> 확인해 보세요.",
+  same: "맞아요! 두 선분의 길이는 <b>정확히 같습니다.</b> 사다리꼴 때문에 위쪽이 길어 보일 뿐이에요."
+});
+guess("gMuller", "fbMuller", "same", {
+  up:   "많은 사람이 그렇게 느껴요. 하지만 <b>두 선분의 길이는 같습니다.</b> [화살표 지우기]로 확인해 보세요.",
+  down: "화살표가 착각을 일으킨 거예요. <b>두 선분의 길이는 같습니다.</b>",
+  same: "맞아요! 화살표 방향만 다를 뿐 <b>두 선분의 길이는 같습니다.</b>"
+});
+guess("gHering", "fbHering", "yes", {
+  yes: "맞아요! 휘어 보여도 두 직선은 <b>정확히 평행</b>합니다. 아래에서 <b>동위각</b>으로 확인해 봅시다.",
+  no:  "눈에는 바깥으로 휜 것처럼 보이죠. 하지만 두 직선은 <b>평행합니다.</b> 아래에서 <b>동위각</b>으로 확인해 봅시다."
+});
+guess("gZollner", "fbZollner", "yes", {
+  yes: "맞아요! 빗금 때문에 기울어 보일 뿐 <b>모두 평행</b>합니다.",
+  no:  "빗금이 만든 착시예요. 직선들은 <b>모두 평행합니다.</b> [빗금 지우기]로 확인해 보세요."
+});
+
+/* 탭 */
+document.querySelectorAll("header nav button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("header nav button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    $("pPonzo")  .classList.toggle("hidden", tab !== "ponzo");
+    $("pMuller") .classList.toggle("hidden", tab !== "muller");
+    $("pHering") .classList.toggle("hidden", tab !== "hering");
+    $("pZollner").classList.toggle("hidden", tab !== "zollner");
+    draw();
+  });
+});
+
+/* 시작 */
+function boot(){
+  if(window.MK && MK.fit) MK.fit(cv);
+  updateHeringProof();
+  requestAnimationFrame(loop);
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
