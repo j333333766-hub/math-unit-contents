@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>합동 포개기 — SSS·SAS·ASA</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js" data-home="../index.html" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 350px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none; cursor:grab;}
+  #board.drag{cursor:grabbing;}
+  #banner{
+    position:absolute; left:50%; top:12px; transform:translateX(-50%);
+    font-weight:800; font-size:16px; padding:9px 20px; border-radius:999px;
+    pointer-events:none; white-space:nowrap; transition:.18s;
+  }
+  #banner.ok{background:var(--ok-soft); color:var(--ok); border:1px solid #bfe6d0;}
+  #banner.info{background:var(--accent-soft); color:var(--accent-dark); border:1px solid #c7d3f7;}
+  #banner:empty{display:none;}
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn.good{background:var(--ok-soft); border-color:var(--ok); color:var(--ok);}
+  .btn.bad{background:var(--no-soft); border-color:var(--no); color:var(--no);}
+
+  .slider{margin-top:11px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .corr{width:100%; border-collapse:collapse; margin-top:9px; font-size:13.5px;}
+  .corr th,.corr td{padding:7px 6px; border-bottom:1px solid var(--line); text-align:center;}
+  .corr th{color:var(--sub); font-size:12px; font-weight:700;}
+  .corr td{font-weight:700;}
+  .corr td.a{color:#e5484d;} .corr td.b{color:#3e63dd;}
+
+  .choices{display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:10px;}
+  .choices .btn{padding:12px 4px; font-size:14px;}
+
+  .ansrow{display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .ansrow .lab{font-size:14px; font-weight:700;}
+  .ansrow input{
+    width:92px; font:700 17px var(--font); padding:9px 10px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🪞 합동 포개기</h1>
+  <nav>
+    <button class="on" data-tab="stack">① 포개 보기</button>
+    <button data-tab="cond">② 합동 조건 찾기</button>
+    <button data-tab="corr">③ 대응 관계</button>
+  </nav>
+  <a class="home-btn" href="../index.html">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="banner"></div>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ============ ① 포개 보기 ============ -->
+    <section id="pStack">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 포개어 보기</h2>
+        <p><b style="color:#3e63dd">파란 삼각형</b>을 끌고 돌리고 뒤집어서
+           <b style="color:#e5484d">빨간 삼각형</b> 위에 <b>완전히 겹쳐</b> 보세요.</p>
+        <div class="slider">
+          <label><span>돌리기</span><span class="v" id="vRot">0°</span></label>
+          <input type="range" id="rRot" min="0" max="355" step="5" value="0">
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnFlip">🔄 뒤집기</button>
+          <button class="btn sm" id="btnNewStack">🎲 새 문제</button>
+        </div>
+        <div id="stackFb"></div>
+      </div>
+      <div class="blk" id="corrBlk">
+        <h2>대응 관계</h2>
+        <p id="corrHint">완전히 겹치면 대응하는 꼭짓점·변·각이 나타나요.</p>
+        <div id="corrTable"></div>
+      </div>
+      <div class="blk">
+        <h2>합동이란</h2>
+        <p>한 도형을 다른 도형에 포개었을 때 <b>완전히 겹쳐지면</b> 두 도형은 <b>합동</b>이에요.
+           기호로 <b>△ABC ≡ △DEF</b> 와 같이 쓰고, 이때 <b>대응하는 꼭짓점을 순서대로</b> 씁니다.
+           대응하는 변의 길이와 각의 크기는 각각 같아요.</p>
+      </div>
+    </section>
+
+    <!-- ============ ② 합동 조건 ============ -->
+    <section id="pCond" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 어떤 합동 조건일까?</h2>
+        <p id="condAsk"></p>
+        <div class="choices">
+          <button class="btn" data-c="sss">SSS 합동</button>
+          <button class="btn" data-c="sas">SAS 합동</button>
+          <button class="btn" data-c="asa">ASA 합동</button>
+          <button class="btn" data-c="no">알 수 없다</button>
+        </div>
+        <div id="condFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary hidden" id="btnCondNext">다음 문제 ▶</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="cTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="cOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="cStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>삼각형의 합동 조건</h2>
+        <p><b>SSS</b> 대응하는 세 쌍의 <b>변</b>의 길이가 각각 같을 때<br>
+           <b>SAS</b> 대응하는 두 쌍의 변의 길이가 같고 그 <b>끼인각</b>의 크기가 같을 때<br>
+           <b>ASA</b> 대응하는 한 쌍의 변의 길이가 같고 그 <b>양 끝 각</b>의 크기가 각각 같을 때</p>
+        <div class="fb info">S 는 Side(변), A 는 Angle(각) 의 첫 글자예요.</div>
+      </div>
+    </section>
+
+    <!-- ============ ③ 대응 관계 ============ -->
+    <section id="pCorr" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 대응하는 변과 각</h2>
+        <p id="corrAsk"></p>
+        <div class="ansrow">
+          <span class="lab" id="corrLab"></span>
+          <input type="number" id="corrIn" placeholder="?" inputmode="numeric">
+          <span class="lab" id="corrUnit"></span>
+        </div>
+        <div id="corrFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnCorrCheck">✅ 확인</button>
+          <button class="btn sm" id="btnCorrNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="rTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="rOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="rStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>기억할 것</h2>
+        <p><b>△ABC ≡ △DEF</b> 라고 쓰면 A↔D, B↔E, C↔F 가 대응해요.
+           그래서 <b>ABÓ = DEÓ</b>, <b>∠B = ∠E</b> 처럼 짝을 바로 찾을 수 있어요.</p>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const DW = 900, DH = 560;
+const RED = "#e5484d", BLUE = "#3e63dd", OK = "#2f9e63", ORANGE = "#f5820b", SUB = "#68738a", INK = "#1d2433";
+const rad = d => d*Math.PI/180;
+let tab = "stack";
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+function toDesign(px, py){ const v = view(); return {x:(px - v.ox)/v.s, y:(py - v.oy)/v.s}; }
+function poly(ps, stroke, fill, w){
+  ctx.beginPath();
+  ps.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+  ctx.closePath();
+  if(fill){ ctx.fillStyle = fill; ctx.fill(); }
+  ctx.strokeStyle = stroke; ctx.lineWidth = w || 5; ctx.lineJoin = "round"; ctx.stroke();
+}
+function dot(P, color, r){
+  ctx.fillStyle = "#fff"; ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(P.x, P.y, r || 7, 0, 7); ctx.fill(); ctx.stroke();
+}
+function ital(t, x, y, color, size){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "italic 700 " + size + "px 'Times New Roman', serif";
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const mid = (a, b) => ({x:(a.x + b.x)/2, y:(a.y + b.y)/2});
+function angleAt(P, Q, R){                       // ∠QPR (도)
+  const u = {x:Q.x - P.x, y:Q.y - P.y}, v = {x:R.x - P.x, y:R.y - P.y};
+  const c = (u.x*v.x + u.y*v.y)/(Math.hypot(u.x,u.y)*Math.hypot(v.x,v.y));
+  return Math.acos(Math.max(-1, Math.min(1, c)))*180/Math.PI;
+}
+/* 같음 표시(변 눈금 / 각 호) */
+function tick(a, b, n, color){
+  const m = mid(a, b);
+  const d = {x:b.x - a.x, y:b.y - a.y}, L = Math.hypot(d.x, d.y);
+  const u = {x:d.x/L, y:d.y/L}, p = {x:-u.y, y:u.x};
+  ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.lineCap = "round";
+  for(let i = 0; i < n; i++){
+    const off = (i - (n-1)/2)*7;
+    ctx.beginPath();
+    ctx.moveTo(m.x + u.x*off - p.x*8, m.y + u.y*off - p.y*8);
+    ctx.lineTo(m.x + u.x*off + p.x*8, m.y + u.y*off + p.y*8);
+    ctx.stroke();
+  }
+}
+function angMark(P, Q, R, color, n){
+  const a1 = Math.atan2(-(Q.y - P.y), Q.x - P.x), a2 = Math.atan2(-(R.y - P.y), R.x - P.x);
+  let d = a2 - a1;
+  while(d <= -Math.PI) d += 2*Math.PI;
+  while(d > Math.PI) d -= 2*Math.PI;
+  for(let i = 0; i < (n || 1); i++){
+    const R0 = 30 + i*7;
+    ctx.beginPath();
+    ctx.arc(P.x, P.y, R0, -a1, -(a1 + d), d > 0);
+    ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
+  }
+}
+
+/* ============================================================
+   ① 포개 보기
+   ============================================================ */
+const BASE = [{x:-70, y:-110}, {x:-140, y:110}, {x:150, y:70}];   // 무게중심 기준 세 점
+const CEN1 = {x:270, y:290};
+/* 기준 삼각형(빨강)도 제 나름의 방향을 갖는다.
+   그래야 학생이 파란 삼각형을 '그 방향에 맞춰' 돌리고 뒤집게 된다.
+   (기준이 늘 0°·뒤집기 없음이면 답이 항상 같아져 버린다) */
+let R1 = {rot:0, flip:false};
+let T = {pos:{x:660, y:270}, rot:0, flip:false, done:false};
+
+function xform(p, rotDeg, flip){
+  const q = flip ? {x:-p.x, y:p.y} : p;
+  const c = Math.cos(rad(rotDeg)), s = Math.sin(rad(rotDeg));
+  return {x:q.x*c - q.y*s, y:q.x*s + q.y*c};
+}
+function tri1(){
+  return BASE.map(p => { const q = xform(p, R1.rot, R1.flip); return {x:CEN1.x + q.x, y:CEN1.y + q.y}; });
+}
+function tri2(){
+  return BASE.map(p => { const q = xform(p, T.rot, T.flip); return {x:T.pos.x + q.x, y:T.pos.y + q.y}; });
+}
+/* 대응 관계: 겹쳤을 때 D,E,F 가 각각 A,B,C 중 어디에 놓였는지 */
+function matching(){
+  const P = tri1(), Q = tri2();
+  const names = ["A", "B", "C"];
+  const map = [];
+  for(let i = 0; i < 3; i++){
+    let best = -1, bd = 1e9;
+    for(let j = 0; j < 3; j++){
+      const d = dist(Q[i], P[j]);
+      if(d < bd){ bd = d; best = j; }
+    }
+    if(bd > 22) return null;
+    map.push(names[best]);
+  }
+  return (new Set(map).size === 3) ? map : null;
+}
+function newStack(){
+  /* 기준 삼각형의 방향을 정하고, 파란 삼각형은 다른 방향에서 시작한다 */
+  R1 = {rot: Math.floor(Math.random()*8)*45, flip: Math.random() < 0.5};
+  do { T.rot = Math.floor(Math.random()*8)*45; } while(T.rot === R1.rot);
+  T.flip = Math.random() < 0.35 ? R1.flip : !R1.flip;
+  T.pos = {x:640 + Math.random()*90, y:200 + Math.random()*160};
+  T.done = false;
+  $("rRot").value = T.rot; $("vRot").textContent = T.rot + "°";
+  $("btnFlip").classList.toggle("on", T.flip);
+  $("stackFb").innerHTML = "";
+  $("corrTable").innerHTML = "";
+  $("corrHint").textContent = "완전히 겹치면 대응하는 꼭짓점·변·각이 나타나요.";
+  update();
+}
+function update(){
+  const m = matching();
+  const b = $("banner");
+  if(m){
+    if(!T.done){
+      T.done = true;
+      /* 딱 맞게 붙여 준다 */
+      const P = tri1(), Q = tri2();
+      let dx = 0, dy = 0;
+      for(let i = 0; i < 3; i++){
+        const j = "ABC".indexOf(m[i]);
+        dx += P[j].x - Q[i].x; dy += P[j].y - Q[i].y;
+      }
+      T.pos.x += dx/3; T.pos.y += dy/3;
+    }
+    b.textContent = "완전히 겹쳤어요 — 합동!"; b.className = "ok";
+    const names = ["D", "E", "F"];
+    const P = tri1();
+    const idx = n => "ABC".indexOf(n);
+    const sides = [[0,1],[1,2],[2,0]];
+    let rows = `<table class="corr"><tr><th>△DEF</th><th></th><th>△ABC</th></tr>`;
+    names.forEach((n, i) => { rows += `<tr><td class="b">꼭짓점 ${n}</td><td>↔</td><td class="a">꼭짓점 ${m[i]}</td></tr>`; });
+    sides.forEach(([i, j]) => {
+      rows += `<tr><td class="b">변 ${names[i]}${names[j]}</td><td>↔</td><td class="a">변 ${m[i]}${m[j]}</td></tr>`;
+    });
+    names.forEach((n, i) => { rows += `<tr><td class="b">∠${n}</td><td>↔</td><td class="a">∠${m[i]}</td></tr>`; });
+    rows += `</table>`;
+    $("corrTable").innerHTML = rows;
+    $("corrHint").innerHTML = `기호로 <b>△DEF ≡ △${m.join("")}</b> 라고 써요. (대응하는 꼭짓점을 순서대로!)`;
+    $("stackFb").innerHTML =
+      `<div class="fb ok">🎉 두 삼각형이 <b>완전히 겹쳐졌어요.</b> 두 삼각형은 <b>합동</b>입니다.
+       대응하는 세 변의 길이와 세 각의 크기가 각각 같아요.</div>`;
+  }else{
+    T.done = false;
+    b.textContent = "아직 겹치지 않았어요"; b.className = "info";
+    $("corrTable").innerHTML = "";
+    const need = (T.flip !== R1.flip);
+    $("stackFb").innerHTML = need
+      ? `<div class="fb warn">아무리 돌려도 겹쳐지지 않나요? <b>뒤집기</b>가 필요할 수도 있어요!</div>`
+      : "";
+  }
+  draw();
+}
+function drawStack(){
+  const P = tri1(), Q = tri2();
+  poly(P, RED, "#e5484d1f", 5);
+  P.forEach((p, i) => { dot(p, RED, 7); ital("ABC"[i], p.x + (i===2?24:-24), p.y + (i===0?-22:20), RED, 22); });
+  poly(Q, BLUE, "#3e63dd28", 5);
+  Q.forEach((p, i) => { dot(p, BLUE, 7); ital("DEF"[i], p.x + (i===2?24:-24), p.y + (i===0?-22:20), BLUE, 22); });
+  $("tip").textContent = "파란 삼각형을 끌어서 옮기세요";
+}
+
+/* ============================================================
+   ② 합동 조건 찾기
+   ============================================================ */
+const COND = [
+  {k:"sss", ask:"세 쌍의 대응하는 <b>변</b>의 길이가 각각 같아요.", marks:"sss"},
+  {k:"sas", ask:"두 쌍의 대응하는 <b>변</b>의 길이가 같고, 그 <b>끼인각</b>의 크기가 같아요.", marks:"sas"},
+  {k:"asa", ask:"한 쌍의 대응하는 <b>변</b>의 길이가 같고, 그 <b>양 끝 각</b>의 크기가 각각 같아요.", marks:"asa"},
+  {k:"no",  ask:"두 쌍의 대응하는 <b>변</b>의 길이가 같고, <b>끼인각이 아닌</b> 한 각의 크기가 같아요.", marks:"ssa"},
+  {k:"no",  ask:"세 쌍의 대응하는 <b>각</b>의 크기가 각각 같아요.", marks:"aaa"}
+];
+let C = {i:0, tries:0, ok:0, streak:0, done:false};
+function newCond(){
+  C.i = Math.floor(Math.random()*COND.length);
+  C.done = false;
+  $("condAsk").innerHTML =
+    `두 삼각형 <b>△ABC</b> 와 <b>△DEF</b> 에서 ${COND[C.i].ask}<br>` +
+    `두 삼각형이 <b>합동</b>임을 알 수 있나요? 알 수 있다면 어떤 조건인가요?`;
+  $("condFb").innerHTML = "";
+  $("btnCondNext").classList.add("hidden");
+  document.querySelectorAll("[data-c]").forEach(b => { b.disabled = false; b.classList.remove("good","bad"); });
+  draw();
+}
+function drawCond(){
+  const m = COND[C.i].marks;
+  const A = [{x:150, y:130}, {x:80, y:400}, {x:390, y:350}];
+  const B = [{x:560, y:130}, {x:490, y:400}, {x:800, y:350}];
+  [[A, RED, "ABC"], [B, BLUE, "DEF"]].forEach(([P, col, nm]) => {
+    poly(P, col, col + "1c", 5);
+    P.forEach((p, i) => { dot(p, col, 7); ital(nm[i], p.x + (i===2?24:-24), p.y + (i===0?-22:22), col, 22); });
+    /* 표시 */
+    const sd = [[0,1],[1,2],[2,0]];
+    if(m === "sss") sd.forEach(([i,j], k) => tick(P[i], P[j], k+1, OK));
+    if(m === "sas"){ tick(P[0], P[1], 1, OK); tick(P[1], P[2], 2, OK); angMark(P[1], P[0], P[2], ORANGE, 1); }
+    if(m === "asa"){ tick(P[1], P[2], 1, OK); angMark(P[1], P[0], P[2], ORANGE, 1); angMark(P[2], P[1], P[0], ORANGE, 2); }
+    if(m === "ssa"){ tick(P[0], P[1], 1, OK); tick(P[1], P[2], 2, OK); angMark(P[2], P[1], P[0], ORANGE, 1); }
+    if(m === "aaa"){ angMark(P[0], P[1], P[2], ORANGE, 1); angMark(P[1], P[0], P[2], ORANGE, 2); angMark(P[2], P[1], P[0], ORANGE, 3); }
+  });
+  $("tip").textContent = "같은 표시는 크기가 같다는 뜻이에요";
+}
+document.querySelectorAll("[data-c]").forEach(b => {
+  b.addEventListener("click", () => {
+    if(C.done) return;
+    C.done = true; C.tries++;
+    const want = COND[C.i].k;
+    const ok = b.dataset.c === want;
+    if(ok){ C.ok++; C.streak++; } else { C.streak = 0; }
+    document.querySelectorAll("[data-c]").forEach(x => {
+      x.disabled = true;
+      if(x.dataset.c === want) x.classList.add("good");
+    });
+    if(!ok) b.classList.add("bad");
+    const why = {
+      sss:"세 쌍의 변이 각각 같으므로 <b>SSS 합동</b>이에요.",
+      sas:"두 변과 그 <b>끼인각</b>이 같으므로 <b>SAS 합동</b>이에요.",
+      asa:"한 변과 그 <b>양 끝 각</b>이 같으므로 <b>ASA 합동</b>이에요.",
+      no: COND[C.i].marks === "ssa"
+        ? "끼인각이 아닌 각이므로 <b>합동이라고 할 수 없어요.</b> 삼각형이 두 개 생길 수 있어요."
+        : "세 각만 같으면 <b>모양은 같아도 크기가 다를 수</b> 있어요. 합동이라고 할 수 없어요."
+    }[want];
+    $("condFb").innerHTML = `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답! " : "아쉬워요. "}${why}</div>`;
+    $("btnCondNext").classList.remove("hidden");
+    $("cTry").textContent = C.tries; $("cOk").textContent = C.ok; $("cStreak").textContent = C.streak;
+  });
+});
+$("btnCondNext").addEventListener("click", newCond);
+
+/* ============================================================
+   ③ 대응 관계
+   ============================================================ */
+let R = {sides:{}, angs:{}, ask:null, tries:0, ok:0, streak:0, done:false};
+function newCorr(){
+  const ab = 4 + Math.floor(Math.random()*6);
+  const bc = 5 + Math.floor(Math.random()*6);
+  const ca = 6 + Math.floor(Math.random()*5);
+  const a1 = 40 + Math.floor(Math.random()*9)*5;
+  const a2 = 40 + Math.floor(Math.random()*9)*5;
+  R.sides = {AB:ab, BC:bc, CA:ca};
+  R.angs  = {A:a1, B:a2, C:180 - a1 - a2};
+  if(R.angs.C < 20){ return newCorr(); }
+  const kinds = [
+    {q:"DEÓ 의 길이", lab:"DEÓ =", unit:"cm", ans:ab, why:`△ABC ≡ △DEF 이므로 DEÓ 는 <b>ABÓ</b> 와 대응해요. 따라서 <b>${ab} cm</b>.`},
+    {q:"EFÓ 의 길이", lab:"EFÓ =", unit:"cm", ans:bc, why:`EFÓ 는 <b>BCÓ</b> 와 대응하므로 <b>${bc} cm</b>.`},
+    {q:"DFÓ 의 길이", lab:"DFÓ =", unit:"cm", ans:ca, why:`DFÓ 는 <b>ACÓ</b> 와 대응하므로 <b>${ca} cm</b>.`},
+    {q:"∠E 의 크기", lab:"∠E =", unit:"°", ans:R.angs.B, why:`∠E 는 <b>∠B</b> 와 대응하므로 <b>${R.angs.B}°</b>.`},
+    {q:"∠F 의 크기", lab:"∠F =", unit:"°", ans:R.angs.C, why:`∠F 는 <b>∠C</b> 와 대응해요. ∠C = 180° − ${a1}° − ${a2}° = <b>${R.angs.C}°</b>.`}
+  ];
+  R.ask = kinds[Math.floor(Math.random()*kinds.length)];
+  R.done = false;
+  $("corrAsk").innerHTML =
+    `아래 그림에서 <b>△ABC ≡ △DEF</b> 일 때, <b>${R.ask.q}</b> 를 구하세요.`;
+  $("corrLab").textContent = R.ask.lab;
+  $("corrUnit").textContent = R.ask.unit;
+  const inp = $("corrIn"); inp.value = ""; inp.className = "";
+  $("corrFb").innerHTML = "";
+  draw();
+}
+function drawCorr(){
+  const A = [{x:170, y:120}, {x:90, y:390}, {x:400, y:340}];
+  const B = [{x:580, y:120}, {x:500, y:390}, {x:810, y:340}];
+  poly(A, RED, "#e5484d1a", 5);
+  A.forEach((p, i) => { dot(p, RED, 7); ital("ABC"[i], p.x + (i===2?24:-24), p.y + (i===0?-22:22), RED, 22); });
+  poly(B, BLUE, "#3e63dd1a", 5);
+  B.forEach((p, i) => { dot(p, BLUE, 7); ital("DEF"[i], p.x + (i===2?24:-24), p.y + (i===0?-22:22), BLUE, 22); });
+  /* △ABC 쪽에만 값을 적어 준다 */
+  txt(R.sides.AB + " cm", mid(A[0], A[1]).x - 40, mid(A[0], A[1]).y, RED, 17, true);
+  txt(R.sides.BC + " cm", mid(A[1], A[2]).x, mid(A[1], A[2]).y + 26, RED, 17, true);
+  txt(R.sides.CA + " cm", mid(A[2], A[0]).x + 46, mid(A[2], A[0]).y, RED, 17, true);
+  angMark(A[0], A[1], A[2], ORANGE, 1);
+  txt(R.angs.A + "°", A[0].x + 6, A[0].y + 52, ORANGE, 16, true);
+  angMark(A[1], A[0], A[2], ORANGE, 1);
+  txt(R.angs.B + "°", A[1].x + 44, A[1].y - 26, ORANGE, 16, true);
+  $("tip").textContent = "△ABC 의 값을 보고 △DEF 의 값을 찾아요";
+}
+$("btnCorrCheck").addEventListener("click", () => {
+  if(R.done) return;
+  const inp = $("corrIn");
+  if(inp.value === ""){ $("corrFb").innerHTML = `<div class="fb warn">답을 적어 주세요.</div>`; return; }
+  const ok = Math.abs(+inp.value - R.ask.ans) < 0.001;
+  R.done = true; R.tries++;
+  if(ok){ R.ok++; R.streak++; } else { R.streak = 0; }
+  inp.className = ok ? "good" : "bad";
+  $("corrFb").innerHTML =
+    `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답! " : `아쉬워요. 답은 <b>${R.ask.ans}${R.ask.unit}</b>. `}${R.ask.why}</div>`;
+  $("rTry").textContent = R.tries; $("rOk").textContent = R.ok; $("rStreak").textContent = R.streak;
+});
+$("btnCorrNext").addEventListener("click", newCorr);
+$("corrIn").addEventListener("keydown", e => { if(e.key === "Enter") $("btnCorrCheck").click(); });
+
+/* ============================================================
+   그리기 / 입력 / 탭
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff"; ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);
+  if(tab === "stack") drawStack();
+  if(tab === "cond")  drawCond();
+  if(tab === "corr")  drawCorr();
+  ctx.restore();
+}
+let dragging = false, grab = null;
+cv.addEventListener("pointerdown", ev => {
+  if(tab !== "stack") return;
+  const p = toDesign(ev.offsetX, ev.offsetY);
+  dragging = true; grab = {x:p.x - T.pos.x, y:p.y - T.pos.y};
+  cv.classList.add("drag");
+  try{ cv.setPointerCapture(ev.pointerId); }catch(e){}
+});
+cv.addEventListener("pointermove", ev => {
+  if(!dragging) return;
+  const p = toDesign(ev.offsetX, ev.offsetY);
+  T.pos = {x:p.x - grab.x, y:p.y - grab.y};
+  update();
+});
+["pointerup","pointercancel"].forEach(t =>
+  cv.addEventListener(t, () => { dragging = false; cv.classList.remove("drag"); }));
+
+$("rRot").addEventListener("input", e => {
+  T.rot = +e.target.value; $("vRot").textContent = T.rot + "°"; update();
+});
+$("btnFlip").addEventListener("click", e => {
+  T.flip = !T.flip; e.currentTarget.classList.toggle("on", T.flip); update();
+});
+$("btnNewStack").addEventListener("click", newStack);
+
+document.querySelectorAll("header nav button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("header nav button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    $("pStack").classList.toggle("hidden", tab !== "stack");
+    $("pCond") .classList.toggle("hidden", tab !== "cond");
+    $("pCorr") .classList.toggle("hidden", tab !== "corr");
+    $("banner").textContent = ""; $("banner").className = "";
+    if(tab === "stack") update();
+    if(tab === "cond")  newCond();
+    if(tab === "corr")  newCorr();
+    draw();
+  });
+});
+
+function boot(){
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  newCond(); newCorr(); newStack();
+  tab = "stack";
+  update();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
