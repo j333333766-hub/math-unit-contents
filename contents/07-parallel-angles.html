@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>평행선 각 탐구실 — 동위각·엇각의 크기</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js" data-home="../index.html" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:18px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:6px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 13px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 348px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none;}
+
+  /* 평행 여부 배지 */
+  #paraBadge{
+    position:absolute; left:14px; top:12px;
+    font-weight:800; font-size:14px; padding:7px 14px; border-radius:999px;
+    border:1px solid transparent; transition:.18s; pointer-events:none;
+  }
+  #paraBadge.yes{background:var(--ok-soft); color:var(--ok); border-color:#bfe6d0;}
+  #paraBadge.no {background:var(--no-soft); color:var(--no); border-color:#f6c9cb;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn.pair{min-width:66px; text-align:center; font-family:'Times New Roman',serif; font-style:italic; font-size:15px;}
+  .btn.pair.dw.on{background:var(--ok-soft); border-color:var(--ok); color:var(--ok);}
+  .btn.pair.et.on{background:var(--warn-soft); border-color:var(--warn); color:#c56a00;}
+
+  /* 슬라이더 */
+  .slider{margin-top:11px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label i{color:var(--accent); font-family:'Times New Roman',serif; font-size:15px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  /* 두 각 비교 표 */
+  .cmp{display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; margin-top:10px;}
+  .cmp .side{
+    text-align:center; padding:10px 6px; border-radius:10px;
+    background:#f7f9fd; border:1px solid var(--line);
+  }
+  .cmp .side .nm{font:italic 700 17px 'Times New Roman',serif; color:var(--sub);}
+  .cmp .side .vl{font-size:22px; font-weight:800; margin-top:2px;}
+  .cmp .eq{font-size:24px; font-weight:800; color:var(--sub);}
+  .cmp.same .eq{color:var(--ok);}
+  .cmp.diff .eq{color:var(--no);}
+
+  .term{border-left:4px solid var(--ok); background:#f6fbf8; padding:11px 13px; border-radius:9px; margin-top:9px;}
+  .term.et{border-left-color:var(--warn); background:#fff9f0;}
+  .term h3{font-size:14px; font-weight:800; margin-bottom:4px;}
+  .term p{font-size:13px; color:var(--sub); line-height:1.6;}
+
+  /* 문제 풀이 */
+  .ansrow{display:flex; align-items:center; gap:8px; margin-top:10px;}
+  .ansrow .lab{font:italic 700 18px 'Times New Roman',serif;}
+  .ansrow input{
+    width:92px; font:700 17px var(--font); padding:9px 10px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+  .ansrow .unit{font-size:15px; font-weight:700; color:var(--sub);}
+
+  .reasons{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:9px;}
+  .reasons .btn{padding:10px 4px; font-size:13.5px;}
+  .reasons .btn.good{background:var(--ok-soft); border-color:var(--ok); color:var(--ok);}
+  .reasons .btn.bad {background:var(--no-soft); border-color:var(--no); color:var(--no);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:52vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>⫽ 평행선 각 탐구실</h1>
+  <nav>
+    <button class="on" data-tab="explore">① 직접 확인하기</button>
+    <button data-tab="solve">② 각의 크기 구하기</button>
+    <button data-tab="judge">③ 평행한지 판정하기</button>
+  </nav>
+  <a class="home-btn" href="../index.html">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="paraBadge"></div>
+  </div>
+
+  <aside>
+    <!-- ============ ① 탐구 ============ -->
+    <section id="pExplore">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 평행할 때만 같아질까?</h2>
+        <p>직선 <b><i>m</i></b> 을 기울여 보면서, 동위각과 엇각의 크기가
+           <b>언제 같아지는지</b> 확인해 보세요.</p>
+
+        <div class="slider">
+          <label><span>직선 <i>m</i> 의 기울기</span><span class="v" id="valM">0°</span></label>
+          <input type="range" id="rngM" min="-30" max="30" step="1" value="0">
+        </div>
+        <div class="slider">
+          <label><span>직선 <i>n</i> 의 기울기</span><span class="v" id="valN">62°</span></label>
+          <input type="range" id="rngN" min="45" max="135" step="1" value="62">
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm primary" id="btnSnap">📐 평행으로 맞추기</button>
+          <button class="btn sm" id="btnShowAll">모든 각 크기 보기</button>
+        </div>
+      </div>
+
+      <div class="blk">
+        <h2>비교할 두 각 고르기</h2>
+        <p style="margin-bottom:8px;">동위각 <b style="color:var(--ok)">초록</b> · 엇각 <b style="color:var(--warn)">주황</b></p>
+        <div class="row" id="pairBtns"></div>
+        <div class="cmp" id="cmp">
+          <div class="side"><div class="nm" id="cmpN1">a</div><div class="vl" id="cmpV1">–</div></div>
+          <div class="eq" id="cmpEq">?</div>
+          <div class="side"><div class="nm" id="cmpN2">e</div><div class="vl" id="cmpV2">–</div></div>
+        </div>
+        <div id="cmpFb"></div>
+      </div>
+
+      <div class="blk">
+        <h2>알게 된 것</h2>
+        <div class="term">
+          <h3>평행선과 동위각</h3>
+          <p>두 직선이 <b>평행하면</b> 동위각의 크기는 서로 같다.<br>
+             거꾸로 동위각의 크기가 <b>서로 같으면</b> 두 직선은 평행하다.</p>
+        </div>
+        <div class="term et">
+          <h3>평행선과 엇각</h3>
+          <p>두 직선이 <b>평행하면</b> 엇각의 크기는 서로 같다.<br>
+             거꾸로 엇각의 크기가 <b>서로 같으면</b> 두 직선은 평행하다.</p>
+        </div>
+        <div class="fb info">엇각이 같은 이유는? <b>동위각</b>으로 같고, 다시 <b>맞꼭지각</b>으로 같기 때문이에요. (교과서 154쪽)</div>
+      </div>
+    </section>
+
+    <!-- ============ ② 각 구하기 ============ -->
+    <section id="pSolve" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 각의 크기를 구해 보세요</h2>
+        <p id="solveAsk"></p>
+        <div class="ansrow">
+          <span class="lab" id="solveLab">∠x =</span>
+          <input type="number" id="solveIn" placeholder="?" inputmode="numeric">
+          <span class="unit">°</span>
+        </div>
+        <p style="margin-top:11px; font-size:13px; font-weight:700; color:var(--ink);">어떤 성질을 썼나요?</p>
+        <div class="reasons">
+          <button class="btn" data-r="dongwi">동위각</button>
+          <button class="btn" data-r="eot">엇각</button>
+          <button class="btn" data-r="matggokji">맞꼭지각</button>
+          <button class="btn" data-r="flat">평각(180°)</button>
+        </div>
+        <div id="solveFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnSolveCheck">✅ 확인</button>
+          <button class="btn sm" id="btnSolveNext">🔄 새 문제</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>진행 상황</h2>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="sTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="sRight">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="sStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ③ 평행 판정 ============ -->
+    <section id="pJudge" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 두 직선은 평행할까?</h2>
+        <p id="judgeAsk"></p>
+        <div class="row" style="margin-top:11px;">
+          <button class="btn" data-j="yes" style="flex:1; padding:13px 0;">⫽ 평행하다</button>
+          <button class="btn" data-j="no"  style="flex:1; padding:13px 0;">✕ 평행하지 않다</button>
+        </div>
+        <div id="judgeFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary hidden" id="btnJudgeNext">다음 문제 ▶</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>진행 상황</h2>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="jTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="jRight">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="jStreak">0</div><div class="l">연속</div></div>
+        </div>
+        <div class="fb info">동위각이나 엇각의 크기가 <b>같으면</b> 평행, <b>다르면</b> 평행이 아니에요.</div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const DEG = "°";
+
+/* ============================================================
+   1. 각의 이름과 위치
+   위 교차점(직선 l 과 n)   : b 좌상  a 우상  c 좌하  d 우하
+   아래 교차점(직선 m 과 n) : f 좌상  e 우상  g 좌하  h 우하
+
+   동위각 : a-e  b-f  c-g  d-h
+   엇각   : c-e  d-f
+   맞꼭지각: a-c  b-d  e-g  f-h
+   ============================================================ */
+const ANG = [
+  {k:"a", c:0, q:"rt"}, {k:"b", c:0, q:"lt"}, {k:"c", c:0, q:"lb"}, {k:"d", c:0, q:"rb"},
+  {k:"e", c:1, q:"rt"}, {k:"f", c:1, q:"lt"}, {k:"g", c:1, q:"lb"}, {k:"h", c:1, q:"rb"}
+];
+const IDX = {}; ANG.forEach((x,i) => IDX[x.k] = i);
+const OPP = {lt:"rb", rb:"lt", rt:"lb", lb:"rt"};
+
+function rel(i, j){
+  if(i === j) return "same";
+  const A = ANG[i], B = ANG[j];
+  if(A.c === B.c) return OPP[A.q] === B.q ? "matggokji" : "flat";  // 같은 교차점: 마주 보면 맞꼭지각, 이웃하면 평각
+  if(A.q === B.q) return "dongwi";
+  const up = (A.c === 0 ? A : B), dn = (A.c === 0 ? B : A);
+  const inner = (up.q === "lb" || up.q === "rb") && (dn.q === "lt" || dn.q === "rt");
+  return (inner && up.q[0] !== dn.q[0]) ? "eot" : "none";
+}
+const REL_KO = {dongwi:"동위각", eot:"엇각", matggokji:"맞꼭지각", flat:"평각", none:"직접 관계 없음"};
+const DONGWI = [["a","e"], ["b","f"], ["c","g"], ["d","h"]];
+const EOT    = [["c","e"], ["d","f"]];
+
+/* ============================================================
+   2. 기하 — 직선 l, m, n 과 8개의 교각
+   ============================================================ */
+const DW = 900, DH = 620;
+const P1 = {x:430, y:186};      // l 과 n 의 교점 (l 은 이 점을 지나는 수평선)
+const M0 = {x:470, y:452};      // 직선 m 이 항상 지나는 점
+
+let thM = 0, thN = 62;          // m, n 의 기울기(도)
+let showAll = false;
+let picked = null;              // 비교 중인 두 각 [i, j]
+let mode = "explore";
+
+const rad = d => d * Math.PI / 180;
+const dirOf = d => ({x:Math.cos(rad(d)), y:-Math.sin(rad(d))});   // 화면 좌표(아래로 +y)
+
+/* 직선 (P, dir) 두 개의 교점 */
+function meet(P, u, Q, v){
+  const den = u.x*v.y - u.y*v.x;
+  if(Math.abs(den) < 1e-9) return null;
+  const t = ((Q.x - P.x)*v.y - (Q.y - P.y)*v.x) / den;
+  return {x:P.x + u.x*t, y:P.y + u.y*t};
+}
+function geom(){
+  const uL = dirOf(0), uM = dirOf(thM), uN = dirOf(thN);
+  const P2 = meet(M0, uM, P1, uN) || {x:M0.x, y:M0.y};
+  return {uL, uM, uN, P1, P2};
+}
+/* 각의 크기 */
+function angVal(i){
+  const A = ANG[i];
+  const phi = (A.c === 0) ? thN : (thN - thM);      // 그 교차점에서 두 직선이 이루는 각
+  return (A.q === "rt" || A.q === "lb") ? phi : 180 - phi;
+}
+const isPara = () => Math.abs(thM) < 0.001;
+
+/* ============================================================
+   3. 그리기
+   ============================================================ */
+const cv = $("board"), ctx = cv.getContext("2d");
+function viewInfo(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+
+const COL = {
+  line:"#3e63dd", lineSoft:"#9db3ee", tr:"#68738a",
+  dongwi:"#2f9e63", eot:"#f5820b", matggokji:"#8e4ec6", plain:"#c3cbda"
+};
+
+/* 한 교차점에서 네 각의 (시작, 끝) 캔버스 각도 */
+function arcRange(thLine, q){
+  const L = -thLine, N = -thN;                 // 캔버스 각도 = -(수학 각도)
+  if(q === "rt") return [N, L];
+  if(q === "lt") return [L - 180, N];
+  if(q === "lb") return [N - 180, L - 180];
+  return [L, N + 180];                          // rb
+}
+
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = viewInfo();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy);
+  ctx.scale(v.s, v.s);
+
+  const bx0 = -v.ox/v.s, by0 = -v.oy/v.s;
+  const bx1 = (v.W - v.ox)/v.s, by1 = (v.H - v.oy)/v.s;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(bx0, by0, bx1 - bx0, by1 - by0);
+
+  const G = geom();
+
+  /* --- 직선 --- */
+  function line(P, u, color, w, dash){
+    ctx.save();
+    ctx.setLineDash(dash || []);
+    ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(P.x - u.x*2600, P.y - u.y*2600);
+    ctx.lineTo(P.x + u.x*2600, P.y + u.y*2600);
+    ctx.stroke();
+    ctx.restore();
+  }
+  line(G.P1, G.uN, COL.tr, 3.4);                 // 직선 n
+  line(G.P1, G.uL, COL.line, 4.6);               // 직선 l
+  line(G.P2, G.uM, COL.line, 4.6);               // 직선 m
+
+  /* 평행일 때 화살표 표시(교과서 기호) */
+  if(isPara()){
+    ctx.strokeStyle = COL.line; ctx.lineWidth = 3; ctx.lineCap = "round";
+    [[G.P1, G.uL, 210], [G.P2, G.uM, 210]].forEach(([P, u, off]) => {
+      const bx = P.x - u.x*off, by = P.y - u.y*off;
+      for(const s of [0, 16]){
+        ctx.beginPath();
+        ctx.moveTo(bx - 9 + s*u.x, by - 9 + s*u.y);
+        ctx.lineTo(bx + 2 + s*u.x, by + 0 + s*u.y);
+        ctx.lineTo(bx - 9 + s*u.x, by + 9 + s*u.y);
+        ctx.stroke();
+      }
+    });
+  }
+
+  /* --- 각 --- */
+  const hi = {};
+  if(picked){ hi[picked[0]] = true; hi[picked[1]] = true; }
+  const hiCol = picked ? (rel(picked[0], picked[1]) === "eot" ? COL.eot : COL.dongwi) : COL.dongwi;
+
+  ANG.forEach((A, i) => {
+    const P  = A.c === 0 ? G.P1 : G.P2;
+    const th = A.c === 0 ? 0 : thM;
+    const [s0, s1] = arcRange(th, A.q);
+    const on = hi[i];
+    const R = on ? 62 : 46;
+
+    if(on || showAll){
+      ctx.beginPath();
+      ctx.moveTo(P.x, P.y);
+      ctx.arc(P.x, P.y, R, rad(s0), rad(s1));
+      ctx.closePath();
+      ctx.fillStyle = on ? hiCol + "3a" : "#3e63dd14";
+      ctx.fill();
+      ctx.strokeStyle = on ? hiCol : COL.plain;
+      ctx.lineWidth = on ? 3 : 1.6;
+      ctx.stroke();
+    }
+
+    /* 이름·크기 글자 */
+    const mid = (s0 + s1)/2;
+    const lx = P.x + Math.cos(rad(mid)) * (R + 26);
+    const ly = P.y + Math.sin(rad(mid)) * (R + 26);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    if(on || showAll){
+      ctx.fillStyle = on ? hiCol : "#48546b";
+      ctx.font = "800 17px Pretendard, 'Malgun Gothic', sans-serif";
+      ctx.fillText(Math.round(angVal(i)*10)/10 + DEG, lx, ly + 11);
+    }
+    ctx.fillStyle = on ? hiCol : "#8b96ab";
+    ctx.font = "italic 700 20px 'Times New Roman', serif";
+    ctx.fillText(A.k, lx, (on || showAll) ? ly - 9 : ly);
+  });
+
+  /* --- 교점 --- */
+  [G.P1, G.P2].forEach(P => {
+    ctx.fillStyle = "#fff"; ctx.strokeStyle = COL.line; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(P.x, P.y, 6, 0, 7); ctx.fill(); ctx.stroke();
+  });
+
+  /* --- 직선 이름 --- */
+  ctx.font = "italic 700 30px 'Times New Roman', serif";
+  ctx.fillStyle = "#5b6a8a"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const lxx = bx0 + 34;   // 글자가 직선 위에 겹치지 않도록 살짝 위로 올린다
+  ctx.fillText("l", lxx, G.P1.y + (lxx - G.P1.x)*(G.uL.y/G.uL.x) - 20);
+  ctx.fillText("m", lxx, G.P2.y + (lxx - G.P2.x)*(G.uM.y/G.uM.x) - 20);
+  const ny = by0 + 28;
+  ctx.fillStyle = "#8b96ab";
+  ctx.fillText("n", G.P1.x + (ny - G.P1.y)*(G.uN.x/G.uN.y), ny);
+
+  ctx.restore();
+}
+
+/* ============================================================
+   4. 활동 ① 탐구
+   ============================================================ */
+function updateBadge(){
+  const b = $("paraBadge");
+  if(mode !== "explore"){ b.textContent = ""; b.className = ""; return; }
+  if(isPara()){ b.textContent = "l ∥ m  (평행)"; b.className = "yes"; }
+  else{ b.textContent = "l ∦ m  (평행 아님)"; b.className = "no"; }
+}
+
+function updateCmp(){
+  if(!picked){
+    $("cmpN1").textContent = "?"; $("cmpN2").textContent = "?";
+    $("cmpV1").textContent = "–";  $("cmpV2").textContent = "–";
+    $("cmpEq").textContent = "?";  $("cmp").className = "cmp";
+    $("cmpFb").innerHTML = `<div class="fb info">위에서 비교할 두 각을 골라 보세요.</div>`;
+    return;
+  }
+  const [i, j] = picked;
+  const v1 = Math.round(angVal(i)*10)/10, v2 = Math.round(angVal(j)*10)/10;
+  const same = Math.abs(v1 - v2) < 0.05;
+  const kind = rel(i, j);
+  $("cmpN1").textContent = ANG[i].k; $("cmpN2").textContent = ANG[j].k;
+  $("cmpV1").textContent = v1 + DEG;  $("cmpV2").textContent = v2 + DEG;
+  $("cmpEq").textContent = same ? "=" : "≠";
+  $("cmp").className = "cmp " + (same ? "same" : "diff");
+
+  const nm = REL_KO[kind];
+  $("cmpFb").innerHTML = same
+    ? `<div class="fb ok">두 ${nm}의 크기가 <b>같아요!</b> 지금 두 직선 <i>l</i>, <i>m</i> 은 <b>평행</b>합니다.</div>`
+    : `<div class="fb no">두 ${nm}의 크기가 <b>${Math.abs(Math.round((v1-v2)*10)/10)}${DEG}만큼 달라요.</b> 두 직선이 평행하지 않기 때문이에요.</div>`;
+}
+
+(function buildPairButtons(){
+  const wrap = $("pairBtns");
+  const mk = (pair, cls) => {
+    const b = document.createElement("button");
+    b.className = "btn pair sm " + cls;
+    b.innerHTML = `∠${pair[0]} , ∠${pair[1]}`;
+    b.addEventListener("click", () => {
+      picked = [IDX[pair[0]], IDX[pair[1]]];
+      document.querySelectorAll("#pairBtns .btn").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+      updateCmp(); draw();
+    });
+    wrap.appendChild(b);
+  };
+  DONGWI.forEach(p => mk(p, "dw"));
+  EOT.forEach(p => mk(p, "et"));
+})();
+
+$("rngM").addEventListener("input", e => {
+  thM = +e.target.value;
+  $("valM").textContent = thM + DEG;
+  updateBadge(); updateCmp(); draw();
+});
+$("rngN").addEventListener("input", e => {
+  thN = +e.target.value;
+  $("valN").textContent = thN + DEG;
+  updateCmp(); draw();
+});
+$("btnSnap").addEventListener("click", () => {
+  thM = 0; $("rngM").value = 0; $("valM").textContent = "0" + DEG;
+  updateBadge(); updateCmp(); draw();
+});
+$("btnShowAll").addEventListener("click", e => {
+  showAll = !showAll;
+  e.currentTarget.classList.toggle("on", showAll);
+  e.currentTarget.textContent = showAll ? "모든 각 크기 숨기기" : "모든 각 크기 보기";
+  draw();
+});
+
+/* ============================================================
+   5. 활동 ② 각의 크기 구하기  (항상 l ∥ m 인 상태)
+   ============================================================ */
+let S = {given:0, ask:0, kind:"", tries:0, right:0, streak:0, reason:null, done:false};
+
+/* 문제로 낼 수 있는 짝: 근거가 하나로 딱 떨어지는 것만.
+   네 가지 근거가 고르게 나오도록 종류별로 나누어 담는다.
+   (그냥 전체에서 뽑으면 평각 문제가 절반 가까이 나온다) */
+const SPAIRS = {dongwi:[], eot:[], matggokji:[], flat:[]};
+for(let i = 0; i < 8; i++) for(let j = 0; j < 8; j++){
+  if(i === j) continue;
+  const r = rel(i, j);
+  if(SPAIRS[r]) SPAIRS[r].push([i, j, r]);
+}
+const SKINDS = ["dongwi", "eot", "matggokji", "flat"];
+
+function newSolve(){
+  thM = 0;                                   // 평행 고정
+  thN = MKrand(35, 145, 5);
+  if(Math.abs(thN - 90) < 1) thN = 65;       // 직각은 너무 쉬우므로 피한다
+  const kind = SKINDS[Math.floor(Math.random()*SKINDS.length)];
+  const bag = SPAIRS[kind];
+  const p = bag[Math.floor(Math.random()*bag.length)];
+  S.given = p[0]; S.ask = p[1]; S.kind = p[2];
+  S.reason = null; S.done = false;
+
+  picked = null; showAll = false;
+  $("btnShowAll").classList.remove("on");
+  $("btnShowAll").textContent = "모든 각 크기 보기";
+
+  const gv = Math.round(angVal(S.given));
+  $("solveAsk").innerHTML =
+    `두 직선 <b><i>l</i> ∥ <i>m</i></b> 이고 <b>∠${ANG[S.given].k} = ${gv}${DEG}</b> 일 때, ` +
+    `<b>∠${ANG[S.ask].k}</b> 의 크기를 구하세요.`;
+  $("solveLab").innerHTML = `∠${ANG[S.ask].k} =`;
+  const inp = $("solveIn"); inp.value = ""; inp.className = "";
+  $("solveFb").innerHTML = "";
+  document.querySelectorAll(".reasons .btn").forEach(b => { b.classList.remove("on","good","bad"); b.disabled = false; });
+  draw(); updateBadge();
+}
+function MKrand(a, b, step){
+  const n = Math.floor((b - a)/step) + 1;
+  return a + step*Math.floor(Math.random()*n);
+}
+
+document.querySelectorAll(".reasons .btn").forEach(b => {
+  b.addEventListener("click", () => {
+    if(S.done) return;
+    S.reason = b.dataset.r;
+    document.querySelectorAll(".reasons .btn").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+  });
+});
+
+$("btnSolveCheck").addEventListener("click", () => {
+  if(S.done) return;
+  const inp = $("solveIn");
+  if(inp.value === ""){
+    $("solveFb").innerHTML = `<div class="fb warn">각의 크기를 먼저 적어 주세요.</div>`;
+    return;
+  }
+  if(!S.reason){
+    $("solveFb").innerHTML = `<div class="fb warn">어떤 성질을 썼는지도 골라 주세요.</div>`;
+    return;
+  }
+  const want = Math.round(angVal(S.ask));
+  const okVal = Math.abs(+inp.value - want) < 0.5;
+  const okRea = (S.reason === S.kind);
+  S.done = true; S.tries++;
+  if(okVal && okRea){ S.right++; S.streak++; } else { S.streak = 0; }
+
+  inp.className = okVal ? "good" : "bad";
+  document.querySelectorAll(".reasons .btn").forEach(b => {
+    b.disabled = true;
+    if(b.dataset.r === S.kind) b.classList.add("good");
+    else if(b.dataset.r === S.reason && !okRea) b.classList.add("bad");
+  });
+
+  const gk = ANG[S.given].k, ak = ANG[S.ask].k, gv = Math.round(angVal(S.given));
+  let why;
+  if(S.kind === "dongwi")     why = `<i>l</i> ∥ <i>m</i> 이므로 <b>동위각</b>의 크기는 같아요. 따라서 ∠${ak} = ∠${gk} = ${want}${DEG}.`;
+  else if(S.kind === "eot")   why = `<i>l</i> ∥ <i>m</i> 이므로 <b>엇각</b>의 크기는 같아요. 따라서 ∠${ak} = ∠${gk} = ${want}${DEG}.`;
+  else if(S.kind === "matggokji") why = `두 각은 같은 교차점에서 마주 보는 <b>맞꼭지각</b>이므로 ∠${ak} = ∠${gk} = ${want}${DEG}.`;
+  else                        why = `두 각을 합하면 한 직선(<b>평각</b>)이 되므로 ∠${ak} = 180${DEG} − ${gv}${DEG} = ${want}${DEG}.`;
+
+  $("solveFb").innerHTML =
+    `<div class="fb ${okVal && okRea ? "ok" : "no"}">` +
+    (okVal && okRea ? "🎉 정답이에요! " : (okVal ? "크기는 맞았어요. 근거를 다시 봐요. " : `아쉬워요. 답은 <b>${want}${DEG}</b>. `)) +
+    why + `</div>`;
+
+  picked = [S.given, S.ask];
+  $("sTry").textContent = S.tries; $("sRight").textContent = S.right; $("sStreak").textContent = S.streak;
+  draw();
+});
+$("btnSolveNext").addEventListener("click", newSolve);
+$("solveIn").addEventListener("keydown", e => { if(e.key === "Enter") $("btnSolveCheck").click(); });
+
+/* ============================================================
+   6. 활동 ③ 평행한지 판정하기
+   ============================================================ */
+let J = {pair:null, kind:"", para:true, tries:0, right:0, streak:0, done:false};
+
+function newJudge(){
+  J.para = Math.random() < 0.5;
+  thN = MKrand(40, 140, 5);
+  if(Math.abs(thN - 90) < 1) thN = 70;
+  thM = J.para ? 0 : (Math.random() < 0.5 ? 1 : -1) * MKrand(6, 22, 2);
+
+  const useEot = Math.random() < 0.4;
+  const p = useEot ? EOT[Math.floor(Math.random()*EOT.length)]
+                   : DONGWI[Math.floor(Math.random()*DONGWI.length)];
+  J.pair = [IDX[p[0]], IDX[p[1]]];
+  J.kind = useEot ? "eot" : "dongwi";
+  J.done = false;
+
+  picked = J.pair; showAll = false;
+  const v1 = Math.round(angVal(J.pair[0])), v2 = Math.round(angVal(J.pair[1]));
+  $("judgeAsk").innerHTML =
+    `그림에서 <b>∠${ANG[J.pair[0]].k} = ${v1}${DEG}</b>, <b>∠${ANG[J.pair[1]].k} = ${v2}${DEG}</b> 입니다.<br>` +
+    `두 직선 <b><i>l</i></b> 과 <b><i>m</i></b> 은 평행할까요?`;
+  $("judgeFb").innerHTML = "";
+  $("btnJudgeNext").classList.add("hidden");
+  document.querySelectorAll("[data-j]").forEach(b => { b.classList.remove("good","bad"); b.disabled = false; });
+  draw(); updateBadge();
+}
+
+document.querySelectorAll("[data-j]").forEach(b => {
+  b.addEventListener("click", () => {
+    if(J.done) return;
+    J.done = true; J.tries++;
+    const said = b.dataset.j === "yes";
+    const ok = (said === J.para);
+    if(ok){ J.right++; J.streak++; } else { J.streak = 0; }
+    document.querySelectorAll("[data-j]").forEach(x => x.disabled = true);
+    b.classList.add(ok ? "good" : "bad");
+
+    const v1 = Math.round(angVal(J.pair[0])), v2 = Math.round(angVal(J.pair[1]));
+    const nm = REL_KO[J.kind];
+    const why = J.para
+      ? `두 ${nm}의 크기가 <b>${v1}${DEG}로 같으므로</b> 두 직선은 <b>평행합니다.</b>`
+      : `두 ${nm}의 크기가 <b>${v1}${DEG}와 ${v2}${DEG}로 다르므로</b> 두 직선은 <b>평행하지 않습니다.</b>`;
+    $("judgeFb").innerHTML = `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답!" : "아쉬워요."} ${why}</div>`;
+    $("btnJudgeNext").classList.remove("hidden");
+    $("jTry").textContent = J.tries; $("jRight").textContent = J.right; $("jStreak").textContent = J.streak;
+  });
+});
+$("btnJudgeNext").addEventListener("click", newJudge);
+
+/* ============================================================
+   7. 탭 전환
+   ============================================================ */
+document.querySelectorAll("header nav button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("header nav button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    mode = b.dataset.tab;
+    $("pExplore").classList.toggle("hidden", mode !== "explore");
+    $("pSolve")  .classList.toggle("hidden", mode !== "solve");
+    $("pJudge")  .classList.toggle("hidden", mode !== "judge");
+    if(mode === "explore"){
+      thM = +$("rngM").value; thN = +$("rngN").value;
+      picked = null;
+      document.querySelectorAll("#pairBtns .btn").forEach(x => x.classList.remove("on"));
+      updateCmp();
+    }
+    if(mode === "solve") newSolve();
+    if(mode === "judge") newJudge();
+    updateBadge(); draw();
+  });
+});
+
+/* ============================================================
+   8. 시작 (common.js 는 defer 이므로 DOMContentLoaded 이후)
+   ============================================================ */
+function boot(){
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  updateBadge(); updateCmp(); draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
