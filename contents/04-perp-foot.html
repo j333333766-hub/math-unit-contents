@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>수선의 발과 거리 — 직교·수직이등분선</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js" data-home="../index.html" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 348px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none; cursor:grab;}
+  #board.drag{cursor:grabbing;}
+  #tip{
+    position:absolute; right:14px; bottom:12px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+
+  .duo{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;}
+  .met{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:10px 6px; text-align:center;}
+  .met .v{font-size:24px; font-weight:800; line-height:1.1;}
+  .met .l{font-size:11.5px; color:var(--sub); margin-top:3px;}
+  .met.ang .v{color:var(--warn);}
+  .met.ang.right .v{color:var(--ok);}
+  .met.len .v{color:var(--accent);}
+  .met.len.min .v{color:var(--ok);}
+
+  .cond{display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; padding:7px 0;}
+  .cond .mark{
+    flex:none; width:22px; height:22px; border-radius:50%;
+    display:grid; place-items:center; font-size:13px; font-weight:800;
+    background:#eef0f5; color:var(--sub);
+  }
+  .cond.ok .mark{background:var(--ok-soft); color:var(--ok);}
+  .cond.ok{color:var(--ok);}
+  .cond.off{color:var(--sub);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .ansrow{display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .ansrow .lab{font-size:14px; font-weight:700;}
+  .ansrow input{
+    width:88px; font:700 17px var(--font); padding:9px 10px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .term{border-left:4px solid var(--accent); background:#f5f7ff; padding:11px 13px; border-radius:9px; margin-top:9px;}
+  .term h3{font-size:13.5px; font-weight:800; margin-bottom:4px;}
+  .term p{font-size:13px; color:var(--sub); line-height:1.6;}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>⊥ 수선의 발과 거리</h1>
+  <nav>
+    <button class="on" data-tab="foot">① 수선의 발 찾기</button>
+    <button data-tab="grid">② 모눈에서 거리 재기</button>
+    <button data-tab="bisect">③ 수직이등분선</button>
+  </nav>
+  <a class="home-btn" href="../index.html">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ============ ① 수선의 발 ============ -->
+    <section id="pFoot">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 가장 짧은 길을 찾아라</h2>
+        <p>직선 <b><i>l</i></b> 위의 점 <b>H</b> 를 끌어서
+           선분 <b>PH</b> 가 <b>가장 짧아지는 자리</b>를 찾아보세요.</p>
+        <div class="duo">
+          <div class="met len" id="metLen"><div class="v" id="valLen">–</div><div class="l">PH 의 길이</div></div>
+          <div class="met ang" id="metAng"><div class="v" id="valAng">–</div><div class="l">∠PH<i>l</i></div></div>
+        </div>
+        <div id="footFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnGraph">📉 길이 그래프 보기</button>
+          <button class="btn sm" id="btnNewFoot">🔄 다른 문제</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>알아 두기</h2>
+        <div class="term">
+          <h3>수선의 발과 거리</h3>
+          <p>점 P 에서 직선 <i>l</i> 에 <b>수선</b>을 그었을 때 생기는 교점 <b>H</b> 를
+             <b>점 P 에서 직선 <i>l</i> 에 내린 수선의 발</b>이라고 해요.<br>
+             선분 <b>PH</b> 는 P 와 <i>l</i> 위의 점을 이은 선분 중 <b>가장 짧고</b>,
+             그 길이를 <b>점 P 와 직선 <i>l</i> 사이의 거리</b>라고 해요.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ② 모눈 거리 ============ -->
+    <section id="pGrid" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 모눈종이에서 거리 재기</h2>
+        <p id="gridAsk"></p>
+        <div class="row" style="margin-top:9px;" id="gridPick"></div>
+        <div class="ansrow">
+          <span class="lab" id="gridLab">거리 =</span>
+          <input type="number" id="gridIn" placeholder="?" inputmode="numeric">
+          <span class="lab">칸</span>
+        </div>
+        <div id="gridFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnGridCheck">✅ 확인</button>
+          <button class="btn sm" id="btnGridNext">🔄 새 문제</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>진행 상황</h2>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="gTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="gOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="gStreak">0</div><div class="l">연속</div></div>
+        </div>
+        <div class="fb info">먼저 <b>수선의 발</b>을 찾고, 그 점까지 <b>몇 칸</b>인지 세어 보세요.</div>
+      </div>
+    </section>
+
+    <!-- ============ ③ 수직이등분선 ============ -->
+    <section id="pBisect" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 수직이등분선 만들기</h2>
+        <p>파란 점을 끌어서 직선 <b><i>l</i></b> 이 선분 <b>AB</b> 의
+           <b>수직이등분선</b>이 되도록 만들어 보세요.</p>
+        <div style="margin-top:8px;">
+          <div class="cond off" id="cond1"><span class="mark">1</span><span>선분 AB 의 <b>중점</b>을 지난다</span></div>
+          <div class="cond off" id="cond2"><span class="mark">2</span><span>선분 AB 와 <b>수직</b>이다</span></div>
+        </div>
+        <div id="bisFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnBisReset">🔄 다시</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>문제 풀기</h2>
+        <p id="bisAsk"></p>
+        <div class="ansrow">
+          <span class="lab" id="bisLab">AB =</span>
+          <input type="number" id="bisIn" placeholder="?" inputmode="numeric">
+          <span class="lab">cm</span>
+        </div>
+        <div id="bisQFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnBisCheck">✅ 확인</button>
+          <button class="btn sm" id="btnBisNext">🔄 새 문제</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>기호로 나타내기</h2>
+        <p>두 직선이 직각으로 만나면 <b>직교한다</b>고 하고 <b>AB ⊥ CD</b> 와 같이 나타내요.
+           이때 한 직선은 다른 직선에 대한 <b>수선</b>이에요.</p>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const DW = 900, DH = 600;
+const INK = "#1d2433", SUB = "#68738a", GRID = "#dde4f0", GRID2 = "#c2cee4";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b";
+
+let tab = "foot";
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+function toDesign(px, py){
+  const v = view();
+  return {x:(px - v.ox)/v.s, y:(py - v.oy)/v.s};
+}
+function seg(a, b, color, w, dash){
+  ctx.save();
+  if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.restore();
+}
+function dot(P, color, r){
+  ctx.fillStyle = "#fff"; ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(P.x, P.y, r || 7, 0, 7); ctx.fill(); ctx.stroke();
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function ital(t, x, y, color, size){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "italic 700 " + size + "px 'Times New Roman', serif";
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+/* 두 벡터가 이루는 각의 직각 표시 */
+function rightMark(O, u, v, R, color){
+  ctx.strokeStyle = color || BLUE; ctx.lineWidth = 2.8;
+  ctx.beginPath();
+  ctx.moveTo(O.x + u.x*R, O.y + u.y*R);
+  ctx.lineTo(O.x + (u.x + v.x)*R, O.y + (u.y + v.y)*R);
+  ctx.lineTo(O.x + v.x*R, O.y + v.y*R);
+  ctx.stroke();
+}
+const unit = v => { const d = Math.hypot(v.x, v.y) || 1; return {x:v.x/d, y:v.y/d}; };
+const sub = (a, b) => ({x:a.x - b.x, y:a.y - b.y});
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+/* ============================================================
+   ① 수선의 발 찾기
+   ============================================================ */
+/* 아래쪽은 길이 그래프 자리로 비워 두고 위쪽에서만 그린다 */
+let L1 = {A:{x:100, y:365}, B:{x:810, y:300}};   // 직선 l 위의 두 점
+let P1 = {x:400, y:120};                          // 점 P
+let Ht = 0.35;                                    // 직선 위 H 의 위치(0~1)
+let showGraph = false, footDone = false;
+
+/* 화면 픽셀을 그대로 보여 주면 수가 너무 크므로 보기 좋은 눈금으로 줄인다 */
+const fmtLen = d => (Math.round(d/10*10)/10).toFixed(1);
+const onL = t => ({x:L1.A.x + (L1.B.x - L1.A.x)*t, y:L1.A.y + (L1.B.y - L1.A.y)*t});
+function footT(){                                  // 수선의 발의 t 값
+  const d = sub(L1.B, L1.A), w = sub(P1, L1.A);
+  return (d.x*w.x + d.y*w.y)/(d.x*d.x + d.y*d.y);
+}
+function angleAt(H){
+  const u = unit(sub(P1, H)), v = unit(sub(L1.B, L1.A));
+  let a = Math.acos(Math.max(-1, Math.min(1, u.x*v.x + u.y*v.y)))*180/Math.PI;
+  return a > 90 ? 180 - a : a;                     // 항상 작은 쪽 각
+}
+function newFoot(){
+  const y1 = 330 + Math.random()*70, y2 = 275 + Math.random()*70;
+  L1 = {A:{x:100, y:y1}, B:{x:810, y:y2}};
+  P1 = {x:280 + Math.random()*320, y:95 + Math.random()*60};
+  Ht = Math.random() < 0.5 ? 0.12 : 0.85;
+  footDone = false;
+  $("footFb").innerHTML = "";
+  draw(); updateFoot();
+}
+function drawFoot(){
+  /* 길이 그래프 */
+  if(showGraph){
+    const gx = 60, gy = 580, gw = 780, gh = 110;
+    ctx.fillStyle = "#f7f9fd"; ctx.fillRect(gx, gy - gh, gw, gh);
+    ctx.strokeStyle = "#dde4f0"; ctx.lineWidth = 1; ctx.strokeRect(gx, gy - gh, gw, gh);
+    let mn = 1e9, mx = 0;
+    const vals = [];
+    for(let i = 0; i <= 100; i++){
+      const d = dist(P1, onL(-0.15 + i*0.013));
+      vals.push(d); mn = Math.min(mn, d); mx = Math.max(mx, d);
+    }
+    ctx.beginPath();
+    vals.forEach((d, i) => {
+      const x = gx + gw*i/100, y = gy - 10 - (gh - 24)*(d - mn)/(mx - mn || 1);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    });
+    ctx.strokeStyle = BLUE; ctx.lineWidth = 2.6; ctx.stroke();
+    const ti = Math.round((footT() + 0.15)/0.013);
+    const fx = gx + gw*ti/100;
+    seg({x:fx, y:gy - gh}, {x:fx, y:gy}, OK, 2, [6,5]);
+    txt("여기서 가장 짧아요", fx, gy - gh + 16, OK, 15, true);
+  }
+
+  /* 직선 l */
+  const dir = unit(sub(L1.B, L1.A));
+  seg({x:L1.A.x - dir.x*60, y:L1.A.y - dir.y*60},
+      {x:L1.B.x + dir.x*60, y:L1.B.y + dir.y*60}, INK, 4.4);
+  ital("l", L1.B.x + dir.x*40, L1.B.y + dir.y*40 - 24, SUB, 28);
+
+  const H = onL(Ht), F = onL(footT());
+  const a = angleAt(H);
+  const good = Math.abs(a - 90) < 1.2;
+
+  /* 비교용 다른 선분들 */
+  [0.1, 0.3, 0.5, 0.7, 0.9].forEach(t => {
+    const Q = onL(t);
+    seg(P1, Q, "#d7deec", 1.6, [5,5]);
+  });
+
+  seg(P1, H, good ? OK : ORANGE, 5);
+  if(good) rightMark(H, unit(sub(P1, H)), dir, 20, OK);
+
+  dot(P1, RED, 8);
+  dot(H, good ? OK : ORANGE, 9);
+  ital("P", P1.x, P1.y - 26, RED, 24);
+  ital("H", H.x + 6, H.y + 28, good ? OK : ORANGE, 24);
+
+  const mid = {x:(P1.x + H.x)/2, y:(P1.y + H.y)/2};
+  txt(fmtLen(dist(P1, H)), mid.x + 40, mid.y, good ? OK : ORANGE, 20, true);
+
+  $("tip").textContent = "점 H 를 직선 위에서 끌어 보세요";
+}
+function updateFoot(){
+  const H = onL(Ht), a = angleAt(H), d = dist(P1, H);
+  const good = Math.abs(a - 90) < 1.2;
+  $("valLen").textContent = fmtLen(d);
+  $("valAng").textContent = Math.round(a) + "°";
+  $("metAng").classList.toggle("right", good);
+  $("metLen").classList.toggle("min", good);
+  if(good && !footDone){
+    footDone = true;
+    $("footFb").innerHTML =
+      `<div class="fb ok">🎉 찾았어요! 이때 <b>PH ⊥ <i>l</i></b> 이고, 점 H 를 ` +
+      `<b>점 P 에서 직선 <i>l</i> 에 내린 수선의 발</b>이라고 해요. ` +
+      `이 선분 PH 가 <b>가장 짧고</b>, 그 길이가 <b>점 P 와 직선 <i>l</i> 사이의 거리</b>예요.</div>`;
+  }else if(!good){
+    footDone = false;
+    $("footFb").innerHTML =
+      `<div class="fb info">아직 직각이 아니에요. ∠PH<i>l</i> 이 <b>90°</b> 가 되도록 H 를 옮겨 보세요.</div>`;
+  }
+}
+
+/* ============================================================
+   ② 모눈에서 거리 재기
+   ============================================================ */
+const G = {x0:120, y0:70, cell:44, nx:16, ny:11};
+const gpt = (c, r) => ({x:G.x0 + c*G.cell, y:G.y0 + r*G.cell});
+let Q = {horiz:true, at:0, pts:[], sel:0, tries:0, ok:0, streak:0, done:false};
+
+function newGrid(){
+  Q.horiz = Math.random() < 0.5;
+  Q.at = Q.horiz ? 3 + Math.floor(Math.random()*6) : 4 + Math.floor(Math.random()*8);
+  Q.pts = [];
+  const names = ["A", "B", "C"];
+  const used = new Set();
+  while(Q.pts.length < 3){
+    const c = 1 + Math.floor(Math.random()*(G.nx - 2));
+    const r = 1 + Math.floor(Math.random()*(G.ny - 2));
+    const key = c + "," + r;
+    if(used.has(key)) continue;
+    if(Q.horiz && Math.abs(r - Q.at) < 2) continue;
+    if(!Q.horiz && Math.abs(c - Q.at) < 2) continue;
+    used.add(key);
+    Q.pts.push({c, r, n:names[Q.pts.length]});
+  }
+  Q.sel = 0; Q.done = false;
+  renderPick();
+  askGrid();
+  const inp = $("gridIn"); inp.value = ""; inp.className = "";
+  $("gridFb").innerHTML = "";
+  draw();
+}
+function renderPick(){
+  const w = $("gridPick"); w.innerHTML = "";
+  Q.pts.forEach((p, i) => {
+    const b = document.createElement("button");
+    b.className = "btn sm" + (i === Q.sel ? " on" : "");
+    b.textContent = "점 " + p.n;
+    b.addEventListener("click", () => {
+      Q.sel = i; Q.done = false;
+      renderPick(); askGrid();
+      const inp = $("gridIn"); inp.value = ""; inp.className = "";
+      $("gridFb").innerHTML = "";
+      draw();
+    });
+    w.appendChild(b);
+  });
+}
+function askGrid(){
+  const p = Q.pts[Q.sel];
+  $("gridAsk").innerHTML =
+    `한 눈금의 길이가 1인 모눈종이에 직선 <b><i>l</i></b> 과 세 점이 있어요.<br>` +
+    `<b>점 ${p.n}</b> 과 직선 <i>l</i> 사이의 <b>거리</b>를 구하세요.`;
+  $("gridLab").innerHTML = `점 ${p.n} 과 <i>l</i> 사이의 거리 =`;
+}
+const gridAnswer = () => {
+  const p = Q.pts[Q.sel];
+  return Q.horiz ? Math.abs(p.r - Q.at) : Math.abs(p.c - Q.at);
+};
+function drawGrid(){
+  /* 모눈 */
+  for(let c = 0; c <= G.nx; c++)
+    seg(gpt(c, 0), gpt(c, G.ny), c % 5 === 0 ? GRID2 : GRID, c % 5 === 0 ? 1.6 : 1);
+  for(let r = 0; r <= G.ny; r++)
+    seg(gpt(0, r), gpt(G.nx, r), r % 5 === 0 ? GRID2 : GRID, r % 5 === 0 ? 1.6 : 1);
+
+  /* 직선 l */
+  const a = Q.horiz ? gpt(0, Q.at) : gpt(Q.at, 0);
+  const b = Q.horiz ? gpt(G.nx, Q.at) : gpt(Q.at, G.ny);
+  seg(a, b, INK, 4.4);
+  ital("l", Q.horiz ? b.x + 26 : b.x, Q.horiz ? b.y : b.y + 26, SUB, 26);
+
+  Q.pts.forEach((p, i) => {
+    const P = gpt(p.c, p.r);
+    const F = Q.horiz ? gpt(p.c, Q.at) : gpt(Q.at, p.r);
+    const on = (i === Q.sel);
+    if(on){
+      seg(P, F, Q.done ? OK : ORANGE, 4, Q.done ? null : [8,6]);
+      const u = unit(sub(P, F)), v = unit(sub(b, a));
+      rightMark(F, u, v, 17, Q.done ? OK : ORANGE);
+      dot(F, Q.done ? OK : ORANGE, 7);
+      if(Q.done){
+        const mid = {x:(P.x + F.x)/2, y:(P.y + F.y)/2};
+        txt(gridAnswer() + "칸", mid.x + (Q.horiz ? 34 : 0), mid.y + (Q.horiz ? 0 : -22), OK, 20, true);
+      }
+    }
+    dot(P, on ? RED : "#9aa5bb", on ? 9 : 7);
+    /* 수선(점선)과 겹치지 않도록 이름은 수선의 반대쪽에 붙인다 */
+    const lp = Q.horiz ? {x:P.x - 26, y:P.y} : {x:P.x, y:P.y - 27};
+    ital(p.n, lp.x, lp.y, on ? RED : SUB, 23);
+  });
+  $("tip").textContent = "";
+}
+
+/* ============================================================
+   ③ 수직이등분선
+   ============================================================ */
+const SB = {A:{x:220, y:400}, B:{x:680, y:400}};
+let bis = {px:340, deg:60};                     // 직선 l 이 지나는 x 위치와 기울기
+let B2 = {given:0, tries:0, ok:0, streak:0, done:false};
+
+function bisState(){
+  const M = {x:(SB.A.x + SB.B.x)/2, y:(SB.A.y + SB.B.y)/2};
+  const throughMid = Math.abs(bis.px - M.x) < 9;
+  const perp = Math.abs(bis.deg - 90) < 2.5;
+  return {M, throughMid, perp, done:throughMid && perp};
+}
+function drawBisect(){
+  const s = bisState();
+  /* 선분 AB */
+  seg(SB.A, SB.B, INK, 5);
+  dot(SB.A, RED, 8); dot(SB.B, RED, 8);
+  ital("A", SB.A.x - 26, SB.A.y, RED, 24);
+  ital("B", SB.B.x + 26, SB.B.y, RED, 24);
+  /* 중점 표시 */
+  dot(s.M, s.throughMid ? OK : "#9aa5bb", 6);
+  txt("중점 M", s.M.x + 52, s.M.y + 30, s.throughMid ? OK : SUB, 15, true);
+  if(s.throughMid){
+    [[SB.A, s.M], [s.M, SB.B]].forEach(([p, q]) => {
+      const mid = {x:(p.x + q.x)/2, y:(p.y + q.y)/2};
+      seg({x:mid.x, y:mid.y - 11}, {x:mid.x, y:mid.y + 11}, OK, 3);
+    });
+  }
+  /* 직선 l */
+  const u = {x:Math.cos(bis.deg*Math.PI/180), y:-Math.sin(bis.deg*Math.PI/180)};
+  const C = {x:bis.px, y:400};
+  const col = s.done ? OK : BLUE;
+  seg({x:C.x - u.x*280, y:C.y - u.y*280}, {x:C.x + u.x*280, y:C.y + u.y*280}, col, 4.4);
+  ital("l", C.x + u.x*306, C.y + u.y*306, col, 26);
+  if(s.perp) rightMark(C, u, {x:1, y:0}, 20, col);
+  dot({x:C.x + u.x*230, y:C.y + u.y*230}, BLUE, 9);
+  dot(C, col, 7);
+  $("tip").textContent = "파란 점을 끌어 직선을 옮기고 돌려 보세요";
+}
+function updateBisect(){
+  const s = bisState();
+  $("cond1").className = "cond " + (s.throughMid ? "ok" : "off");
+  $("cond2").className = "cond " + (s.perp ? "ok" : "off");
+  $("cond1").querySelector(".mark").textContent = s.throughMid ? "✓" : "1";
+  $("cond2").querySelector(".mark").textContent = s.perp ? "✓" : "2";
+  $("bisFb").innerHTML = s.done
+    ? `<div class="fb ok">🎉 완성! 직선 <i>l</i> 은 선분 AB 의 <b>수직이등분선</b>이에요. ` +
+      `기호로는 <b>AB ⊥ <i>l</i></b> 이고, 중점 M 에 대해 <b>AM = BM</b> 이에요.</div>`
+    : `<div class="fb info">두 조건을 모두 만족해야 수직이등분선이에요.</div>`;
+}
+function newBisQ(){
+  B2.done = false;
+  B2.given = 2*(3 + Math.floor(Math.random()*11));         // 6 ~ 26 (짝수)
+  $("bisAsk").innerHTML =
+    `직선 CD 가 선분 AB 의 <b>수직이등분선</b>이고, 중점을 M 이라 할 때 ` +
+    `<b>AM = ${B2.given / 2} cm</b> 입니다. <b>AB</b> 의 길이를 구하세요.`;
+  const inp = $("bisIn"); inp.value = ""; inp.className = "";
+  $("bisQFb").innerHTML = "";
+}
+
+/* ============================================================
+   그리기
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff"; ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);
+  if(tab === "foot")   drawFoot();
+  if(tab === "grid")   drawGrid();
+  if(tab === "bisect") drawBisect();
+  ctx.restore();
+}
+
+/* ============================================================
+   드래그
+   ============================================================ */
+let dragging = null;
+cv.addEventListener("pointerdown", ev => {
+  const p = toDesign(ev.offsetX, ev.offsetY);
+  if(tab === "foot") dragging = "H";
+  else if(tab === "bisect"){
+    const u = {x:Math.cos(bis.deg*Math.PI/180), y:-Math.sin(bis.deg*Math.PI/180)};
+    const knob = {x:bis.px + u.x*230, y:400 + u.y*230};
+    dragging = (dist(p, knob) < 120) ? "rot" : "move";
+  }
+  if(dragging){ cv.classList.add("drag"); try{ cv.setPointerCapture(ev.pointerId); }catch(e){} onMove(ev); }
+});
+cv.addEventListener("pointermove", ev => { if(dragging) onMove(ev); });
+["pointerup","pointercancel"].forEach(t =>
+  cv.addEventListener(t, () => { dragging = null; cv.classList.remove("drag"); }));
+
+function onMove(ev){
+  const p = toDesign(ev.offsetX, ev.offsetY);
+  if(tab === "foot" && dragging === "H"){
+    const d = sub(L1.B, L1.A), w = sub(p, L1.A);
+    Ht = Math.max(-0.12, Math.min(1.12, (d.x*w.x + d.y*w.y)/(d.x*d.x + d.y*d.y)));
+    updateFoot(); draw();
+  }else if(tab === "bisect"){
+    if(dragging === "rot"){
+      let a = Math.atan2(400 - p.y, p.x - bis.px)*180/Math.PI;
+      if(a < 0) a += 180;
+      bis.deg = Math.max(20, Math.min(160, a));
+    }else{
+      bis.px = Math.max(180, Math.min(720, p.x));
+    }
+    updateBisect(); draw();
+  }
+}
+
+/* ============================================================
+   버튼
+   ============================================================ */
+$("btnGraph").addEventListener("click", e => {
+  showGraph = !showGraph;
+  e.currentTarget.classList.toggle("on", showGraph);
+  e.currentTarget.textContent = showGraph ? "📉 그래프 숨기기" : "📉 길이 그래프 보기";
+  draw();
+});
+$("btnNewFoot").addEventListener("click", newFoot);
+
+$("btnGridCheck").addEventListener("click", () => {
+  if(Q.done) return;
+  const inp = $("gridIn");
+  if(inp.value === ""){ $("gridFb").innerHTML = `<div class="fb warn">답을 적어 주세요.</div>`; return; }
+  const want = gridAnswer();
+  const ok = Math.abs(+inp.value - want) < 0.001;
+  Q.done = true; Q.tries++;
+  if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
+  inp.className = ok ? "good" : "bad";
+  const p = Q.pts[Q.sel];
+  $("gridFb").innerHTML =
+    `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답! " : `아쉬워요. 답은 <b>${want}칸</b>. `}` +
+    `점 ${p.n} 에서 <i>l</i> 에 <b>수선</b>을 내리면 수선의 발까지 <b>${want}칸</b>이에요.</div>`;
+  $("gTry").textContent = Q.tries; $("gOk").textContent = Q.ok; $("gStreak").textContent = Q.streak;
+  draw();
+});
+$("btnGridNext").addEventListener("click", newGrid);
+$("gridIn").addEventListener("keydown", e => { if(e.key === "Enter") $("btnGridCheck").click(); });
+
+$("btnBisReset").addEventListener("click", () => {
+  bis = {px:300 + Math.random()*160, deg:35 + Math.random()*40};
+  updateBisect(); draw();
+});
+$("btnBisCheck").addEventListener("click", () => {
+  if(B2.done) return;
+  const inp = $("bisIn");
+  if(inp.value === ""){ $("bisQFb").innerHTML = `<div class="fb warn">답을 적어 주세요.</div>`; return; }
+  const ok = Math.abs(+inp.value - B2.given) < 0.001;
+  B2.done = true; B2.tries++;
+  if(ok){ B2.ok++; B2.streak++; } else { B2.streak = 0; }
+  inp.className = ok ? "good" : "bad";
+  $("bisQFb").innerHTML =
+    `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답! " : `아쉬워요. 답은 <b>${B2.given} cm</b>. `}` +
+    `M 은 AB 의 중점이므로 <b>AB = 2 × AM = 2 × ${B2.given/2} = ${B2.given}</b> (cm).</div>`;
+});
+$("btnBisNext").addEventListener("click", newBisQ);
+$("bisIn").addEventListener("keydown", e => { if(e.key === "Enter") $("btnBisCheck").click(); });
+
+/* ============================================================
+   탭
+   ============================================================ */
+document.querySelectorAll("header nav button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("header nav button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    $("pFoot")  .classList.toggle("hidden", tab !== "foot");
+    $("pGrid")  .classList.toggle("hidden", tab !== "grid");
+    $("pBisect").classList.toggle("hidden", tab !== "bisect");
+    $("tip").textContent = "";
+    if(tab === "foot")   updateFoot();
+    if(tab === "grid")   newGrid();
+    if(tab === "bisect") updateBisect();
+    draw();
+  });
+});
+
+/* ============================================================
+   시작
+   ============================================================ */
+function boot(){
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  newGrid();
+  newBisQ();
+  updateBisect();
+  tab = "foot";
+  updateFoot();
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
