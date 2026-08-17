@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>각도 실험실 — 각, 평각, 맞꼭지각</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js" data-home="../index.html" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 348px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none; cursor:grab;}
+  #board.drag{cursor:grabbing;}
+
+  #kind{
+    position:absolute; left:14px; top:12px; pointer-events:none;
+    font-weight:800; font-size:15px; padding:7px 15px; border-radius:999px;
+    background:var(--accent-soft); color:var(--accent); border:1px solid #c7d3f7;
+  }
+  #hintTip{
+    position:absolute; right:14px; bottom:12px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #hintTip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+
+  .big{
+    text-align:center; padding:12px; border-radius:11px;
+    background:#f7f9fd; border:1px solid var(--line); margin-top:10px;
+  }
+  .big .v{font-size:34px; font-weight:800; color:var(--accent); line-height:1.1;}
+  .big .l{font-size:12px; color:var(--sub); margin-top:4px;}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .ansrow{display:flex; align-items:center; gap:8px; margin-top:10px;}
+  .ansrow .lab{font:italic 700 19px 'Times New Roman',serif;}
+  .ansrow input{
+    width:96px; font:700 17px var(--font); padding:9px 10px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+  .ansrow .unit{font-size:15px; font-weight:700; color:var(--sub);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .proof{margin-top:8px;}
+  .proof .step{
+    display:flex; gap:9px; align-items:flex-start; padding:8px 0;
+    border-top:1px dashed var(--line); font-size:13.5px; line-height:1.55; color:var(--sub);
+  }
+  .proof .step:first-child{border-top:none;}
+  .proof .step .no{
+    flex:none; width:21px; height:21px; border-radius:50%; margin-top:1px;
+    background:var(--accent-soft); color:var(--accent);
+    display:grid; place-items:center; font-size:12px; font-weight:800;
+  }
+  .proof .step b{color:var(--ink);}
+  .proof .step.hit{color:var(--ink);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>📏 각도 실험실</h1>
+  <nav>
+    <button class="on" data-tab="make">① 각 만들기</button>
+    <button data-tab="flat">② 평각·직각</button>
+    <button data-tab="vert">③ 맞꼭지각</button>
+  </nav>
+  <a class="home-btn" href="../index.html">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="kind"></div>
+    <div id="hintTip"></div>
+  </div>
+
+  <aside>
+    <!-- ================= ① 각 만들기 ================= -->
+    <section id="pMake">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 각을 만들고 읽어 보기</h2>
+        <p>점 <b>A</b> 와 <b>B</b> 를 끌어서 ∠AOB 를 바꿔 보세요.
+           꼭짓점 <b>O</b> 를 중심으로 변 OA 가 변 OB 까지 회전한 양이 <b>각의 크기</b>예요.</p>
+        <div class="big">
+          <div class="v" id="makeVal">–</div>
+          <div class="l">∠AOB 의 크기</div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnProt">📐 각도기 대기</button>
+          <button class="btn sm" id="btnSnap5">5°씩 딱딱 맞추기</button>
+        </div>
+      </div>
+
+      <div class="blk">
+        <h2>미션</h2>
+        <p id="missionAsk"></p>
+        <div id="missionFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnNewMission">🎯 새 미션</button>
+        </div>
+        <div class="scoreboard" style="margin-top:10px;">
+          <div class="sc"><div class="v" id="mTry">0</div><div class="l">도전</div></div>
+          <div class="sc ok"><div class="v" id="mOk">0</div><div class="l">성공</div></div>
+          <div class="sc"><div class="v" id="mStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+
+      <div class="blk">
+        <h2>각의 이름</h2>
+        <p><b>예각</b> 0°보다 크고 90°보다 작은 각<br>
+           <b>직각</b> 90°인 각<br>
+           <b>둔각</b> 90°보다 크고 180°보다 작은 각<br>
+           <b>평각</b> 두 변이 한 직선을 이루는 180°인 각</p>
+      </div>
+    </section>
+
+    <!-- ================= ② 평각·직각 ================= -->
+    <section id="pFlat" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 평각에서 각의 크기 구하기</h2>
+        <p id="flatAsk"></p>
+        <div class="ansrow">
+          <span class="lab" id="flatLab">x =</span>
+          <input type="number" id="flatIn" placeholder="?" inputmode="numeric">
+          <span class="unit" id="flatUnit">°</span>
+        </div>
+        <div id="flatFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnFlatCheck">✅ 확인</button>
+          <button class="btn sm" id="btnFlatNext">🔄 새 문제</button>
+          <button class="btn sm" id="btnFlatHard">도전 문제</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>진행 상황</h2>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="fTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="fOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="fStreak">0</div><div class="l">연속</div></div>
+        </div>
+        <div class="fb info">한 직선 위의 각들을 모두 더하면 <b>180°</b> 예요.</div>
+      </div>
+    </section>
+
+    <!-- ================= ③ 맞꼭지각 ================= -->
+    <section id="pVert" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 맞꼭지각은 왜 같을까?</h2>
+        <p>기울어진 직선을 끌어서 돌려 보세요. 네 교각의 크기가 어떻게 변하는지 살펴봅시다.</p>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" data-hl="ac">∠a 와 ∠c 보기</button>
+          <button class="btn sm" data-hl="bd">∠b 와 ∠d 보기</button>
+          <button class="btn sm" data-hl="">모두 보기</button>
+        </div>
+        <div id="vertFb"></div>
+      </div>
+      <div class="blk">
+        <h2>왜 같은지 따져 보기</h2>
+        <div class="proof" id="vertProof">
+          <div class="step"><div class="no">1</div><div>∠a 와 ∠b 는 한 직선을 이루므로 <b id="pf1">∠a + ∠b = 180°</b></div></div>
+          <div class="step"><div class="no">2</div><div>∠b 와 ∠c 도 한 직선을 이루므로 <b id="pf2">∠b + ∠c = 180°</b></div></div>
+          <div class="step"><div class="no">3</div><div>두 식을 견주면 <b>∠a + ∠b = ∠b + ∠c</b></div></div>
+          <div class="step"><div class="no">4</div><div>따라서 <b id="pf4">∠a = ∠c</b> — 맞꼭지각의 크기는 서로 같다!</div></div>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>문제 풀기</h2>
+        <p id="vertAsk"></p>
+        <div class="ansrow">
+          <span class="lab" id="vertLab">∠a =</span>
+          <input type="number" id="vertIn" placeholder="?" inputmode="numeric">
+          <span class="unit">°</span>
+        </div>
+        <div id="vertQFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnVertCheck">✅ 확인</button>
+          <button class="btn sm" id="btnVertNext">🔄 새 문제</button>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const DW = 900, DH = 600;
+const INK = "#1d2433", SUB = "#68738a", LINE = "#c3cbda";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b", PURPLE = "#8e4ec6";
+
+const rad = d => d*Math.PI/180;
+const norm360 = d => ((d % 360) + 360) % 360;
+let tab = "make";
+
+/* ---------- 캔버스 기본 ---------- */
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+function toDesign(px, py){
+  const v = view();
+  return {x:(px - v.ox)/v.s, y:(py - v.oy)/v.s};
+}
+function ray(O, deg, len, color, w){
+  const e = {x:O.x + Math.cos(rad(deg))*len, y:O.y - Math.sin(rad(deg))*len};
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(O.x, O.y); ctx.lineTo(e.x, e.y); ctx.stroke();
+  return e;
+}
+function dot(P, color, r){
+  ctx.fillStyle = "#fff"; ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(P.x, P.y, r || 7, 0, 7); ctx.fill(); ctx.stroke();
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function ital(t, x, y, color, size){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "italic 700 " + size + "px 'Times New Roman', serif";
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+/* 각 호 그리기 : from → to (반시계, 수학 각도) */
+function arc(O, from, to, R, color, fill){
+  ctx.beginPath();
+  ctx.moveTo(O.x, O.y);
+  ctx.arc(O.x, O.y, R, rad(-from), rad(-to), true);
+  ctx.closePath();
+  if(fill){ ctx.fillStyle = fill; ctx.fill(); }
+  ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
+}
+/* 직각 표시 */
+function rightMark(O, a1, a2, R){
+  const u = {x:Math.cos(rad(a1)), y:-Math.sin(rad(a1))};
+  const v = {x:Math.cos(rad(a2)), y:-Math.sin(rad(a2))};
+  ctx.strokeStyle = BLUE; ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(O.x + u.x*R, O.y + u.y*R);
+  ctx.lineTo(O.x + (u.x+v.x)*R, O.y + (u.y+v.y)*R);
+  ctx.lineTo(O.x + v.x*R, O.y + v.y*R);
+  ctx.stroke();
+}
+
+/* ============================================================
+   ① 각 만들기
+   ============================================================ */
+const O1 = {x:430, y:360};
+let angA = 0, angB = 62, useProt = false, snap5 = false;
+let M = {target:0, tries:0, ok:0, streak:0, done:false};
+
+function angleAOB(){
+  const d = norm360(angB - angA);
+  return d > 180 ? 360 - d : d;
+}
+function kindOf(a){
+  if(Math.abs(a - 180) < 0.6) return ["평각", PURPLE];
+  if(Math.abs(a - 90) < 0.6)  return ["직각", BLUE];
+  if(a < 90)  return ["예각", OK];
+  return ["둔각", ORANGE];
+}
+
+function drawProtractor(){
+  const R = 232;
+  ctx.save();
+  ctx.translate(O1.x, O1.y);
+  ctx.rotate(-rad(angA));
+  ctx.beginPath(); ctx.arc(0, 0, R, Math.PI, 2*Math.PI);
+  ctx.closePath();
+  ctx.fillStyle = "#eef2ff9c"; ctx.fill();
+  ctx.strokeStyle = "#b9c6ef"; ctx.lineWidth = 2; ctx.stroke();
+  for(let d = 0; d <= 180; d += 5){
+    const big = (d % 10 === 0), len = big ? 15 : 9;
+    ctx.strokeStyle = big ? "#7f92c9" : "#b9c6ef"; ctx.lineWidth = big ? 1.8 : 1.2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(rad(d))*R, -Math.sin(rad(d))*R);
+    ctx.lineTo(Math.cos(rad(d))*(R - len), -Math.sin(rad(d))*(R - len));
+    ctx.stroke();
+    if(d % 30 === 0){
+      ctx.save();
+      ctx.translate(Math.cos(rad(d))*(R - 32), -Math.sin(rad(d))*(R - 32));
+      ctx.fillStyle = "#5b6a8a"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.font = "700 14px Pretendard, sans-serif";
+      ctx.fillText(String(d), 0, 0);
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+
+function drawMake(){
+  if(useProt) drawProtractor();
+
+  const a = angleAOB();
+  const [nm, col] = kindOf(a);
+  /* 각 호 : A 에서 B 쪽으로 작은 각을 칠한다 */
+  const d = norm360(angB - angA);
+  const from = (d > 180) ? angB : angA;
+  const to   = (d > 180) ? angA + 360 : angB;
+  if(Math.abs(a - 90) < 0.6) rightMark(O1, from, to, 34);
+  else arc(O1, from, to, 66, col, col + "2e");
+
+  const eA = ray(O1, angA, 268, INK, 4.6);
+  const eB = ray(O1, angB, 268, INK, 4.6);
+  dot(O1, BLUE, 7);
+  dot(eA, RED, 9); dot(eB, RED, 9);
+
+  ital("O", O1.x - 22, O1.y + 20, INK, 22);
+  ital("A", eA.x + Math.cos(rad(angA))*26, eA.y - Math.sin(rad(angA))*26, RED, 22);
+  ital("B", eB.x + Math.cos(rad(angB))*26, eB.y - Math.sin(rad(angB))*26, RED, 22);
+
+  const mid = from + (to - from)/2;
+  txt(Math.round(a*10)/10 + "°", O1.x + Math.cos(rad(mid))*104, O1.y - Math.sin(rad(mid))*104, col, 26, true);
+}
+
+function updateMake(){
+  const a = angleAOB();
+  const [nm, col] = kindOf(a);
+  $("makeVal").textContent = Math.round(a*10)/10 + "°";
+  $("makeVal").style.color = col;
+  $("kind").textContent = nm;
+  $("kind").style.color = col;
+  $("kind").style.background = col + "1c";
+  $("kind").style.borderColor = col + "55";
+
+  if(!M.done && M.target){
+    const diff = Math.abs(a - M.target);
+    if(diff <= 1.5){
+      M.done = true; M.ok++; M.streak++;
+      $("missionFb").innerHTML = `<div class="fb ok">🎉 성공! ∠AOB 를 <b>${M.target}°</b> 로 맞췄어요.</div>`;
+      $("mOk").textContent = M.ok; $("mStreak").textContent = M.streak;
+    }else{
+      $("missionFb").innerHTML =
+        `<div class="fb ${diff < 8 ? "warn" : "info"}">${diff < 8 ? "거의 다 왔어요! " : ""}` +
+        `목표까지 <b>${Math.round(diff*10)/10}°</b> ${a < M.target ? "더 벌려" : "더 좁혀"} 보세요.</div>`;
+    }
+  }
+}
+function newMission(){
+  const pool = [30, 45, 60, 75, 90, 105, 120, 135, 150, 180];
+  let t; do { t = pool[Math.floor(Math.random()*pool.length)]; } while(t === M.target);
+  M.target = t; M.done = false; M.tries++;
+  $("mTry").textContent = M.tries;
+  if(!$("missionFb").textContent.includes("성공")) M.streak = 0;
+  $("mStreak").textContent = M.streak;
+  $("missionAsk").innerHTML = `∠AOB 가 <b>${t}°</b> 가 되도록 점 A, B 를 움직여 보세요. (오차 1.5° 까지 인정)`;
+  $("missionFb").innerHTML = "";
+  updateMake();
+}
+
+/* ============================================================
+   ② 평각에서 각 구하기
+   ============================================================ */
+const O2 = {x:450, y:400};
+let F = {parts:[], xi:0, hard:false, tries:0, ok:0, streak:0, done:false, coef:[], k:0};
+
+function newFlat(hard){
+  F.hard = !!hard; F.done = false;
+  const n = 2 + Math.floor(Math.random()*2);          // 2~3 조각
+  if(!F.hard){
+    /* 수치형 : 각 조각의 크기를 직접 준다 */
+    let left = 180, parts = [];
+    for(let i = 0; i < n - 1; i++){
+      const lo = 20, hi = Math.min(110, left - 20*(n - 1 - i));
+      const v = lo + 5*Math.floor(Math.random()*((hi - lo)/5 + 1));
+      parts.push(v); left -= v;
+    }
+    parts.push(left);
+    F.parts = parts;
+    F.xi = Math.floor(Math.random()*parts.length);
+    $("flatAsk").innerHTML = `∠AOB 가 <b>평각</b>일 때, <b>x</b> 의 값을 구하세요.`;
+    $("flatLab").innerHTML = "x =";
+    $("flatUnit").textContent = "°";
+  }else{
+    /* 도전형 : x, 2x, ... 꼴 */
+    const coef = [];
+    for(let i = 0; i < n; i++) coef.push(1 + Math.floor(Math.random()*3));
+    const sum = coef.reduce((a,b) => a+b, 0);
+    const k = Math.round(180/sum);
+    F.coef = coef; F.k = k;
+    F.parts = coef.map(c => c*k);
+    /* 반올림 오차는 마지막 조각으로 흡수 */
+    const diff = 180 - F.parts.reduce((a,b) => a+b, 0);
+    F.parts[F.parts.length - 1] += diff;
+    F.xi = -1;
+    $("flatAsk").innerHTML = `∠AOB 가 <b>평각</b>이고 각의 크기가 그림과 같을 때, <b>x</b> 의 값을 구하세요.`;
+    $("flatLab").innerHTML = "x =";
+    $("flatUnit").textContent = "";
+  }
+  const inp = $("flatIn"); inp.value = ""; inp.className = "";
+  $("flatFb").innerHTML = "";
+  draw();
+}
+function flatAnswer(){
+  return F.hard ? F.k : F.parts[F.xi];
+}
+function drawFlat(){
+  const R = 250;
+  /* 평각(한 직선) */
+  const A = {x:O2.x - R - 60, y:O2.y}, B = {x:O2.x + R + 60, y:O2.y};
+  ctx.strokeStyle = INK; ctx.lineWidth = 4.6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+
+  const cols = [BLUE, ORANGE, OK, PURPLE];
+  let acc = 0;
+  F.parts.forEach((p, i) => {
+    const from = acc, to = acc + p;
+    const c = cols[i % cols.length];
+    arc(O2, from, to, 100 + (i % 2)*26, c, c + "22");
+    /* 변 */
+    if(to < 179.9) ray(O2, to, R, SUB, 3);
+    const mid = (from + to)/2;
+    const lab = F.hard
+      ? (F.coef[i] === 1 ? "x" : F.coef[i] + "x")
+      : (i === F.xi ? "x" : p + "°");
+    const isX = F.hard ? false : (i === F.xi);
+    const lx = O2.x + Math.cos(rad(mid))*(150 + (i % 2)*22);
+    const ly = O2.y - Math.sin(rad(mid))*(150 + (i % 2)*22);
+    if(isX || F.hard) ital(lab, lx, ly, RED, 30);
+    else txt(lab, lx, ly, c, 23, true);
+    acc = to;
+  });
+  dot(O2, BLUE, 7);
+  ital("O", O2.x, O2.y + 26, INK, 21);
+  ital("A", B.x + 22, B.y, INK, 21);
+  ital("B", A.x - 22, A.y, INK, 21);
+}
+
+/* ============================================================
+   ③ 맞꼭지각
+   ============================================================ */
+const O3 = {x:450, y:300};
+let vertAng = 55, hl = "";
+let V = {given:0, askKey:"", tries:0, ok:0, streak:0, done:false};
+
+const VCOL = {a:BLUE, b:ORANGE, c:BLUE, d:ORANGE};
+function vertVals(){
+  const t = vertAng;
+  return {a:t, b:180 - t, c:t, d:180 - t};
+}
+function drawVert(){
+  const R = 270, t = vertAng;
+  /* 두 직선 */
+  ctx.strokeStyle = INK; ctx.lineWidth = 4.6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(O3.x - R, O3.y); ctx.lineTo(O3.x + R, O3.y); ctx.stroke();
+  const u = {x:Math.cos(rad(t)), y:-Math.sin(rad(t))};
+  ctx.strokeStyle = "#4a5468";
+  ctx.beginPath();
+  ctx.moveTo(O3.x - u.x*R, O3.y - u.y*R);
+  ctx.lineTo(O3.x + u.x*R, O3.y + u.y*R);
+  ctx.stroke();
+  dot({x:O3.x + u.x*R, y:O3.y + u.y*R}, RED, 8);
+
+  const v = vertVals();
+  const ranges = {a:[0, t], b:[t, 180], c:[180, 180 + t], d:[180 + t, 360]};
+  ["a","b","c","d"].forEach(k => {
+    const on = !hl || hl.includes(k);
+    if(!on) return;
+    const [f, to] = ranges[k];
+    const c = VCOL[k];
+    /* 네 각이 한 원처럼 뭉쳐 보이지 않도록 반지름을 번갈아 다르게 준다 */
+    const R = (k === "a" || k === "c") ? 68 : 100;
+    arc(O3, f, to, R, c, c + (hl ? "3a" : "1f"));
+    const mid = (f + to)/2;
+    const lx = O3.x + Math.cos(rad(mid))*(R + 56), ly = O3.y - Math.sin(rad(mid))*(R + 56);
+    ital("∠" + k, lx, ly - 15, c, 24);
+    txt(Math.round(v[k]) + "°", lx, ly + 13, c, 22, true);
+  });
+  dot(O3, BLUE, 7);
+  $("hintTip").textContent = "빨간 점을 끌어서 직선을 돌려 보세요";
+}
+function updateVert(){
+  const v = vertVals();
+  $("pf1").textContent = `∠a + ∠b = ${Math.round(v.a)}° + ${Math.round(v.b)}° = 180°`;
+  $("pf2").textContent = `∠b + ∠c = ${Math.round(v.b)}° + ${Math.round(v.c)}° = 180°`;
+  $("pf4").textContent = `∠a = ∠c = ${Math.round(v.a)}°`;
+  $("vertFb").innerHTML =
+    `<div class="fb ok">지금 ∠a = ∠c = <b>${Math.round(v.a)}°</b>, ∠b = ∠d = <b>${Math.round(v.b)}°</b> — ` +
+    `직선을 아무리 돌려도 <b>맞꼭지각의 크기는 항상 같아요.</b></div>`;
+}
+function newVertQ(){
+  V.done = false;
+  vertAng = 20 + 5*Math.floor(Math.random()*29);       // 20 ~ 160
+  if(Math.abs(vertAng - 90) < 1) vertAng = 65;
+  const keys = ["a","b","c","d"];
+  const gi = Math.floor(Math.random()*4);
+  let ai; do { ai = Math.floor(Math.random()*4); } while(ai === gi);
+  V.givenKey = keys[gi]; V.askKey = keys[ai];
+  const v = vertVals();
+  $("vertAsk").innerHTML =
+    `그림에서 <b>∠${V.givenKey} = ${Math.round(v[V.givenKey])}°</b> 일 때, <b>∠${V.askKey}</b> 의 크기를 구하세요.`;
+  $("vertLab").innerHTML = `∠${V.askKey} =`;
+  const inp = $("vertIn"); inp.value = ""; inp.className = "";
+  $("vertQFb").innerHTML = "";
+  updateVert(); draw();
+}
+
+/* ============================================================
+   그리기
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy);
+  ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff"; ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);
+  if(tab === "make") drawMake();
+  if(tab === "flat") drawFlat();
+  if(tab === "vert") drawVert();
+  ctx.restore();
+}
+
+/* ============================================================
+   드래그
+   ============================================================ */
+let dragging = null;
+function pointerAngle(P, O){ return norm360(Math.atan2(O.y - P.y, P.x - O.x)*180/Math.PI); }
+
+cv.addEventListener("pointerdown", ev => {
+  const p = toDesign(ev.offsetX, ev.offsetY);
+  if(tab === "make"){
+    const dA = Math.hypot(p.x - (O1.x + Math.cos(rad(angA))*268), p.y - (O1.y - Math.sin(rad(angA))*268));
+    const dB = Math.hypot(p.x - (O1.x + Math.cos(rad(angB))*268), p.y - (O1.y - Math.sin(rad(angB))*268));
+    dragging = (dA < dB) ? (dA < 300 ? "A" : null) : (dB < 300 ? "B" : null);
+  }else if(tab === "vert"){
+    dragging = "V";
+  }
+  if(dragging){ cv.setPointerCapture(ev.pointerId); cv.classList.add("drag"); onMove(ev); }
+});
+cv.addEventListener("pointermove", ev => { if(dragging) onMove(ev); });
+cv.addEventListener("pointerup",   () => { dragging = null; cv.classList.remove("drag"); });
+cv.addEventListener("pointercancel",() => { dragging = null; cv.classList.remove("drag"); });
+
+function onMove(ev){
+  const p = toDesign(ev.offsetX, ev.offsetY);
+  if(tab === "make"){
+    let a = pointerAngle(p, O1);
+    if(snap5) a = Math.round(a/5)*5;
+    if(dragging === "A") angA = a; else angB = a;
+    updateMake(); draw();
+  }else if(tab === "vert"){
+    let a = pointerAngle(p, O3);
+    if(a > 178) a = a - 180;                 // 위쪽 반평면으로만 다룬다
+    vertAng = Math.min(165, Math.max(15, Math.round(a)));
+    updateVert(); draw();
+  }
+}
+
+/* ============================================================
+   버튼
+   ============================================================ */
+$("btnProt").addEventListener("click", e => {
+  useProt = !useProt;
+  e.currentTarget.classList.toggle("on", useProt);
+  e.currentTarget.textContent = useProt ? "📐 각도기 치우기" : "📐 각도기 대기";
+  draw();
+});
+$("btnSnap5").addEventListener("click", e => {
+  snap5 = !snap5;
+  e.currentTarget.classList.toggle("on", snap5);
+  e.currentTarget.textContent = snap5 ? "자유롭게 움직이기" : "5°씩 딱딱 맞추기";
+});
+$("btnNewMission").addEventListener("click", newMission);
+
+$("btnFlatCheck").addEventListener("click", () => {
+  if(F.done) return;
+  const inp = $("flatIn");
+  if(inp.value === ""){ $("flatFb").innerHTML = `<div class="fb warn">답을 적어 주세요.</div>`; return; }
+  const want = flatAnswer();
+  const ok = Math.abs(+inp.value - want) < 0.5;
+  F.done = true; F.tries++;
+  if(ok){ F.ok++; F.streak++; } else { F.streak = 0; }
+  inp.className = ok ? "good" : "bad";
+  const list = F.hard
+    ? F.coef.map(c => (c === 1 ? "x" : c + "x")).join(" + ")
+    : F.parts.map((p, i) => i === F.xi ? "x" : p + "°").join(" + ");
+  const why = F.hard
+    ? `${list} = 180° 이므로 ${F.coef.reduce((a,b)=>a+b,0)}x = 180°, 따라서 x = <b>${want}</b>.`
+    : `${list} = 180° 이므로 x = <b>${want}°</b>.`;
+  $("flatFb").innerHTML = `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답! " : `아쉬워요. 답은 <b>${want}</b>. `}${why}</div>`;
+  $("fTry").textContent = F.tries; $("fOk").textContent = F.ok; $("fStreak").textContent = F.streak;
+});
+$("btnFlatNext").addEventListener("click", () => newFlat(F.hard));
+$("btnFlatHard").addEventListener("click", e => {
+  const on = !F.hard;
+  e.currentTarget.classList.toggle("on", on);
+  e.currentTarget.textContent = on ? "기본 문제" : "도전 문제";
+  newFlat(on);
+});
+$("flatIn").addEventListener("keydown", e => { if(e.key === "Enter") $("btnFlatCheck").click(); });
+
+document.querySelectorAll("[data-hl]").forEach(b => {
+  b.addEventListener("click", () => {
+    hl = b.dataset.hl;
+    document.querySelectorAll("[data-hl]").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    draw();
+  });
+});
+$("btnVertCheck").addEventListener("click", () => {
+  if(V.done) return;
+  const inp = $("vertIn");
+  if(inp.value === ""){ $("vertQFb").innerHTML = `<div class="fb warn">답을 적어 주세요.</div>`; return; }
+  const v = vertVals();
+  const want = Math.round(v[V.askKey]);
+  const ok = Math.abs(+inp.value - want) < 0.5;
+  V.done = true; V.tries++;
+  if(ok){ V.ok++; V.streak++; } else { V.streak = 0; }
+  inp.className = ok ? "good" : "bad";
+  const same = (V.givenKey === "a" || V.givenKey === "c") === (V.askKey === "a" || V.askKey === "c");
+  const why = same
+    ? `∠${V.givenKey} 와 ∠${V.askKey} 는 <b>맞꼭지각</b>이므로 크기가 같아요.`
+    : `∠${V.givenKey} 와 ∠${V.askKey} 는 한 직선을 이루므로 <b>더해서 180°</b> 예요.`;
+  $("vertQFb").innerHTML = `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답! " : `아쉬워요. 답은 <b>${want}°</b>. `}${why}</div>`;
+});
+$("btnVertNext").addEventListener("click", newVertQ);
+$("vertIn").addEventListener("keydown", e => { if(e.key === "Enter") $("btnVertCheck").click(); });
+
+/* ============================================================
+   탭
+   ============================================================ */
+document.querySelectorAll("header nav button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("header nav button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    $("pMake").classList.toggle("hidden", tab !== "make");
+    $("pFlat").classList.toggle("hidden", tab !== "flat");
+    $("pVert").classList.toggle("hidden", tab !== "vert");
+    $("kind").style.display = (tab === "make") ? "" : "none";
+    $("hintTip").textContent = "";
+    if(tab === "make"){ $("hintTip").textContent = "빨간 점 A, B 를 끌어 보세요"; updateMake(); }
+    if(tab === "flat") newFlat(F.hard);
+    if(tab === "vert") newVertQ();
+    draw();
+  });
+});
+
+/* ============================================================
+   시작
+   ============================================================ */
+function boot(){
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  $("hintTip").textContent = "빨간 점 A, B 를 끌어 보세요";
+  newMission();
+  newFlat(false);
+  newVertQ();
+  tab = "make";
+  updateMake(); draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
