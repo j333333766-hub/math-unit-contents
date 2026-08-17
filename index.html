@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>수학 단원 콘텐츠 체험관</title>
+<link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+<header class="page-header">
+  <h1>수학 단원 콘텐츠 체험관</h1>
+  <p>아래 카드를 눌러 이 단원의 다양한 콘텐츠를 체험해 보세요.</p>
+</header>
+
+<main>
+  <div id="card-grid" class="card-grid"></div>
+  <div id="empty-notice" class="empty-notice" style="display:none;">
+    아직 등록된 콘텐츠가 없습니다. <code>contents</code> 폴더에 html 파일을 추가하고,
+    아래 <code>contentsList</code> 배열에 항목을 추가해 주세요.
+  </div>
+</main>
+
+<script>
+  /*
+    새 콘텐츠를 추가하는 방법
+    1) contents 폴더 안에 새 html 파일을 만든다. (예: contents/기울기-탐구.html)
+    2) 아래 contentsList 배열에 한 줄을 추가한다.
+       title: 카드에 보일 제목
+       desc : 카드에 보일 한 줄 설명
+       badge: 콘텐츠 유형 (예: "개념", "예제", "연습문제", "탐구활동")
+       href : contents 폴더 안 파일 경로
+  */
+  const contentsList = [
+    {
+      title: "샘플 콘텐츠",
+      desc: "새 콘텐츠를 만들 때 참고할 수 있는 예시 페이지입니다.",
+      badge: "예시",
+      href: "contents/sample-content.html"
+    }
+    // 여기에 콘텐츠를 계속 추가하세요.
+    // { title: "...", desc: "...", badge: "...", href: "contents/....html" },
+  ];
+
+  const grid = document.getElementById("card-grid");
+  const emptyNotice = document.getElementById("empty-notice");
+
+  if (contentsList.length === 0) {
+    emptyNotice.style.display = "block";
+  } else {
+    contentsList.forEach(item => {
+      const a = document.createElement("a");
+      a.className = "card";
+      a.href = item.href;
+      a.innerHTML = `
+        <span class="badge">${item.badge ?? "콘텐츠"}</span>
+        <h2>${item.title}</h2>
+        <p>${item.desc ?? ""}</p>
+      `;
+      grid.appendChild(a);
+    });
+  }
+</script>
+
+</body>
+</html>
