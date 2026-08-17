@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>삼각형 결정 조건 — 될까? 하나로 정해질까?</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js" data-home="../index.html" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 352px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block;}
+  #verdictTop{
+    position:absolute; left:50%; top:12px; transform:translateX(-50%);
+    font-weight:800; font-size:16px; padding:9px 20px; border-radius:999px;
+    pointer-events:none; white-space:nowrap; transition:.18s;
+  }
+  #verdictTop.ok{background:var(--ok-soft); color:var(--ok); border:1px solid #bfe6d0;}
+  #verdictTop.no{background:var(--no-soft); color:var(--no); border:1px solid #f6c9cb;}
+  #verdictTop.warn{background:var(--warn-soft); color:#a75c00; border:1px solid #f6ddb8;}
+  #verdictTop:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn.good{background:var(--ok-soft); border-color:var(--ok); color:var(--ok);}
+  .btn.bad{background:var(--no-soft); border-color:var(--no); color:var(--no);}
+
+  .slider{margin-top:10px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:4px;}
+  .slider label .v{font-size:14px;}
+  input[type=range]{width:100%;}
+  .s-a input{accent-color:#e5484d;}  .s-a .v{color:#e5484d;}
+  .s-b input{accent-color:#2f9e63;}  .s-b .v{color:#2f9e63;}
+  .s-c input{accent-color:#3e63dd;}  .s-c .v{color:#3e63dd;}
+  .s-x input{accent-color:#8e4ec6;}  .s-x .v{color:#8e4ec6;}
+
+  .ineq{
+    margin-top:11px; padding:11px 12px; border-radius:10px; text-align:center;
+    font-size:15px; font-weight:800; line-height:1.6;
+  }
+  .ineq.ok{background:var(--ok-soft); color:var(--ok);}
+  .ineq.no{background:var(--no-soft); color:var(--no);}
+
+  .cases{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:4px;}
+  .cases .btn{padding:11px 6px; font-size:13.5px; text-align:center;}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .term{border-left:4px solid var(--accent); background:#f5f7ff; padding:11px 13px; border-radius:9px; margin-top:9px;}
+  .term h3{font-size:13.5px; font-weight:800; margin-bottom:4px;}
+  .term p{font-size:13px; color:var(--sub); line-height:1.6;}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:48vh; min-height:300px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🔺 삼각형 결정 조건</h1>
+  <nav>
+    <button class="on" data-tab="ineq">① 삼각형이 될까?</button>
+    <button data-tab="unique">② 하나로 정해질까?</button>
+    <button data-tab="quiz">③ 판별 퀴즈</button>
+  </nav>
+  <a class="home-btn" href="../index.html">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="verdictTop"></div>
+  </div>
+
+  <aside>
+    <!-- ============ ① 삼각형의 부등식 ============ -->
+    <section id="pIneq">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 세 변으로 삼각형이 될까?</h2>
+        <p>세 변의 길이를 바꿔 보세요. 두 원이 <b>만나야</b> 삼각형이 만들어져요.</p>
+        <div class="slider s-a">
+          <label><span>변 a (밑변 BC)</span><span class="v" id="va">7</span></label>
+          <input type="range" id="ra" min="1" max="14" step="1" value="7">
+        </div>
+        <div class="slider s-b">
+          <label><span>변 b (CA)</span><span class="v" id="vb">5</span></label>
+          <input type="range" id="rb" min="1" max="14" step="1" value="5">
+        </div>
+        <div class="slider s-c">
+          <label><span>변 c (AB)</span><span class="v" id="vc">4</span></label>
+          <input type="range" id="rc" min="1" max="14" step="1" value="4">
+        </div>
+        <div class="ineq" id="ineqBox"></div>
+      </div>
+      <div class="blk">
+        <h2>알아 두기</h2>
+        <div class="term">
+          <h3>삼각형의 세 변의 길이 사이의 관계</h3>
+          <p>삼각형에서 <b>한 변의 길이는 다른 두 변의 길이의 합보다 작다.</b><br>
+             두 점 B, C 를 잇는 선 중 가장 짧은 것이 선분 BC 이기 때문이에요.
+             그래서 <b>가장 긴 변</b>만 확인하면 됩니다.</p>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>교과서 문제 (159쪽)</h2>
+        <p>다음 중 삼각형을 만들 수 <b>없는</b> 것을 눌러 확인해 보세요.</p>
+        <div class="row" style="margin-top:8px;" id="ineqSamples"></div>
+      </div>
+    </section>
+
+    <!-- ============ ② 하나로 정해질까? ============ -->
+    <section id="pUnique" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 조건을 고르면 하나로 정해질까?</h2>
+        <div class="cases" id="caseBtns"></div>
+        <div id="caseDesc"></div>
+      </div>
+      <div class="blk" id="caseCtl">
+        <h2>값 바꾸기</h2>
+        <div id="caseSliders"></div>
+      </div>
+      <div class="blk">
+        <h2>삼각형이 하나로 정해지는 경우</h2>
+        <p><b>① 세 변의 길이</b>가 주어질 때 (SSS)<br>
+           <b>② 두 변의 길이와 그 끼인각</b>의 크기가 주어질 때 (SAS)<br>
+           <b>③ 한 변의 길이와 그 양 끝 각</b>의 크기가 주어질 때 (ASA)</p>
+        <div class="fb info">끼인각이 아니거나, 양 끝 각이 아니면 <b>하나로 정해지지 않을 수 있어요.</b></div>
+      </div>
+    </section>
+
+    <!-- ============ ③ 퀴즈 ============ -->
+    <section id="pQuiz" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 하나로 정해질까?</h2>
+        <p id="quizAsk"></p>
+        <div class="row" style="margin-top:11px;">
+          <button class="btn" data-q="yes" style="flex:1; padding:13px 0;">⭕ 하나로 정해진다</button>
+          <button class="btn" data-q="no"  style="flex:1; padding:13px 0;">❌ 정해지지 않는다</button>
+        </div>
+        <div id="quizFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary hidden" id="btnQNext">다음 문제 ▶</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const DW = 900, DH = 560;
+const INK = "#1d2433", SUB = "#68738a";
+const CA = "#e5484d", CB = "#2f9e63", CC = "#3e63dd", CX = "#8e4ec6";
+const OK = "#2f9e63", NO = "#e5484d", ORANGE = "#f5820b";
+
+let tab = "ineq";
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+const rad = d => d*Math.PI/180;
+function seg(a, b, color, w, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.restore();
+}
+function circle(c, r, color, w, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w;
+  ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, 7); ctx.stroke();
+  ctx.restore();
+}
+function dot(P, color, r){
+  ctx.fillStyle = "#fff"; ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(P.x, P.y, r || 7, 0, 7); ctx.fill(); ctx.stroke();
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function ital(t, x, y, color, size){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "italic 700 " + size + "px 'Times New Roman', serif";
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function angArc(O, from, to, R, color){
+  ctx.beginPath(); ctx.moveTo(O.x, O.y);
+  ctx.arc(O.x, O.y, R, rad(-from), rad(-to), true);
+  ctx.closePath();
+  ctx.fillStyle = color + "2e"; ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 2.6; ctx.stroke();
+}
+
+/* ============================================================
+   ① 삼각형의 부등식
+   ============================================================ */
+let sa = 7, sb = 5, sc = 4;
+const U = 34;                       // 길이 1 당 화면 픽셀
+
+/* 세 변으로 삼각형이 되는지 — 가장 긴 변이 나머지 두 변의 합보다 작아야 한다
+   (등호일 때는 세 점이 한 직선 위에 놓여 삼각형이 되지 않는다) */
+function canTri(a, b, c){
+  const mx = Math.max(a, b, c);
+  return mx < (a + b + c - mx);
+}
+function triFrom(a, b, c){          // BC = a 를 밑변으로 놓았을 때의 A 좌표
+  const B = {x:450 - a*U/2, y:400}, C = {x:450 + a*U/2, y:400};
+  if(!canTri(a, b, c)) return {B, C, A:null};
+  const cosB = (a*a + c*c - b*b)/(2*a*c);
+  const ang = Math.acos(Math.max(-1, Math.min(1, cosB)));
+  return {B, C, A:{x:B.x + c*U*Math.cos(ang), y:B.y - c*U*Math.sin(ang)}};
+}
+function drawIneq(){
+  const t = triFrom(sa, sb, sc);
+  const okTri = !!t.A;
+  /* 두 원 */
+  circle(t.B, sc*U, CC, 2, [7,6]);
+  circle(t.C, sb*U, CB, 2, [7,6]);
+  /* 밑변 */
+  seg(t.B, t.C, CA, 6);
+  txt(sa + "", (t.B.x + t.C.x)/2, t.B.y + 30, CA, 20, true);
+
+  if(okTri){
+    seg(t.B, t.A, CC, 6);
+    seg(t.C, t.A, CB, 6);
+    ctx.fillStyle = "#3e63dd12";
+    ctx.beginPath(); ctx.moveTo(t.A.x, t.A.y); ctx.lineTo(t.B.x, t.B.y); ctx.lineTo(t.C.x, t.C.y);
+    ctx.closePath(); ctx.fill();
+    txt(sc + "", (t.B.x + t.A.x)/2 - 22, (t.B.y + t.A.y)/2, CC, 20, true);
+    txt(sb + "", (t.C.x + t.A.x)/2 + 22, (t.C.y + t.A.y)/2, CB, 20, true);
+    dot(t.A, INK, 8); ital("A", t.A.x, t.A.y - 28, INK, 23);
+  }
+  dot(t.B, INK, 8); dot(t.C, INK, 8);
+  ital("B", t.B.x - 24, t.B.y + 20, INK, 23);
+  ital("C", t.C.x + 24, t.C.y + 20, INK, 23);
+
+  const v = $("verdictTop");
+  v.textContent = okTri ? "삼각형이 만들어져요!" : "삼각형을 만들 수 없어요";
+  v.className = okTri ? "ok" : "no";
+}
+function updateIneq(){
+  const mx = Math.max(sa, sb, sc), rest = sa + sb + sc - mx;
+  const ok = canTri(sa, sb, sc);
+  $("ineqBox").className = "ineq " + (ok ? "ok" : "no");
+  $("ineqBox").innerHTML = ok
+    ? `가장 긴 변 <b>${mx}</b> &lt; 나머지 두 변의 합 <b>${rest}</b><br>삼각형이 만들어져요 ✅`
+    : `가장 긴 변 <b>${mx}</b> ${mx === rest ? "=" : "&gt;"} 나머지 두 변의 합 <b>${rest}</b><br>삼각형을 만들 수 없어요 ❌`;
+  draw();
+}
+["ra","rb","rc"].forEach((id, i) => {
+  $(id).addEventListener("input", e => {
+    const v = +e.target.value;
+    if(i === 0){ sa = v; $("va").textContent = v; }
+    if(i === 1){ sb = v; $("vb").textContent = v; }
+    if(i === 2){ sc = v; $("vc").textContent = v; }
+    updateIneq();
+  });
+});
+(function(){
+  const samples = [[3,4,5], [1,2,3], [7,7,7], [3,7,11]];
+  const w = $("ineqSamples");
+  samples.forEach(s => {
+    const b = document.createElement("button");
+    b.className = "btn sm";
+    b.textContent = s.join(", ") + " cm";
+    b.addEventListener("click", () => {
+      sa = s[0]; sb = s[1]; sc = s[2];
+      $("ra").value = sa; $("rb").value = sb; $("rc").value = sc;
+      $("va").textContent = sa; $("vb").textContent = sb; $("vc").textContent = sc;
+      updateIneq();
+    });
+    w.appendChild(b);
+  });
+})();
+
+/* ============================================================
+   ② 하나로 정해질까?
+   ============================================================ */
+const CASES = [
+  {k:"sss", n:"세 변 (SSS)",              uniq:true},
+  {k:"sas", n:"두 변 + 끼인각 (SAS)",      uniq:true},
+  {k:"asa", n:"한 변 + 양 끝 각 (ASA)",    uniq:true},
+  {k:"ssa", n:"두 변 + 끼인각 아닌 각",     uniq:false},
+  {k:"aaa", n:"세 각 (AAA)",              uniq:false},
+  {k:"saa", n:"한 변 + 양 끝 아닌 두 각",   uniq:false}
+];
+let cs = "sss";
+let U2 = {a:8, b:6, c:5, ang:40, ang2:60};
+
+/* SSA : 각 B, 변 c(=AB), 변 b(=AC) 로 만들 수 있는 삼각형들 */
+function ssaSolve(){
+  const B = {x:250, y:420};
+  const A = {x:B.x + U2.c*U*Math.cos(rad(U2.ang)), y:B.y - U2.c*U*Math.sin(rad(U2.ang))};
+  const h = B.y - A.y;                       // A 에서 밑변까지의 거리(픽셀)
+  const R = U2.b*U;
+  const sols = [];
+  if(R >= h){
+    const dx = Math.sqrt(Math.max(0, R*R - h*h));
+    [A.x + dx, A.x - dx].forEach(x => { if(x > B.x + 4) sols.push({x, y:B.y}); });
+  }
+  return {B, A, sols, h:h/U, R:R/U};
+}
+function drawUnique(){
+  const v = $("verdictTop");
+  if(cs === "sss" || cs === "sas" || cs === "asa"){
+    let t;
+    if(cs === "sss") t = triFrom(U2.a, U2.b, U2.c);
+    else if(cs === "sas"){
+      const B = {x:450 - U2.a*U/2, y:400}, C = {x:450 + U2.a*U/2, y:400};
+      t = {B, C, A:{x:B.x + U2.c*U*Math.cos(rad(U2.ang)), y:B.y - U2.c*U*Math.sin(rad(U2.ang))}};
+    }else{
+      const B = {x:450 - U2.a*U/2, y:400}, C = {x:450 + U2.a*U/2, y:400};
+      const A3 = 180 - U2.ang - U2.ang2;
+      if(A3 <= 1){ t = {B, C, A:null}; }
+      else{
+        const cLen = U2.a*Math.sin(rad(U2.ang2))/Math.sin(rad(A3));
+        t = {B, C, A:{x:B.x + cLen*U*Math.cos(rad(U2.ang)), y:B.y - cLen*U*Math.sin(rad(U2.ang))}};
+      }
+    }
+    if(!t.A){
+      v.textContent = "이 값으로는 삼각형이 안 돼요"; v.className = "no";
+      dot(t.B, INK, 8); dot(t.C, INK, 8); seg(t.B, t.C, CA, 6);
+      return;
+    }
+    ctx.fillStyle = "#3e63dd14";
+    ctx.beginPath(); ctx.moveTo(t.A.x, t.A.y); ctx.lineTo(t.B.x, t.B.y); ctx.lineTo(t.C.x, t.C.y);
+    ctx.closePath(); ctx.fill();
+    seg(t.B, t.C, CA, 6); seg(t.B, t.A, CC, 6); seg(t.C, t.A, CB, 6);
+    if(cs === "sas") angArc(t.B, 0, U2.ang, 46, CX);
+    if(cs === "asa"){ angArc(t.B, 0, U2.ang, 46, CX); angArc(t.C, 180 - U2.ang2, 180, 46, CX); }
+    dot(t.A, INK, 8); dot(t.B, INK, 8); dot(t.C, INK, 8);
+    ital("A", t.A.x, t.A.y - 28, INK, 23);
+    ital("B", t.B.x - 24, t.B.y + 20, INK, 23);
+    ital("C", t.C.x + 24, t.C.y + 20, INK, 23);
+    v.textContent = "삼각형이 하나로 정해져요!"; v.className = "ok";
+  }
+  else if(cs === "ssa"){
+    const S = ssaSolve();
+    seg({x:S.B.x - 20, y:S.B.y}, {x:S.B.x + 620, y:S.B.y}, "#c3cbda", 4);
+    seg(S.B, S.A, CC, 6);
+    circle(S.A, U2.b*U, CB, 2, [7,6]);
+    angArc(S.B, 0, U2.ang, 46, CX);
+    txt(U2.ang + "°", S.B.x + 74, S.B.y - 26, CX, 18, true);
+    txt(U2.c + "", (S.B.x + S.A.x)/2 - 24, (S.B.y + S.A.y)/2, CC, 19, true);
+    S.sols.forEach((C, i) => {
+      const col = i === 0 ? CB : ORANGE;
+      seg(S.A, C, col, 5);
+      dot(C, col, 8);
+      ital("C" + (S.sols.length > 1 ? (i+1) : ""), C.x, C.y + 28, col, 22);
+      txt(U2.b + "", (S.A.x + C.x)/2 + 18, (S.A.y + C.y)/2, col, 18, true);
+    });
+    dot(S.B, INK, 8); dot(S.A, INK, 8);
+    ital("B", S.B.x - 24, S.B.y + 22, INK, 23);
+    ital("A", S.A.x, S.A.y - 28, INK, 23);
+    const n = S.sols.length;
+    v.textContent = n === 0 ? "삼각형을 만들 수 없어요" : (n === 1 ? "삼각형이 하나예요" : "삼각형이 두 개나 생겨요!");
+    v.className = n === 2 ? "warn" : (n === 0 ? "no" : "ok");
+  }
+  else if(cs === "aaa" || cs === "saa"){
+    /* 크기만 다른 삼각형 세 개를 겹쳐 그린다 */
+    const A3 = 180 - U2.ang - U2.ang2;
+    const base = {x:450, y:430};
+    const scales = (cs === "aaa") ? [0.55, 0.8, 1.05] : [1, 1, 1];
+    const angPairs = (cs === "aaa")
+      ? [[U2.ang, U2.ang2], [U2.ang, U2.ang2], [U2.ang, U2.ang2]]
+      : [[U2.ang, U2.ang2], [U2.ang2, U2.ang], [U2.ang, A3]];
+    const cols = [CC, CB, ORANGE];
+    angPairs.forEach((pr, i) => {
+      const th = 180 - pr[0] - pr[1];
+      if(th <= 1) return;
+      const a = (cs === "aaa" ? U2.a*scales[i] : U2.a);
+      const B = {x:base.x - a*U/2, y:base.y}, C = {x:base.x + a*U/2, y:base.y};
+      const cLen = a*Math.sin(rad(pr[1]))/Math.sin(rad(th));
+      const A = {x:B.x + cLen*U*Math.cos(rad(pr[0])), y:B.y - cLen*U*Math.sin(rad(pr[0]))};
+      ctx.globalAlpha = 0.85;
+      seg(B, C, cols[i], 4); seg(B, A, cols[i], 4); seg(C, A, cols[i], 4);
+      ctx.globalAlpha = 1;
+    });
+    v.textContent = (cs === "aaa") ? "모양은 같지만 크기가 달라요" : "여러 개가 생겨요";
+    v.className = "warn";
+  }
+}
+function caseDescHTML(){
+  const map = {
+    sss: `<div class="fb ok">세 변의 길이가 주어지면 삼각형은 <b>하나로 정해져요.</b> (SSS)</div>`,
+    sas: `<div class="fb ok">두 변과 <b>그 사이에 낀 각</b>이 주어지면 <b>하나로 정해져요.</b> (SAS)</div>`,
+    asa: `<div class="fb ok">한 변과 <b>그 양 끝 각</b>이 주어지면 <b>하나로 정해져요.</b> (ASA)</div>`,
+    ssa: `<div class="fb warn">두 변과 <b>끼인각이 아닌</b> 각이 주어졌어요. 각의 크기에 따라 삼각형이
+          <b>0개·1개·2개</b> 로 달라져요. 슬라이더를 움직여 <b>두 개가 되는 순간</b>을 찾아보세요!
+          (교과서 163쪽 함께하기 1)</div>`,
+    aaa: `<div class="fb no">세 각만 주어지면 <b>모양은 같지만 크기가 다른</b> 삼각형이 무수히 많아요.
+          하나로 정해지지 않아요.</div>`,
+    saa: `<div class="fb no">한 변과 두 각이 주어져도 그 변이 <b>양 끝 각 사이</b>가 아니면
+          어느 각들 사이에 놓느냐에 따라 <b>여러 삼각형</b>이 생겨요. (교과서 163쪽 함께하기 2)</div>`
+  };
+  return map[cs];
+}
+function caseSliders(){
+  const mk = (id, label, min, max, val, cls) =>
+    `<div class="slider ${cls}"><label><span>${label}</span><span class="v" id="v_${id}">${val}</span></label>
+     <input type="range" id="s_${id}" min="${min}" max="${max}" step="1" value="${val}"></div>`;
+  let html = "";
+  if(cs === "sss") html = mk("a","변 a",3,12,U2.a,"s-a") + mk("b","변 b",3,12,U2.b,"s-b") + mk("c","변 c",3,12,U2.c,"s-c");
+  if(cs === "sas") html = mk("a","변 a",3,12,U2.a,"s-a") + mk("c","변 c",3,12,U2.c,"s-c") + mk("ang","끼인각 B",20,140,U2.ang,"s-x");
+  if(cs === "asa") html = mk("a","변 a",3,12,U2.a,"s-a") + mk("ang","각 B",20,120,U2.ang,"s-x") + mk("ang2","각 C",20,120,U2.ang2,"s-x");
+  if(cs === "ssa") html = mk("c","변 AB",3,12,U2.c,"s-c") + mk("b","변 AC",2,12,U2.b,"s-b") + mk("ang","각 B (끼인각 아님)",15,90,U2.ang,"s-x");
+  if(cs === "aaa" || cs === "saa") html = mk("ang","각 B",20,110,U2.ang,"s-x") + mk("ang2","각 C",20,110,U2.ang2,"s-x");
+  $("caseSliders").innerHTML = html;
+  $("caseSliders").querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("input", e => {
+      const key = e.target.id.slice(2);
+      U2[key] = +e.target.value;
+      $("v_" + key).textContent = e.target.value;
+      $("caseDesc").innerHTML = caseDescHTML() + ssaExtra();
+      draw();
+    });
+  });
+}
+function ssaExtra(){
+  if(cs !== "ssa") return "";
+  const S = ssaSolve();
+  const n = S.sols.length;
+  const need = Math.round(S.h*10)/10;
+  return `<div class="fb ${n === 2 ? "warn" : (n === 0 ? "no" : "info")}">지금은 삼각형이 <b>${n}개</b> 예요. ` +
+         `(변 AC 가 <b>${need}</b> 보다 짧으면 0개, 같으면 1개, ` +
+         `<b>${need}</b> 와 변 AB(<b>${U2.c}</b>) 사이면 <b>2개</b>, 변 AB 보다 길면 1개)</div>`;
+}
+function setCase(k){
+  cs = k;
+  document.querySelectorAll("#caseBtns .btn").forEach(b => b.classList.toggle("on", b.dataset.k === k));
+  $("caseDesc").innerHTML = caseDescHTML() + ssaExtra();
+  caseSliders();
+  draw();
+}
+(function(){
+  const w = $("caseBtns");
+  CASES.forEach(c => {
+    const b = document.createElement("button");
+    b.className = "btn"; b.textContent = c.n; b.dataset.k = c.k;
+    b.addEventListener("click", () => setCase(c.k));
+    w.appendChild(b);
+  });
+})();
+
+/* ============================================================
+   ③ 판별 퀴즈
+   ============================================================ */
+const QUIZ = [
+  {t:"ABÓ=6cm, BCÓ=7cm, ACÓ=8cm", a:true,  why:"<b>세 변</b>의 길이가 모두 주어졌어요 (SSS)."},
+  {t:"ABÓ=4cm, BCÓ=10cm, ∠B=50°", a:true,  why:"∠B 는 두 변 AB, BC 의 <b>끼인각</b>이에요 (SAS)."},
+  {t:"ABÓ=5cm, BCÓ=6cm, ∠C=45°", a:false, why:"∠C 는 두 변 AB, BC 의 <b>끼인각이 아니에요.</b> 삼각형이 두 개 생길 수 있어요."},
+  {t:"ABÓ=3cm, ∠A=30°, ∠B=90°", a:true,  why:"AB 는 ∠A 와 ∠B 의 <b>양 끝 각</b> 사이에 있어요 (ASA)."},
+  {t:"∠A=50°, ∠B=60°, ∠C=70°", a:false, why:"<b>세 각</b>만으로는 크기가 다른 삼각형이 무수히 많아요."},
+  {t:"ABÓ=7cm, ∠A=40°, ∠C=80°", a:true,  why:"∠B = 180°−40°−80° = 60° 로 정해지므로 AB 의 <b>양 끝 각</b>을 아는 셈이에요 (ASA)."},
+  {t:"ABÓ=5cm, ACÓ=9cm, ∠B=40°", a:false, why:"∠B 는 두 변 AB, AC 의 <b>끼인각이 아니에요.</b>"},
+  {t:"ABÓ=4cm, BCÓ=4cm, ACÓ=9cm", a:false, why:"4+4 = 8 &lt; 9 이라서 <b>삼각형 자체가 만들어지지 않아요.</b>"},
+  {t:"ABÓ=8cm, BCÓ=5cm, ∠B=120°", a:true, why:"∠B 는 두 변의 <b>끼인각</b>이에요 (SAS)."},
+  {t:"BCÓ=6cm, ∠B=55°, ∠C=65°", a:true,  why:"BC 의 <b>양 끝 각</b>이 주어졌어요 (ASA)."}
+];
+let Q = {i:0, tries:0, ok:0, streak:0, done:false, order:[]};
+function newQuiz(){
+  if(!Q.order.length){
+    Q.order = QUIZ.map((_, i) => i);
+    for(let i = Q.order.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [Q.order[i], Q.order[j]] = [Q.order[j], Q.order[i]];
+    }
+  }
+  Q.i = Q.order.shift();
+  Q.done = false;
+  $("quizAsk").innerHTML =
+    `다음 조건으로 <b>△ABC</b> 의 모양과 크기가 <b>하나로 정해질까요?</b><br>` +
+    `<span style="display:inline-block;margin-top:8px;padding:9px 13px;border-radius:9px;` +
+    `background:#f7f9fd;border:1px solid var(--line);font-size:15px;color:var(--ink);font-weight:700;">` +
+    QUIZ[Q.i].t.replace(/Ó/g, "̅") + `</span>`;
+  $("quizFb").innerHTML = "";
+  $("btnQNext").classList.add("hidden");
+  document.querySelectorAll("[data-q]").forEach(b => { b.disabled = false; b.classList.remove("good","bad"); });
+}
+document.querySelectorAll("[data-q]").forEach(b => {
+  b.addEventListener("click", () => {
+    if(Q.done) return;
+    Q.done = true; Q.tries++;
+    const said = b.dataset.q === "yes";
+    const ok = (said === QUIZ[Q.i].a);
+    if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
+    document.querySelectorAll("[data-q]").forEach(x => x.disabled = true);
+    b.classList.add(ok ? "good" : "bad");
+    $("quizFb").innerHTML =
+      `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답!" : `아쉬워요. 답은 <b>${QUIZ[Q.i].a ? "하나로 정해진다" : "정해지지 않는다"}</b>.`} ${QUIZ[Q.i].why}</div>`;
+    $("btnQNext").classList.remove("hidden");
+    $("qTry").textContent = Q.tries; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
+  });
+});
+$("btnQNext").addEventListener("click", newQuiz);
+
+/* ============================================================
+   그리기 / 탭
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff"; ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);
+  if(tab === "ineq") drawIneq();
+  if(tab === "unique") drawUnique();
+  if(tab === "quiz"){ $("verdictTop").textContent = ""; $("verdictTop").className = ""; }
+  ctx.restore();
+}
+document.querySelectorAll("header nav button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("header nav button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    $("pIneq").classList.toggle("hidden", tab !== "ineq");
+    $("pUnique").classList.toggle("hidden", tab !== "unique");
+    $("pQuiz").classList.toggle("hidden", tab !== "quiz");
+    if(tab === "ineq") updateIneq();
+    if(tab === "unique") setCase(cs);
+    if(tab === "quiz") newQuiz();
+    draw();
+  });
+});
+
+function boot(){
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  updateIneq();
+  setCase("sss");
+  newQuiz();
+  tab = "ineq";
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
