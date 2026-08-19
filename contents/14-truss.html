@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>흔들리지 않는 삼각형 — 트러스 구조</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js" data-home="../index.html" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 350px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none;}
+  #board.grab{cursor:grab;} #board.grabbing{cursor:grabbing;}
+  #banner{
+    position:absolute; left:50%; top:12px; transform:translateX(-50%);
+    font-weight:800; font-size:16px; padding:9px 20px; border-radius:999px;
+    pointer-events:none; white-space:nowrap; transition:.18s;
+  }
+  #banner.ok{background:var(--ok-soft); color:var(--ok); border:1px solid #bfe6d0;}
+  #banner.info{background:var(--accent-soft); color:var(--accent-dark); border:1px solid #c7d3f7;}
+  #banner.no{background:var(--no-soft); color:var(--no); border:1px solid #f6c7c8;}
+  #banner:empty{display:none;}
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+  .blk p + p{margin-top:7px;}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn.quake{background:var(--warn-soft); border-color:var(--warn); color:#a75c00;}
+  .btn.quake:hover{background:var(--warn); color:#fff;}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+  .fb:empty{display:none;}
+
+  .verdict{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;}
+  .vd{border:1px solid var(--line); border-radius:10px; padding:10px 8px; text-align:center; background:#f7f9fd;}
+  .vd .t{font-size:11px; color:var(--sub); font-weight:700;}
+  .vd .s{font-size:15px; font-weight:800; margin-top:4px;}
+  .vd.ok{background:var(--ok-soft); border-color:#bfe6d0;} .vd.ok .s{color:var(--ok);}
+  .vd.no{background:var(--no-soft); border-color:#f6c7c8;} .vd.no .s{color:var(--no);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:52vh; min-height:330px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🏗️ 흔들리지 않는 삼각형</h1>
+  <nav>
+    <button class="on" data-tab="push">① 밀어 보기</button>
+    <button data-tab="poly">② 다각형 고정하기</button>
+    <button data-tab="quake">③ 내진 설계 도전</button>
+  </nav>
+  <a class="home-btn" href="../index.html">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="banner"></div>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ================= 활동 1 ================= -->
+    <section id="pPush">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 옆에서 밀어 보세요</h2>
+        <p>두 틀의 <b>파란 꼭짓점</b>을 잡고 옆으로 끌어 보세요.
+           막대의 길이는 <b>하나도 변하지 않습니다</b>. 그런데도 모양이 변할까요?</p>
+        <div class="verdict">
+          <div class="vd" id="vdQuad"><div class="t">사각형 틀</div><div class="s">?</div></div>
+          <div class="vd" id="vdTri"><div class="t">삼각형 틀</div><div class="s">?</div></div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn" id="bDiag">➕ 사각형에 대각선 넣기</button>
+          <button class="btn sm" id="bResetPush">↺ 다시 세우기</button>
+        </div>
+        <div class="fb" id="pushFb"></div>
+      </div>
+
+      <div class="blk">
+        <h2>왜 그럴까?</h2>
+        <p><b>세 변의 길이가 주어진 삼각형은 하나로 정해집니다.</b>
+           (삼각형의 합동 조건 SSS) 그래서 아무리 밀어도 다른 모양이 될 수 없어요.</p>
+        <p>사각형은 네 변의 길이가 같아도 <b>여러 모양</b>이 될 수 있어요.
+           그래서 옆에서 밀면 쉽게 찌그러집니다. 대각선을 하나 넣어
+           <b>삼각형 두 개</b>로 만들면 그때부터 버티지요. (교과서 175쪽)</p>
+      </div>
+    </section>
+
+    <!-- ================= 활동 2 ================= -->
+    <section id="pPoly" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 대각선으로 고정하기</h2>
+        <div class="row">
+          <button class="btn on" data-n="4">사각형</button>
+          <button class="btn" data-n="5">오각형</button>
+          <button class="btn" data-n="6">육각형</button>
+          <button class="btn" data-n="8">팔각형</button>
+        </div>
+        <p style="margin-top:10px;">꼭짓점 <b>두 개를 차례로 클릭</b>하면 대각선이 생겨요.
+           대각선을 클릭하면 지워집니다. 꼭짓점을 끌어서 흔들리는지 확인해 보세요.</p>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="pnDiag">0</div><div class="l">넣은 대각선</div></div>
+          <div class="sc ok"><div class="v" id="pnNeed">1</div><div class="l">최소 개수</div></div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="bClearPoly">🧹 대각선 지우기</button>
+          <button class="btn sm" id="bResetPoly">↺ 다시 세우기</button>
+        </div>
+        <div class="fb" id="polyFb"></div>
+      </div>
+
+      <div class="blk">
+        <h2>규칙을 찾아보세요</h2>
+        <p>사각형 → 오각형 → 육각형 → 팔각형 순서로 <b>가장 적은 대각선 개수</b>를 세어 보세요.
+           꼭짓점이 하나 늘 때마다 몇 개씩 늘어나나요?</p>
+        <p id="polyRule">n각형은 대각선 <b>n − 3</b>개로 <b>삼각형 n − 2</b>개로 나누면 고정됩니다.</p>
+      </div>
+    </section>
+
+    <!-- ================= 활동 3 ================= -->
+    <section id="pQuake" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 지진에 견디는 건물</h2>
+        <p>3층 건물이에요. <b>칸을 클릭</b>하면 대각선 보강재가 들어가고,
+           한 번 더 누르면 방향이 바뀌고, 또 누르면 빠집니다.
+           그다음 <b>지진</b> 버튼을 눌러 보세요.</p>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn quake" id="bQuake">🌍 지진!</button>
+          <button class="btn sm" id="bResetQuake">↺ 다시 세우기</button>
+          <button class="btn sm" id="bClearQuake">🧹 보강재 빼기</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qnUse">0</div><div class="l">쓴 보강재</div></div>
+          <div class="sc ok"><div class="v" id="qnMin">3</div><div class="l">최소 개수</div></div>
+        </div>
+        <div class="fb" id="quakeFb"></div>
+      </div>
+
+      <div class="blk">
+        <h2>도전</h2>
+        <p><b>보강재 3개</b>만으로 흔들리지 않는 건물을 만들 수 있을까요?
+           한 층에 몰아 넣으면 어떻게 되는지도 꼭 확인해 보세요.</p>
+        <div class="row"><button class="btn sm" id="bHint">💡 힌트 보기</button></div>
+        <div class="fb" id="hintFb"></div>
+      </div>
+
+      <div class="blk">
+        <h2>실제 건물에서는</h2>
+        <p>여러 개의 삼각형이 이어진 <b>트러스(truss)</b> 구조는
+           <b>최소한의 재료</b>로 큰 하중을 견디고 지진에도 강해요.
+           다리·탑·경기장 지붕에서 삼각형을 찾아보세요. (교과서 175쪽)</p>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ================= 설계 좌표계 ================= */
+const DW = 900, DH = 620;
+const INK = "#1d2433", SUB = "#68738a";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b";
+const WOOD = "#c99a63", WOOD_D = "#a97b46";
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W-DW*s)/2, oy:(H-DH*s)/2, W, H};
+}
+function toDesign(px,py){ const v = view(); return {x:(px-v.ox)/v.s, y:(py-v.oy)/v.s}; }
+
+/* ================= 뼈대(구조물) ================= */
+/* node : {x,y, ox,oy(직전 위치), hx,hy(제자리), pin} , bar : {a,b,len,kind} */
+function mkNode(x,y,pin){ return {x, y, ox:x, oy:y, hx:x, hy:y, pin:!!pin}; }
+function addBar(S,a,b,kind){
+  const p = S.nodes[a], q = S.nodes[b];
+  S.bars.push({a, b, len:Math.hypot(p.hx-q.hx, p.hy-q.hy), kind:kind || "main"});
+}
+function hasBar(S,a,b){
+  return S.bars.some(x => (x.a===a && x.b===b) || (x.a===b && x.b===a));
+}
+function delBar(S,a,b){
+  S.bars = S.bars.filter(x => !((x.a===a && x.b===b) || (x.a===b && x.b===a)));
+}
+function resetShape(S){
+  S.nodes.forEach(n => { n.x = n.hx; n.y = n.hy; n.ox = n.hx; n.oy = n.hy; });
+}
+
+/* ---- 흔들리는지 판정 : 강성 행렬의 계수로 자유도를 센다 ----
+   제자리(hx,hy) 좌표로 판정한다. 찌그러진 모양에서 재면 결과가 달라진다. */
+function rankOf(rows, ncol){
+  const M = rows.map(r => r.slice());
+  let r = 0;
+  for(let c=0; c<ncol && r<M.length; c++){
+    let piv = -1, best = 1e-7;
+    for(let i=r;i<M.length;i++){
+      const v = Math.abs(M[i][c]);
+      if(v > best){ best = v; piv = i; }
+    }
+    if(piv < 0) continue;
+    const t = M[r]; M[r] = M[piv]; M[piv] = t;
+    const pv = M[r][c];
+    for(let i=0;i<M.length;i++){
+      if(i === r) continue;
+      const f = M[i][c]/pv;
+      if(Math.abs(f) < 1e-14) continue;
+      for(let j=c;j<ncol;j++) M[i][j] -= f*M[r][j];
+    }
+    r++;
+  }
+  return r;
+}
+function dofOf(S, only){
+  const use = i => (only ? only.indexOf(i) >= 0 : true);
+  const free = [];
+  S.nodes.forEach((n,i) => { if(!n.pin && use(i)) free.push(i); });
+  const idx = {};
+  free.forEach((v,k) => { idx[v] = k; });
+  const n = 2*free.length, rows = [];
+  S.bars.forEach(b => {
+    if(only && (!use(b.a) || !use(b.b))) return;
+    const p = S.nodes[b.a], q = S.nodes[b.b];
+    const dx = p.hx-q.hx, dy = p.hy-q.hy;
+    const row = new Array(n).fill(0);
+    if(idx[b.a] !== undefined){ row[2*idx[b.a]] = dx;  row[2*idx[b.a]+1] = dy; }
+    if(idx[b.b] !== undefined){ row[2*idx[b.b]] = -dx; row[2*idx[b.b]+1] = -dy; }
+    if(row.some(v => Math.abs(v) > 1e-12)) rows.push(row);
+  });
+  return n - rankOf(rows, n);
+}
+
+/* ---- 물리 : 베를레 적분 + 막대 길이 제약 ---- */
+const GRAV = 0.16;
+function integrate(S, shake){
+  S.nodes.forEach(n => {
+    if(n.pin) return;
+    let vx = (n.x-n.ox)*0.985, vy = (n.y-n.oy)*0.985;
+    n.ox = n.x; n.oy = n.y;
+    n.x += vx + shake;
+    n.y += vy + GRAV;
+  });
+}
+function project(S, times, held){
+  for(let k=0;k<times;k++){
+    for(const b of S.bars){
+      const p = S.nodes[b.a], q = S.nodes[b.b];
+      const dx = q.x-p.x, dy = q.y-p.y;
+      const d = Math.hypot(dx,dy) || 1e-6;
+      const diff = (d - b.len)/d*0.5;
+      const pf = p.pin || p === held, qf = q.pin || q === held;
+      if(pf && qf) continue;
+      if(pf){ q.x -= dx*diff*2; q.y -= dy*diff*2; }
+      else if(qf){ p.x += dx*diff*2; p.y += dy*diff*2; }
+      else { p.x += dx*diff; p.y += dy*diff; q.x -= dx*diff; q.y -= dy*diff; }
+    }
+  }
+}
+
+/* ================= 장면 만들기 ================= */
+let tab = "push";
+let S = null;                 /* 지금 보고 있는 구조물 */
+let scenes = {};
+let held = null, drag = null;
+let quake = null;             /* {t} */
+let anim = null;
+let polyN = 4, polyPick = -1;
+
+function buildPush(){
+  const T = {nodes:[], bars:[], kind:"push"};
+  const yb = 430, s = 190;
+  /* 사각형 : 0,1 은 땅에 고정 */
+  T.nodes.push(mkNode(150, yb, true), mkNode(150+s, yb, true),
+               mkNode(150+s, yb-s, false), mkNode(150, yb-s, false));
+  addBar(T,0,1); addBar(T,1,2); addBar(T,2,3); addBar(T,3,0);
+  /* 삼각형 : 4,5 는 땅에 고정 */
+  const x0 = 560;
+  T.nodes.push(mkNode(x0, yb, true), mkNode(x0+s, yb, true),
+               mkNode(x0+s/2, yb - s*Math.sqrt(3)/2, false));
+  addBar(T,4,5); addBar(T,5,6); addBar(T,6,4);
+  T.quadIdx = [0,1,2,3];
+  T.triIdx  = [4,5,6];
+  T.ground  = yb;
+  return T;
+}
+function buildPoly(n){
+  const T = {nodes:[], bars:[], kind:"poly", n:n};
+  const cx = 450, cy = 320, R = 175;
+  /* 0번, 1번 꼭짓점이 바닥에 오도록 배치하고 그 둘을 땅에 고정한다 */
+  const base = Math.PI/2 + Math.PI/n;      /* A 가 왼쪽 아래에 오도록 */
+  for(let i=0;i<n;i++){
+    const a = base - i*2*Math.PI/n;
+    T.nodes.push(mkNode(Math.round(cx + R*Math.cos(a)), Math.round(cy + R*Math.sin(a)), i===0 || i===1));
+  }
+  for(let i=0;i<n;i++) addBar(T, i, (i+1)%n);
+  T.ground = cy + R*Math.sin(base) ;
+  return T;
+}
+const GM = 3, GN = 3;            /* 3층 3칸 */
+function buildQuake(){
+  const T = {nodes:[], bars:[], kind:"quake", cells:{}};
+  const cell = 105, x0 = 450 - GN*cell/2, y0 = 130;
+  T.id = {};
+  for(let r=0;r<=GM;r++){
+    for(let c=0;c<=GN;c++){
+      T.id[r+","+c] = T.nodes.length;
+      T.nodes.push(mkNode(x0 + c*cell, y0 + r*cell, r === GM));
+    }
+  }
+  for(let r=0;r<=GM;r++) for(let c=0;c<GN;c++) addBar(T, T.id[r+","+c], T.id[r+","+(c+1)]);
+  for(let c=0;c<=GN;c++) for(let r=0;r<GM;r++) addBar(T, T.id[r+","+c], T.id[(r+1)+","+c]);
+  T.cellSize = cell; T.x0 = x0; T.y0 = y0;
+  T.ground = y0 + GM*cell;
+  return T;
+}
+
+/* ================= 그리기 ================= */
+function bg(v){
+  const x0=-v.ox/v.s, y0=-v.oy/v.s, x1=(v.W-v.ox)/v.s, y1=(v.H-v.oy)/v.s;
+  ctx.fillStyle="#fff"; ctx.fillRect(x0,y0,x1-x0,y1-y0);
+}
+function txt(t,x,y,color,size,halo,align){
+  ctx.textAlign = align || "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 "+size+"px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle="#fff"; ctx.lineWidth=6; ctx.lineJoin="round"; ctx.strokeText(t,x,y); }
+  ctx.fillStyle = color; ctx.fillText(t,x,y);
+}
+function ground(y, x1, x2){
+  ctx.save();
+  ctx.strokeStyle = "#9aa5b8"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2,y); ctx.stroke();
+  ctx.lineWidth = 2; ctx.strokeStyle = "#c3cbd9";
+  for(let x=x1; x<x2; x+=14){
+    ctx.beginPath(); ctx.moveTo(x, y+2); ctx.lineTo(x-9, y+13); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawBars(T){
+  T.bars.forEach(b => {
+    const p = T.nodes[b.a], q = T.nodes[b.b];
+    const brace = (b.kind === "brace");
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.strokeStyle = brace ? ORANGE : WOOD_D;
+    ctx.lineWidth = brace ? 13 : 15;
+    ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(q.x,q.y); ctx.stroke();
+    ctx.strokeStyle = brace ? "#fbb668" : WOOD;
+    ctx.lineWidth = brace ? 7 : 9;
+    ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(q.x,q.y); ctx.stroke();
+    ctx.restore();
+  });
+}
+function drawNodes(T){
+  T.nodes.forEach(n => {
+    if(n.pin){
+      ctx.fillStyle = "#6b7386";
+      ctx.beginPath(); ctx.arc(n.x, n.y, 8, 0, 7); ctx.fill();
+      ctx.fillStyle = "#39405180";
+      ctx.fillRect(n.x-9, n.y-2, 18, 12);
+    }else{
+      ctx.fillStyle = "#fff"; ctx.strokeStyle = BLUE; ctx.lineWidth = 3.4;
+      ctx.beginPath(); ctx.arc(n.x, n.y, 8.5, 0, 7); ctx.fill(); ctx.stroke();
+    }
+  });
+}
+function pushArrow(x, y, dir){
+  ctx.save();
+  ctx.strokeStyle = RED; ctx.fillStyle = RED; ctx.lineWidth = 5; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 42*dir, y); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + 52*dir, y); ctx.lineTo(x + 36*dir, y-9); ctx.lineTo(x + 36*dir, y+9);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawPush(){
+  const T = S;
+  ground(T.ground, 60, 840);
+  drawBars(T); drawNodes(T);
+  const q = T.nodes[3], t = T.nodes[6];
+  pushArrow(q.x - 74, q.y, 1);
+  pushArrow(t.x - 74, t.y - 6, 1);
+  txt("사각형 틀", 245, T.ground + 42, SUB, 16);
+  txt("삼각형 틀", 655, T.ground + 42, SUB, 16);
+  /* 막대 길이는 변하지 않는다는 것을 보여 준다 */
+  T.bars.forEach(b => {
+    const p = T.nodes[b.a], r = T.nodes[b.b];
+    const mx = (p.x+r.x)/2, my = (p.y+r.y)/2;
+    txt(Math.round(b.len) + "", mx, my, "#7a5a33", 13, true);
+  });
+}
+
+function drawPoly(){
+  const T = S;
+  ground(T.ground, 120, 780);
+  drawBars(T);
+  if(polyPick >= 0){
+    const n = T.nodes[polyPick];
+    ctx.save(); ctx.strokeStyle = BLUE; ctx.lineWidth = 3; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.arc(n.x, n.y, 19, 0, 7); ctx.stroke(); ctx.restore();
+  }
+  drawNodes(T);
+  T.nodes.forEach((n,i) => txt(String.fromCharCode(65+i), n.x + (n.x-450)*0.16 + 0,
+                               n.y + (n.y-320)*0.16 - 2, SUB, 15, true));
+}
+
+function drawQuake(){
+  const T = S;
+  /* 칸 안내 (제자리 기준) */
+  ctx.save();
+  for(let r=0;r<GM;r++){
+    for(let c=0;c<GN;c++){
+      const key = r+","+c;
+      const a = T.nodes[T.id[r+","+c]], b = T.nodes[(T.id[r+","+(c+1)])],
+            d = T.nodes[T.id[(r+1)+","+c]], e = T.nodes[T.id[(r+1)+","+(c+1)]];
+      ctx.beginPath();
+      ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.lineTo(e.x,e.y); ctx.lineTo(d.x,d.y);
+      ctx.closePath();
+      ctx.fillStyle = T.cells[key] ? "#fff6ea" : "#f5f7fb";
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+  ground(T.ground, 180, 720);
+  drawBars(T); drawNodes(T);
+  txt("3층 건물", 450, 96, SUB, 16);
+}
+
+function draw(){
+  if(!S) return;
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const v = view();
+  ctx.clearRect(0,0,v.W,v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  bg(v);
+  if(tab === "push") drawPush();
+  else if(tab === "poly") drawPoly();
+  else drawQuake();
+  ctx.restore();
+}
+
+/* ================= 판정 표시 ================= */
+function verdictBox(el, rigid){
+  el.className = "vd " + (rigid ? "ok" : "no");
+  el.querySelector(".s").textContent = rigid ? "버텨요 👍" : "찌그러져요";
+}
+function updatePush(){
+  verdictBox($("vdQuad"), dofOf(S, S.quadIdx) === 0);
+  verdictBox($("vdTri"),  dofOf(S, S.triIdx)  === 0);
+  const has = hasBar(S,0,2);
+  $("bDiag").textContent = has ? "➖ 대각선 빼기" : "➕ 사각형에 대각선 넣기";
+  const fb = $("pushFb");
+  fb.className = "fb " + (has ? "ok" : "info");
+  fb.innerHTML = has
+    ? "대각선을 넣으니 <b>삼각형 두 개</b>가 되었어요. 이제 사각형 틀도 버팁니다."
+    : "삼각형은 밀어도 그대로지요? 사각형에 <b>대각선</b>을 넣어 보세요.";
+}
+function updatePoly(){
+  const d = S.bars.filter(b => b.kind === "brace").length;
+  const need = S.n - 3;
+  $("pnDiag").textContent = d;
+  $("pnNeed").textContent = need;
+  const dof = dofOf(S);
+  const fb = $("polyFb");
+  if(dof === 0){
+    fb.className = "fb ok";
+    fb.innerHTML = (d === need)
+      ? "고정되었어요! <b>가장 적은 개수</b>인 " + need + "개로 성공했습니다."
+      : "고정되었어요. 그런데 " + need + "개로도 될까요? 대각선을 지워 보세요.";
+    $("banner").className = "ok"; $("banner").textContent = "흔들리지 않아요!";
+  }else{
+    fb.className = "fb no";
+    fb.innerHTML = "아직 <b>흔들려요</b>. 꼭짓점을 끌어 확인해 보세요.";
+    $("banner").className = "no"; $("banner").textContent = "아직 흔들려요";
+  }
+}
+function updateQuake(){
+  const used = S.bars.filter(b => b.kind === "brace").length;
+  $("qnUse").textContent = used;
+  const dof = dofOf(S);
+  const fb = $("quakeFb");
+  if(dof === 0){
+    fb.className = "fb ok";
+    fb.innerHTML = (used === GM)
+      ? "완벽해요! <b>보강재 " + GM + "개</b>로 흔들리지 않는 건물을 만들었습니다. 지진을 눌러 확인해 보세요."
+      : "흔들리지 않는 건물이에요. 보강재를 <b>" + GM + "개</b>까지 줄일 수 있을까요?";
+    $("banner").className = "ok"; $("banner").textContent = "흔들리지 않아요!";
+  }else{
+    fb.className = "fb no";
+    fb.innerHTML = "아직 <b>흔들려요</b>. 지진 버튼을 눌러 어디가 약한지 보세요.";
+    $("banner").className = "no"; $("banner").textContent = "아직 흔들려요";
+  }
+}
+function updatePanel(){
+  if(tab === "push") updatePush();
+  else if(tab === "poly") updatePoly();
+  else updateQuake();
+}
+
+/* ================= 애니메이션 ================= */
+function loop(){
+  anim = null;
+  if(quake){
+    quake.t += 1;
+    const amp = quake.t < quake.dur ? 1.7*Math.sin(quake.t*0.35) : 0;
+    integrate(S, amp);
+    project(S, 60, null);
+    if(quake.t > quake.dur + 90){
+      quake = null;
+      $("banner").className = dofOf(S) === 0 ? "ok" : "no";
+      $("banner").textContent = dofOf(S) === 0 ? "끄떡없어요!" : "찌그러졌어요…";
+    }
+  }
+  draw();
+  if(quake) anim = requestAnimationFrame(loop);
+}
+function startQuake(){
+  if(quake) return;
+  quake = {t:0, dur:110};
+  $("banner").className = "info"; $("banner").textContent = "🌍 흔들리는 중…";
+  if(!anim) anim = requestAnimationFrame(loop);
+}
+
+/* ================= 포인터 ================= */
+function nearestNode(q, maxD){
+  let best = -1, bd = maxD;
+  S.nodes.forEach((n,i) => {
+    const d = Math.hypot(n.x-q.x, n.y-q.y);
+    if(d < bd){ bd = d; best = i; }
+  });
+  return best;
+}
+function nearestBrace(q, maxD){
+  let best = -1, bd = maxD;
+  S.bars.forEach((b,i) => {
+    if(b.kind !== "brace") return;
+    const p = S.nodes[b.a], r = S.nodes[b.b];
+    const vx = r.x-p.x, vy = r.y-p.y, L2 = vx*vx+vy*vy;
+    let t = ((q.x-p.x)*vx + (q.y-p.y)*vy)/L2;
+    t = Math.max(0, Math.min(1, t));
+    const d = Math.hypot(q.x-(p.x+vx*t), q.y-(p.y+vy*t));
+    if(d < bd){ bd = d; best = i; }
+  });
+  return best;
+}
+function cellAt(q){
+  const T = S, cs = T.cellSize;
+  const c = Math.floor((q.x - T.x0)/cs), r = Math.floor((q.y - T.y0)/cs);
+  if(r < 0 || r >= GM || c < 0 || c >= GN) return null;
+  return {r, c};
+}
+
+cv.addEventListener("pointerdown", ev => {
+  const p = MK.pos(cv, ev), q = toDesign(p.x, p.y);
+  if(quake) return;
+
+  if(tab === "quake"){
+    /* 찌그러진 채로는 칸 위치가 어긋나므로 먼저 다시 세운다 */
+    if(S.nodes.some(n => Math.abs(n.x-n.hx) > 2 || Math.abs(n.y-n.hy) > 2)){
+      resetShape(S);
+      $("banner").className = "info"; $("banner").textContent = "건물을 다시 세웠어요";
+      draw(); return;
+    }
+    const cell = cellAt(q);
+    if(!cell) return;
+    const key = cell.r+","+cell.c;
+    const T = S;
+    const a = T.id[cell.r+","+cell.c],       b = T.id[cell.r+","+(cell.c+1)];
+    const d = T.id[(cell.r+1)+","+cell.c],   e = T.id[(cell.r+1)+","+(cell.c+1)];
+    resetShape(T);
+    const cur = T.cells[key] || 0;
+    if(cur === 0){ delBar(T,a,e); delBar(T,b,d); addBar(T,a,e,"brace"); T.cells[key] = 1; }
+    else if(cur === 1){ delBar(T,a,e); addBar(T,b,d,"brace"); T.cells[key] = 2; }
+    else { delBar(T,b,d); T.cells[key] = 0; }
+    updateQuake(); draw();
+    return;
+  }
+
+  if(tab === "poly"){
+    const bi = nearestBrace(q, 12);
+    const ni = nearestNode(q, 22);
+    if(ni < 0 && bi >= 0){
+      resetShape(S);
+      S.bars.splice(bi,1);
+      polyPick = -1; updatePoly(); draw(); return;
+    }
+    if(ni >= 0 && polyPick >= 0 && polyPick !== ni){
+      const gap = Math.abs(polyPick-ni);
+      if(gap !== 1 && gap !== S.n-1 && !hasBar(S,polyPick,ni)){
+        resetShape(S);
+        addBar(S, polyPick, ni, "brace");
+        polyPick = -1; updatePoly(); draw(); return;
+      }
+    }
+    if(ni >= 0){ polyPick = (polyPick === ni) ? -1 : ni; draw(); }
+  }
+
+  const ni = nearestNode(q, 26);
+  if(ni < 0 || S.nodes[ni].pin) return;
+  drag = ni; held = S.nodes[ni];
+  cv.setPointerCapture(ev.pointerId);
+  cv.classList.add("grabbing");
+});
+cv.addEventListener("pointermove", ev => {
+  const p = MK.pos(cv, ev), q = toDesign(p.x, p.y);
+  if(drag === null){
+    if(tab === "quake"){ cv.classList.remove("grab"); return; }
+    const ni = nearestNode(q, 22);
+    cv.classList.toggle("grab", ni >= 0 && !S.nodes[ni].pin);
+    return;
+  }
+  const n = S.nodes[drag];
+  n.x = q.x; n.y = q.y; n.ox = q.x; n.oy = q.y;
+  project(S, 70, held);   /* 끄는 점의 뜻을 나머지에 전달하고 */
+  project(S, 50, null);   /* 마지막에 모든 막대 길이를 정확히 맞춘다 */
+  S.nodes.forEach(m => { m.ox = m.x; m.oy = m.y; });
+  draw();
+});
+function endDrag(){
+  if(drag === null) return;
+  drag = null; held = null;
+  cv.classList.remove("grabbing");
+  draw();
+}
+cv.addEventListener("pointerup", endDrag);
+cv.addEventListener("pointercancel", endDrag);
+
+/* ================= 버튼 ================= */
+$("bDiag").onclick = () => {
+  resetShape(S);
+  if(hasBar(S,0,2)) delBar(S,0,2); else addBar(S,0,2,"brace");
+  updatePush(); draw();
+};
+$("bResetPush").onclick = () => { resetShape(S); draw(); };
+
+document.querySelectorAll("#pPoly [data-n]").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll("#pPoly [data-n]").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    polyN = +b.dataset.n;
+    scenes.poly = buildPoly(polyN);
+    S = scenes.poly; polyPick = -1;
+    updatePoly(); draw();
+  };
+});
+$("bClearPoly").onclick = () => {
+  S.bars = S.bars.filter(x => x.kind !== "brace");
+  resetShape(S); polyPick = -1; updatePoly(); draw();
+};
+$("bResetPoly").onclick = () => { resetShape(S); draw(); };
+
+$("bQuake").onclick = startQuake;
+$("bResetQuake").onclick = () => { quake = null; resetShape(S); updateQuake(); draw(); };
+$("bClearQuake").onclick = () => {
+  S.bars = S.bars.filter(x => x.kind !== "brace");
+  S.cells = {}; resetShape(S); updateQuake(); draw();
+};
+$("bHint").onclick = () => {
+  const fb = $("hintFb");
+  fb.className = "fb warn";
+  fb.innerHTML = "각 <b>층</b>을 따로 보세요. 대각선이 하나도 없는 층이 있으면 그 층이 통째로 옆으로 밀립니다. " +
+                 "그러니 <b>층마다 한 칸씩</b>이면 충분해요. 같은 층에 몰아 넣으면 아무리 많이 넣어도 소용없습니다.";
+};
+
+/* ================= 탭 ================= */
+document.querySelectorAll("header nav button").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll("header nav button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    quake = null; drag = null; held = null;
+    $("pPush").classList.toggle("hidden",  tab !== "push");
+    $("pPoly").classList.toggle("hidden",  tab !== "poly");
+    $("pQuake").classList.toggle("hidden", tab !== "quake");
+    S = scenes[tab];
+    resetShape(S);
+    $("banner").textContent = ""; $("banner").className = "";
+    $("tip").textContent = (tab === "push") ? "파란 꼭짓점을 끌어 보세요"
+                        : (tab === "poly") ? "꼭짓점 두 개를 클릭 → 대각선"
+                        : "칸을 클릭하면 보강재가 들어가요";
+    updatePanel(); draw();
+  };
+});
+
+/* 로컬에서 확인할 때만 열어 두는 디버그 훅 */
+if(location.hostname === "127.0.0.1" || location.hostname === "localhost"){
+  window.__DBG = () => ({S, scenes, tab, dof:dofOf(S), quake});
+  window.__DOF = only => dofOf(S, only);
+  window.__SHAKE = frames => {                     /* 화면 없이 지진을 돌려 본다 */
+    for(let t=0;t<frames;t++){
+      integrate(S, t < 110 ? 1.7*Math.sin(t*0.35) : 0);
+      project(S, 60, null);
+    }
+    return Math.max.apply(null, S.nodes.map(n => Math.abs(n.x-n.hx)));
+  };
+}
+
+/* ================= 시작 ================= */
+function boot(){
+  scenes.push  = buildPush();
+  scenes.poly  = buildPoly(polyN);
+  scenes.quake = buildQuake();
+  S = scenes.push;
+  if(window.MK && MK.fit) MK.fit(cv, draw);   /* 장면을 다 만든 뒤에 그리기 시작 */
+  $("tip").textContent = "파란 꼭짓점을 끌어 보세요";
+  updatePanel();
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
