@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>에그 퍼즐 — 작도하고 조각내고 맞추기</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js" data-home="../index.html" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 350px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none;}
+  #board.grab{cursor:grab;} #board.grabbing{cursor:grabbing;}
+  #banner{
+    position:absolute; left:50%; top:12px; transform:translateX(-50%);
+    font-weight:800; font-size:16px; padding:9px 20px; border-radius:999px;
+    pointer-events:none; white-space:nowrap; transition:.18s;
+  }
+  #banner.ok{background:var(--ok-soft); color:var(--ok); border:1px solid #bfe6d0;}
+  #banner.info{background:var(--accent-soft); color:var(--accent-dark); border:1px solid #c7d3f7;}
+  #banner.no{background:var(--no-soft); color:var(--no); border:1px solid #f6c7c8;}
+  #banner:empty{display:none;}
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+  .blk p + p{margin-top:7px;}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .steps{display:flex; gap:4px; margin-bottom:10px;}
+  .steps i{
+    flex:1; height:6px; border-radius:99px; background:var(--line); font-style:normal; transition:.2s;
+  }
+  .steps i.on{background:var(--accent);}
+  .stepno{font-size:12px; font-weight:800; color:var(--accent); margin-bottom:4px;}
+  .stepbody{font-size:14px; line-height:1.65; color:var(--ink); min-height:70px;}
+  .stepbody em{font-style:normal; color:var(--accent); font-weight:800;}
+
+  .chk{display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; margin-top:10px; cursor:pointer;}
+  .chk input{width:16px; height:16px; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb:empty{display:none;}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .swatch{display:inline-block; width:13px; height:13px; border-radius:4px; border:1px solid #0002; vertical-align:-2px; margin-right:5px;}
+  .pairlist{list-style:none; font-size:13px; line-height:1.9; color:var(--ink); margin-top:6px;}
+  .pairlist b{color:var(--accent);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:52vh; min-height:330px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🥚 에그 퍼즐</h1>
+  <nav>
+    <button class="on" data-tab="build">① 작도하기</button>
+    <button data-tab="cut">② 9조각 살펴보기</button>
+    <button data-tab="play">③ 퍼즐 놀이</button>
+  </nav>
+  <a class="home-btn" href="../index.html">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="banner"></div>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ================= 활동 1 ================= -->
+    <section id="pBuild">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 순서에 따라 작도하기</h2>
+        <div class="steps" id="stepBar"></div>
+        <div class="stepno" id="stepNo"></div>
+        <div class="stepbody" id="stepBody"></div>
+        <div class="row" style="margin-top:11px;">
+          <button class="btn sm" id="bPrev">◀ 이전</button>
+          <button class="btn primary" id="bNext">다음 ▶</button>
+          <button class="btn sm" id="bAuto">▶ 자동</button>
+          <button class="btn sm" id="bReset">↺ 처음부터</button>
+        </div>
+        <label class="chk"><input type="checkbox" id="cName" checked> 점 이름 보이기</label>
+      </div>
+
+      <div class="blk">
+        <h2>왜 매끄럽게 이어질까?</h2>
+        <p>달걀 곡선은 <b>원의 호 4개</b>를 이어 붙인 것이에요.
+           아래쪽 반원, 좌우의 큰 호, 그리고 위쪽의 작은 호.</p>
+        <p>두 호가 만나는 점에서 <b>두 원의 중심과 그 점이 한 직선 위</b>에 있으면
+           꺾이지 않고 매끄럽게 이어져요. 2단계에서 반직선 AC, BC를 긋는 이유가 바로 이것!
+           점 E가 반직선 AC 위에 있으니 <b>A, C, E는 한 직선 위</b>에 있지요.</p>
+        <label class="chk"><input type="checkbox" id="cTangent"> 이음매 확인선 보기</label>
+      </div>
+
+      <div class="blk">
+        <h2>재어 보면</h2>
+        <p>처음 원의 반지름을 1이라 하면 <b>CE = 약 0.586</b>,
+           점 H와 I는 중심에서 좌우로 <b>약 0.414</b>만큼 떨어진 자리예요.
+           달걀의 폭 : 높이 = <b>2 : 2.586</b> 입니다. (교과서 174쪽)</p>
+      </div>
+    </section>
+
+    <!-- ================= 활동 2 ================= -->
+    <section id="pCut" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 조각을 클릭해 보세요</h2>
+        <p id="pieceInfo">달걀은 <b>9조각</b>으로 나뉘어요. 조각을 클릭하면 어떤 모양인지 알려 줄게요.</p>
+      </div>
+
+      <div class="blk">
+        <h2>합동인 짝 찾기</h2>
+        <p id="quizAsk">9조각 중에는 <b>포개면 꼭 맞는</b> 조각들이 숨어 있어요. 짝을 찾아볼까요?</p>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="bQuiz">🎯 문제 내기</button>
+          <button class="btn sm" id="bNoPair">짝이 없어요</button>
+          <button class="btn sm" id="bReplay" disabled>🔁 다시 포개기</button>
+        </div>
+        <div class="fb" id="quizFb"></div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+
+      <div class="blk">
+        <h2>알게 된 것</h2>
+        <p>9조각은 <b>합동인 4쌍 + 짝 없는 1개</b>로 이루어져 있어요.
+           네 쌍 모두 <b>가운데 세로선을 접는 선으로 해서 뒤집으면</b> 완전히 포개집니다.</p>
+        <ul class="pairlist" id="pairList"></ul>
+      </div>
+    </section>
+
+    <!-- ================= 활동 3 ================= -->
+    <section id="pPlay" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 조각을 움직여 보세요</h2>
+        <div class="row">
+          <button class="btn on" id="mRestore">🥚 달걀로 되돌리기</button>
+          <button class="btn" id="mFree">🎨 자유롭게 만들기</button>
+        </div>
+        <p style="margin-top:10px;" id="playHelp"></p>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="bRotL">↺ 15°</button>
+          <button class="btn sm" id="bRotR">15° ↻</button>
+          <button class="btn sm" id="bFlip">⇄ 뒤집기</button>
+        </div>
+        <div class="row" style="margin-top:6px;">
+          <button class="btn sm" id="bScatter">🔀 흩어놓기</button>
+          <button class="btn sm" id="bSave">💾 그림 저장</button>
+        </div>
+        <div class="fb" id="playFb"></div>
+      </div>
+
+      <div class="blk" id="blkProgress">
+        <h2>맞춘 조각</h2>
+        <div class="scoreboard" style="grid-template-columns:1fr 1fr;">
+          <div class="sc ok"><div class="v" id="pDone">0</div><div class="l">제자리 조각</div></div>
+          <div class="sc"><div class="v">9</div><div class="l">전체 조각</div></div>
+        </div>
+        <p style="margin-top:9px;">조각을 <b>제자리 가까이</b> 끌어다 놓으면 딸깍 붙어요.
+           합동인 짝끼리는 <b>뒤집어서</b> 서로의 자리에 넣어도 됩니다.</p>
+      </div>
+
+      <div class="blk">
+        <h2>이런 모양을 만들어 보세요</h2>
+        <p>교과서처럼 모둠 친구들과 <b>나비 · 로켓 · 새 · 꽃</b>을 만들어 보세요.
+           마음에 드는 모양이 나오면 <b>그림 저장</b>을 눌러 남겨 두면 됩니다. (교과서 174쪽)</p>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ================= 설계 좌표계 ================= */
+const DW = 900, DH = 620;
+const INK = "#1d2433", SUB = "#68738a", LINE = "#c9d2e3";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", PURPLE = "#8e4ec6";
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W-DW*s)/2, oy:(H-DH*s)/2, W, H};
+}
+function toDesign(px,py){ const v = view(); return {x:(px-v.ox)/v.s, y:(py-v.oy)/v.s}; }
+
+/* ================= 달걀의 기하 =================
+   처음 원의 반지름을 R 이라 하면
+     CE = (2-√2)R ≈ 0.586R  (위쪽 호의 반지름)
+     OH = OI = CE,  H·I 의 x좌표 = ±(√2-1)R ≈ ±0.414R
+   A, C, E 가 한 직선 위에 있으므로 두 호가 매끄럽게 이어진다.       */
+const K   = Math.SQRT2 - 1;      /* 0.41421 */
+const RHO = 2 - Math.SQRT2;      /* 0.58579 */
+const R   = 138;
+
+/* 달걀 좌표 : 처음 원의 중심 M 이 원점, 화면과 같이 y 는 아래쪽이 + */
+const PT = {
+  M:{x:0,    y:0},
+  A:{x:-R,   y:0},
+  B:{x: R,   y:0},
+  C:{x:0,    y:-R},
+  D:{x:0,    y: R},
+  E:{x: K*R, y:-Math.SQRT2*R},
+  F:{x:-K*R, y:-Math.SQRT2*R},
+  G:{x:0,    y:-(1+RHO)*R},
+  O:{x:0,    y: K*R},
+  H:{x:-K*R, y:0},
+  I:{x: K*R, y:0}
+};
+const RBIG = 2*R, RTOP = RHO*R;
+
+function ang(c,p){ return Math.atan2(p.y-c.y, p.x-c.x); }
+
+/* 조각 하나의 테두리 : s = 시작점, l = 이어지는 명령들 */
+function cmdsOf(id){
+  const P = PT;
+  switch(id){
+    case "sL": return {s:P.C, l:[{t:"L",p:P.F},{t:"A",c:P.C,r:RTOP,p:P.G,ccw:false},{t:"L",p:P.C}]};
+    case "sR": return {s:P.C, l:[{t:"L",p:P.G},{t:"A",c:P.C,r:RTOP,p:P.E,ccw:false},{t:"L",p:P.C}]};
+    case "wL": return {s:P.A, l:[{t:"L",p:P.C},{t:"L",p:P.F},{t:"A",c:P.B,r:RBIG,p:P.A,ccw:true}]};
+    case "wR": return {s:P.C, l:[{t:"L",p:P.B},{t:"A",c:P.A,r:RBIG,p:P.E,ccw:true},{t:"L",p:P.C}]};
+    case "tL": return {s:P.A, l:[{t:"L",p:P.M},{t:"L",p:P.C},{t:"L",p:P.A}]};
+    case "tR": return {s:P.M, l:[{t:"L",p:P.B},{t:"L",p:P.C},{t:"L",p:P.M}]};
+    case "tO": return {s:P.H, l:[{t:"L",p:P.I},{t:"L",p:P.O},{t:"L",p:P.H}]};
+    case "bL": return {s:P.A, l:[{t:"L",p:P.H},{t:"L",p:P.O},{t:"L",p:P.D},{t:"A",c:P.M,r:R,p:P.A,ccw:false}]};
+    case "bR": return {s:P.I, l:[{t:"L",p:P.B},{t:"A",c:P.M,r:R,p:P.D,ccw:false},{t:"L",p:P.O},{t:"L",p:P.I}]};
+  }
+}
+
+const PIECES = [
+  {id:"bL", name:"아래 왼쪽 조각", color:"#f2789f", twin:"bR",
+   desc:"변 AH, HO, OD 와 호 DA 로 둘러싸인 조각이에요."},
+  {id:"bR", name:"아래 오른쪽 조각", color:"#9ec93a", twin:"bL",
+   desc:"변 IB, 호 BD, 변 DO, OI 로 둘러싸인 조각이에요."},
+  {id:"tO", name:"작은 직각이등변삼각형", color:"#3aa7e0", twin:null,
+   desc:"△HOI 예요. OH = OI = CE 이고 ∠HOI = 90°. 9조각 중 유일하게 짝이 없어요."},
+  {id:"wL", name:"왼쪽 날개 조각", color:"#86ccf0", twin:"wR",
+   desc:"변 AC, CF 와 호 FA 로 둘러싸인 조각. ∠ACF = 90° 예요."},
+  {id:"wR", name:"오른쪽 날개 조각", color:"#cfe15c", twin:"wL",
+   desc:"변 CB, 호 BE, 변 EC 로 둘러싸인 조각. ∠BCE = 90° 예요."},
+  {id:"tL", name:"큰 직각이등변삼각형(왼쪽)", color:"#ffe95c", twin:"tR",
+   desc:"△AMC 예요. MA = MC = 처음 원의 반지름이고 ∠AMC = 90°."},
+  {id:"tR", name:"큰 직각이등변삼각형(오른쪽)", color:"#f7aab4", twin:"tL",
+   desc:"△MBC 예요. MB = MC = 처음 원의 반지름이고 ∠BMC = 90°."},
+  {id:"sL", name:"부채꼴(왼쪽 위)", color:"#f6b26b", twin:"sR",
+   desc:"중심이 점 C, 반지름이 CE 인 부채꼴. 중심각은 45° 예요."},
+  {id:"sR", name:"부채꼴(오른쪽 위)", color:"#c3a6e8", twin:"sL",
+   desc:"중심이 점 C, 반지름이 CE 인 부채꼴. 중심각은 45° 예요."}
+];
+const byId = {};
+PIECES.forEach(p => { byId[p.id] = p; });
+
+/* 테두리를 잘게 쪼개 다각형으로 (무게중심 계산용) */
+function flatten(cm){
+  const pts = [cm.s];
+  let cur = cm.s;
+  for(const q of cm.l){
+    if(q.t === "L"){ pts.push(q.p); }
+    else{
+      const a0 = ang(q.c,cur), a1 = ang(q.c,q.p);
+      let d = a1 - a0;
+      if(q.ccw){ while(d > 0) d -= 2*Math.PI; }
+      else     { while(d < 0) d += 2*Math.PI; }
+      const n = Math.max(6, Math.ceil(Math.abs(d)/0.12));
+      for(let i=1;i<=n;i++){
+        const a = a0 + d*i/n;
+        pts.push({x:q.c.x + q.r*Math.cos(a), y:q.c.y + q.r*Math.sin(a)});
+      }
+    }
+    cur = q.p;
+  }
+  return pts;
+}
+function centroid(pts){
+  let a=0, cx=0, cy=0;
+  for(let i=0;i<pts.length;i++){
+    const p = pts[i], q = pts[(i+1)%pts.length];
+    const f = p.x*q.y - q.x*p.y;
+    a += f; cx += (p.x+q.x)*f; cy += (p.y+q.y)*f;
+  }
+  a *= 0.5;
+  if(Math.abs(a) < 1e-9) return {x:pts[0].x, y:pts[0].y};
+  return {x:cx/(6*a), y:cy/(6*a)};
+}
+
+/* 조각마다 무게중심을 원점으로 한 Path2D 를 만들어 둔다 (회전 중심 = 무게중심) */
+PIECES.forEach(def => {
+  const cm = cmdsOf(def.id);
+  const poly = flatten(cm);
+  const c = centroid(poly);
+  const path = new Path2D();
+  path.moveTo(cm.s.x-c.x, cm.s.y-c.y);
+  let cur = cm.s;
+  for(const q of cm.l){
+    if(q.t === "L") path.lineTo(q.p.x-c.x, q.p.y-c.y);
+    else path.arc(q.c.x-c.x, q.c.y-c.y, q.r, ang(q.c,cur), ang(q.c,q.p), q.ccw);
+    cur = q.p;
+  }
+  path.closePath();
+  def.path = path;
+  def.cen  = c;
+  def.rad  = Math.max.apply(null, poly.map(p => Math.hypot(p.x-c.x, p.y-c.y)));
+});
+
+/* 달걀 바깥선 : 아래 반원 → 오른쪽 큰 호 → 위 작은 호 → 왼쪽 큰 호 */
+function eggPath(dx, dy){
+  const P = PT, p = new Path2D();
+  p.moveTo(P.A.x+dx, P.A.y+dy);
+  p.arc(P.M.x+dx, P.M.y+dy, R,    ang(P.M,P.A), ang(P.M,P.B), true);
+  p.arc(P.A.x+dx, P.A.y+dy, RBIG, ang(P.A,P.B), ang(P.A,P.E), true);
+  p.arc(P.C.x+dx, P.C.y+dy, RTOP, ang(P.C,P.E), ang(P.C,P.F), true);
+  p.arc(P.B.x+dx, P.B.y+dy, RBIG, ang(P.B,P.F), ang(P.B,P.A), true);
+  p.closePath();
+  return p;
+}
+
+/* ================= 그리기 도구 ================= */
+function seg(a,b,color,w,dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle=color; ctx.lineWidth=w; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  ctx.restore();
+}
+function circleAt(c,r,color,w,dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle=color; ctx.lineWidth=w;
+  ctx.beginPath(); ctx.arc(c.x,c.y,r,0,7); ctx.stroke();
+  ctx.restore();
+}
+function dot(P,color,r){
+  ctx.fillStyle="#fff"; ctx.strokeStyle=color; ctx.lineWidth=2.6;
+  ctx.beginPath(); ctx.arc(P.x,P.y,r||5.5,0,7); ctx.fill(); ctx.stroke();
+}
+function txt(t,x,y,color,size,halo){
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.font = "800 "+size+"px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle="#fff"; ctx.lineWidth=6; ctx.lineJoin="round"; ctx.strokeText(t,x,y); }
+  ctx.fillStyle=color; ctx.fillText(t,x,y);
+}
+function ital(t,x,y,color,size){
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.font = "italic 700 "+(size||19)+"px 'Times New Roman', serif";
+  ctx.strokeStyle="#fff"; ctx.lineWidth=5; ctx.lineJoin="round"; ctx.strokeText(t,x,y);
+  ctx.fillStyle=color; ctx.fillText(t,x,y);
+}
+
+/* ================= 상태 ================= */
+let tab = "build";
+const ORG = { build:{x:450,y:302}, cut:{x:450,y:352}, play:{x:450,y:330} };
+function org(){ return ORG[tab]; }
+
+/* ---- 활동 1 ---- */
+let step = 0;
+const STEPS = [
+  {no:"준비", body:"꾸러미 ②에는 원과 두 지름이 그려져 있어요.<br>지름의 양 끝을 <em>A, B</em>, 다른 지름의 양 끝을 <em>C, D</em>라고 합니다."},
+  {no:"1단계", body:"점 <em>A, B</em>를 각각 중심으로 하고 반지름의 길이가 <em>AB</em>인 두 원을 그린다."},
+  {no:"2단계", body:"반직선 <em>AC, BC</em>를 그리고 1단계에서 그린 두 원과의 교점을 각각 <em>E, F</em>라고 한다."},
+  {no:"3단계", body:"점 <em>C</em>를 중심으로 하고 반지름의 길이가 <em>CE</em>인 원을 그리고, <em>DC</em>의 연장선과의 교점을 <em>G</em>라고 한다."},
+  {no:"4단계", body:"반지름의 길이가 <em>CE</em>이고 원의 중심이 <em>CD</em> 위에 있으며 점 <em>D</em>를 지나는 원을 그린다."},
+  {no:"5단계", body:"4단계에서 그린 원의 중심을 <em>O</em>, 이 원과 <em>AB</em>의 두 교점을 각각 <em>H, I</em>라 하고 선분 <em>OH, OI</em>를 그린다."},
+  {no:"6단계", body:"이제 달걀 모양이 되도록 <em>필요한 선들만</em> 남긴다. 9조각으로 나누어 색칠하면 완성!"}
+];
+let autoTimer = null;
+
+/* ---- 활동 2 ---- */
+let sel = null, quiz = null, flipAnim = null;
+let qTry = 0, qOk = 0, qStreak = 0;
+
+/* ---- 활동 3 ---- */
+let mode = "restore";
+let pose = {}, slotOf = {}, drag = null, selPlay = null;
+let order = PIECES.map(p => p.id);
+
+function homePose(id){
+  const d = byId[id], o = org();
+  return {x:o.x + d.cen.x, y:o.y + d.cen.y, rot:0, flip:false};
+}
+function homePoses(){
+  const m = {};
+  PIECES.forEach(d => { m[d.id] = homePose(d.id); });
+  return m;
+}
+function resetPlay(){
+  pose = {}; slotOf = {}; selPlay = null;
+  PIECES.forEach(p => { pose[p.id] = homePose(p.id); });
+  order = PIECES.map(p => p.id);
+}
+/* 흩어놓을 자리 : 큰 조각은 달걀 좌우의 넉넉한 자리, 작은 조각은 아래쪽 */
+const SPOT_BIG   = [{x:150,y:180},{x:142,y:330},{x:150,y:480},
+                    {x:750,y:180},{x:758,y:330},{x:750,y:480}];
+const SPOT_SMALL = [{x:270,y:548},{x:450,y:556},{x:630,y:548}];
+const BIG_IDS   = ["wL","wR","bL","bR","tL","tR"];
+const SMALL_IDS = ["sL","sR","tO"];
+
+function shuffled(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+function scatter(){
+  slotOf = {}; selPlay = null;
+  const put = (ids, spots) => ids.forEach((id,i) => {
+    const d = byId[id], m = d.rad + 8;
+    pose[id] = {
+      x: Math.min(Math.max(spots[i].x, m), DW-m),
+      y: Math.min(Math.max(spots[i].y, m), DH-m),
+      rot: (Math.floor(Math.random()*24)-12)*Math.PI/12,
+      flip: Math.random() < 0.4
+    };
+  });
+  const big = shuffled(BIG_IDS), small = shuffled(SMALL_IDS);
+  put(big, SPOT_BIG);
+  put(small, SPOT_SMALL);
+  order = big.concat(small);
+}
+
+/* ================= 그리기 ================= */
+function bg(v){
+  const x0=-v.ox/v.s, y0=-v.oy/v.s, x1=(v.W-v.ox)/v.s, y1=(v.H-v.oy)/v.s;
+  ctx.fillStyle = "#fff"; ctx.fillRect(x0,y0,x1-x0,y1-y0);
+}
+function drawPieceAt(def, ps, opt){
+  opt = opt || {};
+  ctx.save();
+  ctx.translate(ps.x, ps.y);
+  ctx.rotate(ps.rot);
+  if(ps.flip) ctx.scale(-1,1);
+  if(opt.alpha !== undefined) ctx.globalAlpha = opt.alpha;
+  ctx.fillStyle = opt.fill || def.color;
+  ctx.fill(def.path);
+  ctx.globalAlpha = 1;
+  ctx.lineWidth   = opt.lw || 2.2;
+  ctx.strokeStyle = opt.stroke || "#2b3346";
+  ctx.lineJoin    = "round";
+  ctx.stroke(def.path);
+  ctx.restore();
+}
+
+/* ---------- 활동 1 : 작도 ---------- */
+function drawBuild(){
+  const o = org(), P = PT;
+  const nm = $("cName").checked;
+  const abs = p => ({x:o.x+p.x, y:o.y+p.y});
+  const A=abs(P.A), B=abs(P.B), C=abs(P.C), D=abs(P.D), M=abs(P.M),
+        E=abs(P.E), F=abs(P.F), G=abs(P.G), O=abs(P.O), H=abs(P.H), I=abs(P.I);
+
+  if(step === 6){
+    ctx.save();
+    ctx.shadowColor = "rgba(29,36,51,.16)"; ctx.shadowBlur = 16; ctx.shadowOffsetY = 5;
+    ctx.fillStyle = "#fff"; ctx.fill(eggPath(o.x,o.y));
+    ctx.restore();
+    PIECES.forEach(d => drawPieceAt(d, homePose(d.id)));
+    ctx.save(); ctx.lineWidth = 3.4; ctx.strokeStyle = "#2b3346"; ctx.stroke(eggPath(o.x,o.y)); ctx.restore();
+    if(nm){
+      ital("A",A.x-16,A.y-11,INK); ital("B",B.x+16,B.y-11,INK);
+      ital("C",C.x+15,C.y+15,INK); ital("D",D.x,D.y+19,INK);
+      ital("E",E.x+16,E.y-6,INK);  ital("F",F.x-16,F.y-6,INK);
+      ital("G",G.x,G.y-17,INK);    ital("O",O.x+15,O.y+11,INK);
+      ital("H",H.x-5,H.y-15,INK);  ital("I",I.x+5,I.y-15,INK);
+    }
+    txt("9조각으로 나누어진 달걀", o.x, o.y+205, SUB, 16);
+    return;
+  }
+
+  /* 준비 : 처음 원과 두 지름 */
+  circleAt(M, R, INK, 2.6);
+  seg(A,B,INK,1.8); seg(C,D,INK,1.8);
+
+  if(step >= 1){
+    const c = step===1 ? RED : LINE, w = step===1 ? 2.4 : 1.4;
+    circleAt(A, RBIG, c, w); circleAt(B, RBIG, c, w);
+  }
+  if(step >= 2){
+    const c = step===2 ? RED : LINE, w = step===2 ? 2.4 : 1.4;
+    seg(A,E,c,w); seg(B,F,c,w);
+  }
+  if(step >= 3){
+    const c = step===3 ? RED : LINE, w = step===3 ? 2.4 : 1.4;
+    circleAt(C, RTOP, c, w);
+    seg(D,G,c,w,[6,5]);
+  }
+  if(step >= 4){
+    const c = step===4 ? RED : LINE, w = step===4 ? 2.4 : 1.4;
+    circleAt(O, RTOP, c, w);
+  }
+  if(step >= 5){
+    seg(O,H,RED,2.8); seg(O,I,RED,2.8);
+  }
+
+  if($("cTangent").checked && step >= 2){
+    seg(A,E,PURPLE,2.2,[7,5]); seg(B,F,PURPLE,2.2,[7,5]);
+    dot(C,PURPLE,6); dot(E,PURPLE,6); dot(F,PURPLE,6);
+    txt("A, C, E 가 한 직선 위!", E.x+112, E.y-22, PURPLE, 14, true);
+  }
+
+  const shown = [[A,"A",-16,-11],[B,"B",16,-11],[C,"C",15,15],[D,"D",0,19]];
+  if(step >= 2) shown.push([E,"E",16,-6],[F,"F",-16,-6]);
+  if(step >= 3) shown.push([G,"G",0,-17]);
+  if(step >= 5) shown.push([O,"O",15,11],[H,"H",-5,-15],[I,"I",5,-15]);
+  dot(M, INK, 4.5);
+  shown.forEach(s => { dot(s[0], INK, 5.5); if(nm) ital(s[1], s[0].x+s[2], s[0].y+s[3], INK); });
+}
+
+/* ---------- 활동 2 : 9조각 ---------- */
+function drawCut(){
+  const o = org();
+  ctx.save();
+  ctx.shadowColor = "rgba(29,36,51,.14)"; ctx.shadowBlur = 16; ctx.shadowOffsetY = 5;
+  ctx.fillStyle = "#fff"; ctx.fill(eggPath(o.x,o.y));
+  ctx.restore();
+
+  PIECES.forEach(d => {
+    const isSel = (sel === d.id);
+    const isQ   = quiz && quiz.target === d.id;
+    drawPieceAt(d, homePose(d.id), {
+      alpha : (quiz && !quiz.answered && !isQ) ? 0.85 : 1,
+      lw    : (isSel || isQ) ? 4 : 2.2,
+      stroke: isQ ? RED : (isSel ? BLUE : "#2b3346")
+    });
+  });
+
+  /* 뒤집어 포개기 : 가운데 세로선을 축으로 대칭시키면 짝 위에 정확히 얹힌다 */
+  if(flipAnim){
+    const d = byId[flipAnim.from], t = flipAnim.t;
+    seg({x:o.x,y:o.y-250},{x:o.x,y:o.y+165}, OK, 2, [8,6]);
+    ctx.save();
+    ctx.translate(o.x,0); ctx.scale(1-2*t,1); ctx.translate(-o.x,0);
+    drawPieceAt(d, homePose(d.id), {alpha:0.75, stroke:OK, lw:3});
+    ctx.restore();
+    if(t >= 1){
+      const c = homePose(byId[d.id].twin);
+      txt("완전히 포개져요!", c.x, c.y, OK, 16, true);
+    }
+  }
+
+  ctx.save(); ctx.lineWidth=3.2; ctx.strokeStyle="#2b3346"; ctx.stroke(eggPath(o.x,o.y)); ctx.restore();
+
+  if(quiz && !quiz.answered){
+    const d = byId[quiz.target], c = homePose(quiz.target);
+    ctx.save(); ctx.strokeStyle=RED; ctx.lineWidth=1.7; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.arc(c.x, c.y, d.rad+10, 0, 7); ctx.stroke(); ctx.restore();
+    txt("이 조각", c.x, c.y, "#20293a", 14, true);
+  }
+}
+
+/* ---------- 활동 3 : 퍼즐 ---------- */
+function fillerSlot(id){
+  for(const k in slotOf) if(slotOf[k] === id) return k;
+  return null;
+}
+function drawPlay(){
+  const o = org();
+  if(mode === "restore"){
+    ctx.save();
+    ctx.fillStyle = "#eef1f7"; ctx.fill(eggPath(o.x,o.y));
+    ctx.setLineDash([7,6]); ctx.lineWidth = 2; ctx.strokeStyle = "#b6c0d4";
+    ctx.stroke(eggPath(o.x,o.y));
+    ctx.restore();
+    const P = PT, ab = p => ({x:o.x+p.x, y:o.y+p.y});
+    [[P.A,P.B],[P.C,P.M],[P.A,P.C],[P.B,P.C],[P.C,P.F],[P.C,P.G],[P.C,P.E],
+     [P.H,P.O],[P.I,P.O],[P.O,P.D]].forEach(s => seg(ab(s[0]), ab(s[1]), "#ccd5e5", 1.5, [5,5]));
+  }
+  order.forEach(id => {
+    const d = byId[id];
+    drawPieceAt(d, pose[id], {
+      lw    : selPlay === id ? 4 : 2.2,
+      stroke: selPlay === id ? BLUE : "#2b3346"
+    });
+  });
+  if(mode === "restore" && Object.keys(slotOf).length === 9){
+    ctx.save(); ctx.lineWidth=3.4; ctx.strokeStyle="#2b3346"; ctx.stroke(eggPath(o.x,o.y)); ctx.restore();
+  }
+}
+
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const v = view();
+  ctx.clearRect(0,0,v.W,v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  bg(v);
+  if(tab === "build") drawBuild();
+  else if(tab === "cut") drawCut();
+  else drawPlay();
+  ctx.restore();
+}
+
+/* ================= 조각 찾기 (가장 위에 있는 것부터) ================= */
+function hitPiece(q, poses, ids){
+  ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+  let found = null;
+  for(let i = ids.length-1; i >= 0; i--){
+    const id = ids[i], d = byId[id], ps = poses[id];
+    const dx = q.x-ps.x, dy = q.y-ps.y;
+    if(Math.hypot(dx,dy) > d.rad + 4) continue;
+    const c = Math.cos(-ps.rot), s = Math.sin(-ps.rot);
+    let lx = dx*c - dy*s;
+    const ly = dx*s + dy*c;
+    if(ps.flip) lx = -lx;
+    if(ctx.isPointInPath(d.path, lx, ly)){ found = id; break; }
+  }
+  ctx.restore();
+  return found;
+}
+
+/* ================= 활동 1 조작 ================= */
+function renderStep(){
+  $("stepNo").textContent  = STEPS[step].no;
+  $("stepBody").innerHTML  = STEPS[step].body;
+  $("stepBar").innerHTML   = STEPS.map((s,i) => '<i class="'+(i<=step?"on":"")+'"></i>').join("");
+  $("bPrev").disabled = (step === 0);
+  $("bNext").disabled = (step === STEPS.length-1);
+  if(tab === "build") $("tip").textContent = (step === 6) ? "" : "회색 선은 앞 단계에서 그린 것이에요";
+  draw();
+}
+function stopAuto(){
+  if(autoTimer){
+    clearInterval(autoTimer); autoTimer = null;
+    $("bAuto").textContent = "▶ 자동"; $("bAuto").classList.remove("on");
+  }
+}
+$("bPrev").onclick  = () => { stopAuto(); if(step > 0){ step--; renderStep(); } };
+$("bNext").onclick  = () => { stopAuto(); if(step < STEPS.length-1){ step++; renderStep(); } };
+$("bReset").onclick = () => { stopAuto(); step = 0; renderStep(); };
+$("bAuto").onclick  = () => {
+  if(autoTimer){ stopAuto(); return; }
+  if(step === STEPS.length-1) step = 0;
+  $("bAuto").textContent = "⏸ 멈춤"; $("bAuto").classList.add("on");
+  renderStep();
+  autoTimer = setInterval(() => {
+    if(step >= STEPS.length-1){ stopAuto(); return; }
+    step++; renderStep();
+  }, 1900);
+};
+$("cName").onchange    = draw;
+$("cTangent").onchange = draw;
+
+/* ================= 활동 2 조작 ================= */
+const PAIRS = [
+  ["sL","sR","부채꼴 2개 (중심각 45°)"],
+  ["wL","wR","날개 조각 2개"],
+  ["tL","tR","큰 직각이등변삼각형 2개"],
+  ["bL","bR","아래쪽 조각 2개"]
+];
+$("pairList").innerHTML =
+  PAIRS.map(p =>
+    '<li><span class="swatch" style="background:'+byId[p[0]].color+'"></span>'+
+    '<span class="swatch" style="background:'+byId[p[1]].color+'"></span><b>합동</b> — '+p[2]+"</li>").join("") +
+  '<li><span class="swatch" style="background:'+byId.tO.color+'"></span>짝 없음 — 작은 직각이등변삼각형</li>';
+
+function showPiece(id){
+  sel = id;
+  const d = byId[id];
+  $("pieceInfo").innerHTML =
+    '<span class="swatch" style="background:'+d.color+'"></span><b>'+d.name+"</b><br>"+d.desc;
+}
+function newQuiz(){
+  const ids = PIECES.map(p => p.id);
+  let t;
+  do{ t = ids[Math.floor(Math.random()*ids.length)]; }while(quiz && t === quiz.target);
+  quiz = {target:t, answered:false};
+  sel = null; flipAnim = null; lastFlip = null;
+  $("bReplay").disabled = true;
+  $("quizAsk").innerHTML =
+    '빨간 테두리로 표시한 <b>'+byId[t].name+"</b>과(와) <b>합동인 조각</b>을 클릭하세요. "+
+    "짝이 없다고 생각하면 아래 버튼을 누르세요.";
+  $("quizFb").className = "fb"; $("quizFb").textContent = "";
+  $("banner").className = "info"; $("banner").textContent = "합동인 짝을 찾아 클릭!";
+  draw();
+}
+let lastFlip = null;
+function startFlip(id){
+  lastFlip = id;
+  $("bReplay").disabled = false;
+  flipAnim = {from:id, t:0};
+  const t0 = performance.now();
+  (function loop(now){
+    if(!flipAnim) return;
+    const e = ((now || performance.now()) - t0)/900;
+    flipAnim.t = Math.min(1, e);
+    draw();
+    if(e < 1) requestAnimationFrame(loop);
+    else setTimeout(() => { flipAnim = null; draw(); }, 1800);
+  })(t0);
+}
+function answerQuiz(picked){
+  if(!quiz || quiz.answered) return;
+  const t = quiz.target, twin = byId[t].twin;
+  const right = (picked === null) ? (twin === null) : (picked === twin);
+  const fb = $("quizFb");
+  qTry++;
+  if(right){
+    qOk++; qStreak++;
+    quiz.answered = true;
+    fb.className = "fb ok";
+    if(twin === null){
+      fb.textContent = "맞아요! 이 조각과 합동인 조각은 없습니다.";
+      $("banner").className = "ok"; $("banner").textContent = "정답! 짝이 없는 조각";
+    }else{
+      fb.innerHTML = "맞아요! 가운데 세로선을 접는 선으로 <b>뒤집으면</b> 꼭 포개집니다.";
+      $("banner").className = "ok"; $("banner").textContent = "정답! 포개어 볼까요?";
+      startFlip(twin);
+    }
+  }else{
+    qStreak = 0;
+    fb.className = "fb no";
+    fb.innerHTML = (picked === null)
+      ? "짝이 있어요. 모양과 크기를 다시 살펴보세요."
+      : "<b>"+byId[picked].name+"</b>은(는) 포개어 봐도 꼭 맞지 않아요.";
+    $("banner").className = "no"; $("banner").textContent = "다시 생각해 볼까요?";
+  }
+  $("qTry").textContent = qTry; $("qOk").textContent = qOk; $("qStreak").textContent = qStreak;
+  draw();
+}
+$("bQuiz").onclick = newQuiz;
+$("bReplay").onclick = () => { if(lastFlip) startFlip(lastFlip); };
+$("bNoPair").onclick = () => {
+  if(!quiz){
+    $("quizFb").className = "fb info";
+    $("quizFb").textContent = "먼저 ‘문제 내기’를 눌러 주세요.";
+    return;
+  }
+  answerQuiz(null);
+};
+
+/* ================= 활동 3 조작 ================= */
+function updateProgress(){
+  const n = Object.keys(slotOf).length;
+  $("pDone").textContent = n;
+  if(mode === "restore" && n === 9){
+    $("banner").className = "ok"; $("banner").textContent = "🥚 달걀 완성!";
+    $("playFb").className = "fb ok"; $("playFb").textContent = "9조각을 모두 제자리에 맞췄어요!";
+  }
+}
+function unsnap(id){
+  const s = fillerSlot(id);
+  if(s !== null) delete slotOf[s];
+}
+/* 놓았을 때 붙일 자리를 찾는다 (합동인 짝의 자리에는 뒤집어서 들어갈 수 있다) */
+function trySnap(id){
+  const d = byId[id], ps = pose[id];
+  const cands = [id];
+  if(d.twin) cands.push(d.twin);
+  for(const slot of cands){
+    if(slotOf[slot] !== undefined) continue;
+    const need = (slot === id) ? (id === "tO" ? null : false) : true;
+    if(need !== null && ps.flip !== need) continue;
+    let dr = ps.rot % (2*Math.PI);
+    if(dr >  Math.PI) dr -= 2*Math.PI;
+    if(dr < -Math.PI) dr += 2*Math.PI;
+    const h = homePose(slot);
+    if(Math.hypot(ps.x-h.x, ps.y-h.y) < 26 && Math.abs(dr) < 0.24){
+      pose[id] = {x:h.x, y:h.y, rot:0, flip:(need === null) ? ps.flip : need};
+      slotOf[slot] = id;
+      return true;
+    }
+  }
+  return false;
+}
+function modeUI(){
+  $("mRestore").classList.toggle("on", mode === "restore");
+  $("mFree").classList.toggle("on", mode === "free");
+  $("blkProgress").classList.toggle("hidden", mode !== "restore");
+  $("playHelp").innerHTML = (mode === "restore")
+    ? "조각을 끌어 <b>회색 달걀</b> 위 제자리에 놓아 보세요. 조각을 고른 뒤 <b>회전·뒤집기</b> 버튼을 쓸 수 있어요."
+    : "조각을 자유롭게 끌고 돌리고 뒤집어서 <b>나만의 모양</b>을 만들어 보세요.";
+}
+function setMode(m){
+  if(mode === m){ modeUI(); draw(); return; }
+  mode = m;
+  modeUI();
+  $("playFb").className = "fb"; $("playFb").textContent = "";
+  $("banner").textContent = ""; $("banner").className = "";
+  scatter();
+  updateProgress();
+  draw();
+}
+function rotate(dir){
+  if(!selPlay){
+    $("playFb").className = "fb info";
+    $("playFb").textContent = "먼저 조각을 클릭해서 골라 주세요.";
+    return;
+  }
+  if(mode === "restore") unsnap(selPlay);
+  pose[selPlay].rot += dir*Math.PI/12;
+  $("playFb").className = "fb"; $("playFb").textContent = "";
+  if(mode === "restore"){ trySnap(selPlay); updateProgress(); }
+  draw();
+}
+$("mRestore").onclick = () => setMode("restore");
+$("mFree").onclick    = () => setMode("free");
+$("bRotL").onclick    = () => rotate(-1);
+$("bRotR").onclick    = () => rotate(1);
+$("bFlip").onclick = () => {
+  if(!selPlay){
+    $("playFb").className = "fb info";
+    $("playFb").textContent = "먼저 조각을 클릭해서 골라 주세요.";
+    return;
+  }
+  if(mode === "restore") unsnap(selPlay);
+  pose[selPlay].flip = !pose[selPlay].flip;
+  pose[selPlay].rot  = -pose[selPlay].rot;
+  $("playFb").className = "fb"; $("playFb").textContent = "";
+  if(mode === "restore"){ trySnap(selPlay); updateProgress(); }
+  draw();
+};
+$("bScatter").onclick = () => {
+  scatter();
+  $("banner").textContent = ""; $("banner").className = "";
+  $("playFb").className = "fb"; $("playFb").textContent = "";
+  updateProgress(); draw();
+};
+$("bSave").onclick = () => {
+  const a = document.createElement("a");
+  a.download = "에그퍼즐.png";
+  a.href = cv.toDataURL("image/png");
+  a.click();
+};
+document.addEventListener("keydown", e => {
+  if(tab !== "play" || !selPlay) return;
+  const k = e.key.toLowerCase();
+  if(k === "q") rotate(-1);
+  else if(k === "e") rotate(1);
+  else if(k === "f") $("bFlip").click();
+});
+
+/* ================= 포인터 ================= */
+cv.addEventListener("pointerdown", ev => {
+  const p = MK.pos(cv, ev), q = toDesign(p.x, p.y);
+  if(tab === "cut"){
+    const id = hitPiece(q, homePoses(), PIECES.map(d => d.id));
+    if(!id) return;
+    showPiece(id);
+    if(quiz && !quiz.answered && id !== quiz.target) answerQuiz(id);
+    else draw();
+    return;
+  }
+  if(tab !== "play") return;
+  const id = hitPiece(q, pose, order);
+  if(!id){ selPlay = null; draw(); return; }
+  selPlay = id;
+  if(mode === "restore") unsnap(id);
+  order = order.filter(x => x !== id); order.push(id);
+  drag = {id, dx:q.x - pose[id].x, dy:q.y - pose[id].y};
+  cv.setPointerCapture(ev.pointerId);
+  cv.classList.add("grabbing");
+  $("playFb").className = "fb"; $("playFb").textContent = "";
+  updateProgress();
+  draw();
+});
+cv.addEventListener("pointermove", ev => {
+  const p = MK.pos(cv, ev), q = toDesign(p.x, p.y);
+  if(!drag){
+    if(tab === "play")      cv.classList.toggle("grab", !!hitPiece(q, pose, order));
+    else if(tab === "cut")  cv.classList.toggle("grab", !!hitPiece(q, homePoses(), PIECES.map(d=>d.id)));
+    return;
+  }
+  pose[drag.id].x = q.x - drag.dx;
+  pose[drag.id].y = q.y - drag.dy;
+  draw();
+});
+function endDrag(){
+  if(!drag) return;
+  cv.classList.remove("grabbing");
+  if(mode === "restore"){ trySnap(drag.id); updateProgress(); }
+  drag = null;
+  draw();
+}
+cv.addEventListener("pointerup", endDrag);
+cv.addEventListener("pointercancel", endDrag);
+
+/* ================= 탭 ================= */
+document.querySelectorAll("header nav button").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll("header nav button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    stopAuto();
+    $("pBuild").classList.toggle("hidden", tab !== "build");
+    $("pCut").classList.toggle("hidden",   tab !== "cut");
+    $("pPlay").classList.toggle("hidden",  tab !== "play");
+    $("banner").textContent = ""; $("banner").className = "";
+    if(tab === "build"){
+      $("tip").textContent = (step === 6) ? "" : "회색 선은 앞 단계에서 그린 것이에요";
+    }else if(tab === "cut"){
+      $("tip").textContent = "조각을 클릭해 보세요";
+      quiz = null; sel = null; flipAnim = null;
+    }else{
+      $("tip").textContent = "조각을 끌어서 옮기세요 (Q·E 회전, F 뒤집기)";
+      modeUI(); updateProgress();
+    }
+    draw();
+  };
+});
+
+/* 로컬에서 확인할 때만 열어 두는 디버그 훅 */
+if(location.hostname === "127.0.0.1" || location.hostname === "localhost"){
+  window.__DBG = () => ({pose, slotOf, mode, order, home:homePoses(), step, tab,
+    rad:Object.fromEntries(PIECES.map(p => [p.id, Math.round(p.rad)]))});
+}
+
+/* ================= 시작 ================= */
+function boot(){
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  tab = "play"; resetPlay(); scatter();   /* 퍼즐 조각은 퍼즐 탭 좌표로 배치해 둔다 */
+  tab = "build";
+  mode = "restore"; modeUI(); updateProgress();
+  renderStep();
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
