@@ -630,7 +630,8 @@ function pracNext(){
   const base = (kind === "eot")
     ? EOT_ABLE[Math.floor(Math.random() * EOT_ABLE.length)]
     : Math.floor(Math.random() * 8);
-  P.round = { base, ans: partner(base, kind), kind, done:false };
+  P.seq = (P.seq || 0) + 1;
+  P.round = { base, ans: partner(base, kind), kind, done:false, seq:P.seq };
 
   /* 두더지 한 마리, 머리 위에 지시. 시간이 지나도 숨지 않는다. */
   addMole(base, true, REL_KO[kind], REL_COL[kind]);
@@ -651,6 +652,16 @@ function pracClick(i){
         ? ` 두 사거리에서 똑같이 <b>${QNAME[HOLES[r.ans].q]}</b>에 있죠.`
         : ` 두 도로 <b>사이</b>에서 엇갈린 자리예요.`) + `</div>`;
     anim.rings[i] = REL_COL[r.kind];
+    killMole(r.base);
+    /* 잘 잡았으면 '새 문제' 를 누르지 않아도 곧바로 다음 문제가 나온다.
+       (틀렸을 때는 설명을 읽을 시간이 필요하니 그대로 기다린다) */
+    const mySeq = r.seq;
+    setTimeout(() => {
+      /* 그 사이에 넘어갔거나 다른 탭으로 옮겼으면 그만둔다 */
+      if(mode !== "learn" || !P || !P.round || P.round.seq !== mySeq) return;
+      $("pFb").innerHTML = "";
+      pracNext();
+    }, 1200);
   }else{
     P.streak = 0;
     const why = REL_KO[rel(r.base, i)];
@@ -661,7 +672,7 @@ function pracClick(i){
     anim.rings[r.ans] = REL_COL[r.kind];
   }
   $("pTry").textContent = P.tries; $("pOk").textContent = P.ok; $("pStreak").textContent = P.streak;
-  banner(`👉 <b>새 문제</b>를 눌러 계속해 보세요`);
+  banner(i === r.ans ? `🎉 <b>정답!</b> 다음 문제로 넘어갑니다` : `👉 <b>새 문제</b>를 눌러 계속해 보세요`);
 }
 
 $("btnPracNext").addEventListener("click", () => { $("pFb").innerHTML = ""; pracNext(); });
