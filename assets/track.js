@@ -11,7 +11,7 @@
    · 지난 시간 번호가 남아 있지 않도록 **일정 시간 뒤 자동으로 풀린다**.
      화면 오른쪽 위 '○번' 단추를 누르면 언제든 번호를 바꿀 수 있다.
    · 보내는 것 : 어떤 콘텐츠를 열었는지, 화면을 보고 있는지, 활동 전환,
-                 정답·완료 표시가 떴는지. 답안 내용 자체는 보내지 않는다.
+                 정답·완료 표시가 떴는지, 그리고 **점수**(MKLOG.score). 답안 내용 자체는 보내지 않는다.
    · 기록 서버(Apps Script)가 꺼져 있어도 콘텐츠는 그대로 동작한다.
    =========================================================== */
 (function(){
@@ -62,8 +62,10 @@
   }catch(e){}
 
   function visible(){ return document.visibilityState !== "hidden"; }
-  function push(kind, detail, now){
-    Q.push({t:Date.now(), k:kind, p:PAGE, d:(detail || "").slice(0,150), v:visible() ? 1 : 0});
+  function push(kind, detail, now, sc){
+    var ev = {t:Date.now(), k:kind, p:PAGE, d:(detail || "").slice(0,150), v:visible() ? 1 : 0};
+    if(typeof sc === "number" && isFinite(sc)) ev.sc = Math.round(sc);   /* 점수가 있는 콘텐츠용 */
+    Q.push(ev);
     if(Q.length > 120) Q = Q.slice(-120);
     if(now) flush(false);
   }
@@ -303,6 +305,10 @@
   window.MKLOG = {
     step: function(d){ push("step", d); },
     done: function(d){ push("ok", d || "완료", true); },
+    /* 점수가 나오는 콘텐츠는 끝났을 때 이걸 부른다 — 시트의 '점수' 탭에 쌓이고
+       교사 현황판의 점수판·역대 최고에 그대로 나온다.
+         MKLOG.score(120, "60초 두더지 잡기 · 정답 9개")                     */
+    score: function(value, d){ push("score", d || "", true, Number(value)); },
     who:  function(){ return NO; },
     ask:  function(){ askNo(true); }        /* 콘텐츠 안에서 번호 바꾸기 창 띄우기 */
   };

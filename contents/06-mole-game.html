@@ -6,7 +6,7 @@
 <title>두더지 잡기 — 동위각과 엇각</title>
 <link rel="stylesheet" href="../assets/common.css">
 <script src="../assets/common.js" data-home="../index.html" defer></script>
-<script src="../assets/track.js?v=2" defer></script>
+<script src="../assets/track.js?v=3" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -187,7 +187,7 @@
     <!-- ================= ② 게임 ================= -->
     <section id="pGame" class="hidden">
       <div class="blk">
-        <h2><span class="tag">활동 2</span> 60초 두더지 잡기</h2>
+        <h2><span class="tag">활동 2</span> 60초 두더지 잡기 <small style="font-weight:600;color:var(--sub);font-size:12px;">점수가 기록돼요</small></h2>
         <div class="scoreboard">
           <div class="sc time"><div class="v" id="gTime">60</div><div class="l">남은 시간</div></div>
           <div class="sc score"><div class="v" id="gScore">0</div><div class="l">점수</div></div>
@@ -203,9 +203,14 @@
 
       <div class="blk">
         <h2>게임 방법</h2>
-        <p>👑 <b>왕관 두더지</b>가 기준이에요.<br>
-           위에 뜨는 지시(<b>동위각</b> 또는 <b>엇각</b>)에 맞는 자리의 두더지를 두드리세요.<br>
-           시간이 지날수록 두더지가 빨리 숨어요!</p>
+        <p>두더지가 <b>한 마리</b> 튀어나오고, 머리 위에
+           <b style="color:#2f9e63">동위각</b> 또는 <b style="color:#f5820b">엇각</b>이 떠요.<br>
+           그 두더지와 그런 관계인 <b>구멍</b>을 누르세요. 두더지가 없는 구멍이어도 괜찮아요.</p>
+        <p style="margin-top:7px;">
+           맞히면 <b style="color:#2f9e63">+10점</b>(연속 3회 <b>+5</b>, 5회 이상 <b>+10</b> 보너스),
+           틀리면 <b style="color:#e5484d">-5점</b>, 두더지가 숨어 버리면 <b style="color:#e5484d">-3점</b>이에요.</p>
+        <p style="margin-top:7px;">두더지는 처음엔 <b>6초</b>쯤 기다려 주지만
+           갈수록 빨라져 마지막엔 <b>1.6초</b> 만에 숨어요.</p>
         <div class="fb info" id="gBest"></div>
       </div>
 
@@ -473,6 +478,32 @@ function drawBoard(state){
     drawMole(p.x, p.y - 4, m.pop, m.king);
   });
 
+  // 두더지 머리 위 지시(동위각/엇각) — 게임에서 이 글자가 문제다
+  (state.moles || []).forEach(m => {
+    if(!m.label || m.pop < 0.6) return;
+    const p = POS[m.hole];
+    const cx = p.x, cy = p.y - 4 - 74 * m.pop - 34;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, (m.pop - 0.6) / 0.3);
+    ctx.font = "800 30px Pretendard, 'Malgun Gothic', sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const w = ctx.measureText(m.label).width + 34;
+    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = m.color; ctx.lineWidth = 3;
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(cx - w/2, cy - 25, w, 50, 25);
+    else ctx.rect(cx - w/2, cy - 25, w, 50);
+    ctx.fill(); ctx.stroke();
+    // 말풍선 꼬리
+    ctx.beginPath();
+    ctx.moveTo(cx - 10, cy + 23); ctx.lineTo(cx, cy + 38); ctx.lineTo(cx + 10, cy + 23);
+    ctx.closePath();
+    ctx.fillStyle = "#fff"; ctx.fill();
+    ctx.fillStyle = m.color;
+    ctx.fillText(m.label, cx, cy + 1);
+    ctx.restore();
+  });
+
   // 번호표
   for(let i = 0; i < 8; i++){
     const p = POS[i];
@@ -525,8 +556,8 @@ function loop(){
   requestAnimationFrame(loop);
 }
 
-function addMole(hole, king){
-  anim.moles.push({ hole, king:!!king, born:now(), pop:0, dying:0 });
+function addMole(hole, king, label, color){
+  anim.moles.push({ hole, king:!!king, born:now(), pop:0, dying:0, label:label||"", color:color||"#1d2433" });
 }
 function clearMoles(){ anim.moles.forEach(m => { if(!m.dying) m.dying = now(); }); }
 function killMole(hole){
@@ -682,9 +713,16 @@ $("btnLearnReset").addEventListener("click", () => learnStart(learnTarget));
 const BEST_KEY = "ch4.mole.best";
 let G = null, gTimer = null;
 
+/* 라운드 길이 : 처음에는 넉넉하게, 시간이 갈수록 짧아진다.
+   0초 6.0초 → 30초 4.1초 → 60초 2.2초 → 이후 1.6초까지 */
+const LIFE0 = 6000, LIFE_MIN = 1600, LIFE_DROP = 63;   /* 1초마다 63ms 씩 빨라진다 */
+const GAME_MS = 60000;
+
+function lifeAt(sec){ return Math.max(LIFE_MIN, LIFE0 - sec * LIFE_DROP); }
+
 function showBest(){
   const b = +(localStorage.getItem(BEST_KEY) || 0);
-  $("gBest").innerHTML = `🏆 최고 점수 <b>${b}점</b>`;
+  $("gBest").innerHTML = `🏆 이 기기의 최고 점수 <b>${b}점</b>`;
 }
 function gameIdle(){
   banner("▶ 시작하기를 눌러 보세요");
@@ -696,9 +734,10 @@ function gameIdle(){
 
 function startGame(){
   stopGame(true);
-  G = { time:60000, start:now(), score:0, combo:0, best:0,
-        round:null, stats:{dongwi:[0,0], eot:[0,0]} };
+  G = { time:GAME_MS, start:now(), score:0, combo:0, round:null,
+        stats:{dongwi:[0,0], eot:[0,0]}, rounds:0, wrong:0, miss:0 };
   $("gResult").classList.add("hidden");
+  $("gScore").textContent = 0; $("gCombo").textContent = 0;
   nextRound();
   gTimer = setInterval(tickGame, 60);
 }
@@ -710,33 +749,33 @@ function stopGame(quiet){
   clearMoles(); anim.rings = {};
 }
 
+/* 점수를 더하고 화면에 표시 */
+function addScore(d){
+  G.score += d;
+  $("gScore").textContent = G.score;
+}
+
 function nextRound(){
   if(!G) return;
   clearMoles(); anim.rings = {};
 
   const elapsed = (now() - G.start) / 1000;
-  const life = Math.max(2200, 4000 - elapsed * 30);   // 갈수록 짧아진다
+  const life = lifeAt(elapsed);
 
   const kind = Math.random() < 0.5 ? "dongwi" : "eot";
+  /* 엇각은 두 도로 안쪽에서만 정의되므로 짝이 있는 구멍(①④⑥⑦)에서만 낸다 */
   const base = (kind === "eot")
     ? EOT_ABLE[Math.floor(Math.random() * EOT_ABLE.length)]
     : Math.floor(Math.random() * 8);
   const ans = partner(base, kind);
 
-  // 헷갈리게 하는 두더지 두 마리
-  const pool = [];
-  for(let i = 0; i < 8; i++) if(i !== base && i !== ans) pool.push(i);
-  pool.sort(() => Math.random() - 0.5);
-  const decoys = pool.slice(0, 2);
-
   G.round = { base, ans, kind, born:now(), life, done:false };
+  G.rounds++;
 
-  addMole(base, true);
-  [ans, ...decoys].sort(() => Math.random() - 0.5).forEach(h => addMole(h));
+  /* 두더지는 딱 한 마리. 머리 위에 '동위각' 또는 '엇각' 이 뜬다. */
+  addMole(base, true, REL_KO[kind], REL_COL[kind]);
 
-  const label = kind === "dongwi"
-    ? `<b class="dw">동위각</b>` : `<b class="et">엇각</b>`;
-  banner(`👑 ${base+1}번의 ${label} 자리를 두드려!`);
+  banner(`이 두더지의 <b class="${kind === "dongwi" ? "dw" : "et"}">${REL_KO[kind]}</b>인 구멍을 누르세요`);
 }
 
 function tickGame(){
@@ -753,53 +792,60 @@ function tickGame(){
   if(r && !r.done && now() - r.born > r.life){
     r.done = true;
     G.combo = 0; $("gCombo").textContent = 0;
-    G.stats[r.kind][1]++;
+    G.stats[r.kind][1]++; G.miss++;
+    addScore(-3);
     $("gFb").innerHTML =
-      `<div class="fb no">⏰ 두더지가 숨었어요! ${r.base+1}번의 ${REL_KO[r.kind]}은 <b>${r.ans+1}번</b>이에요.</div>`;
+      `<div class="fb no">⏰ 두더지가 숨었어요! <b>-3점</b> — ${r.base+1}번의 ${REL_KO[r.kind]}은 <b>${r.ans+1}번</b>이에요.</div>`;
     anim.rings[r.ans] = REL_COL[r.kind];
-    setTimeout(nextRound, 850);
+    setTimeout(nextRound, 900);
   }
 }
 
+/* 구멍을 누르면 — 두더지가 없는 구멍이어도 판정한다 */
 function gameClick(i){
   if(!G || !G.round || G.round.done) return;
   const r = G.round;
-  if(i === r.base) return;                 // 기준 두더지는 그냥 무시
-  const m = anim.moles.find(m => m.hole === i && !m.dying);
-  if(!m) return;                           // 두더지가 없는 구멍
+  if(i === r.base) return;                 // 문제로 나온 두더지 자신은 그냥 무시
 
   r.done = true;
   if(i === r.ans){
     G.combo++;
     const bonus = G.combo >= 5 ? 10 : (G.combo >= 3 ? 5 : 0);
-    G.score += 10 + bonus;
+    addScore(10 + bonus);
     G.stats[r.kind][0]++;
-    $("gScore").textContent = G.score;
     $("gCombo").textContent = G.combo;
     $("gFb").innerHTML =
-      `<div class="fb ok">🎉 정답! ${r.base+1}번의 ${REL_KO[r.kind]} = <b>${r.ans+1}번</b>` +
-      (bonus ? ` &nbsp;<b>+${bonus} 연속 보너스!</b>` : "") + `</div>`;
+      `<div class="fb ok">🎉 정답! <b>+${10 + bonus}점</b> — ${r.base+1}번의 ${REL_KO[r.kind]} = <b>${r.ans+1}번</b>` +
+      (bonus ? ` <b>(연속 ${G.combo}회 보너스 +${bonus})</b>` : "") + `</div>`;
     anim.rings[i] = REL_COL[r.kind];
-    killMole(i);
   }else{
     G.combo = 0; $("gCombo").textContent = 0;
-    G.stats[r.kind][1]++;
+    G.stats[r.kind][1]++; G.wrong++;
+    addScore(-5);
     const why = REL_KO[rel(r.base, i)];
     $("gFb").innerHTML =
-      `<div class="fb no">아쉬워요! ${i+1}번은 ${r.base+1}번과 <b>${why}</b> 관계예요. ` +
+      `<div class="fb no">아쉬워요! <b>-5점</b> — ${i+1}번은 ${r.base+1}번과 <b>${why}</b> 관계예요. ` +
       `${REL_KO[r.kind]}은 <b>${r.ans+1}번</b>이에요.</div>`;
     anim.rings[i] = "#e5484d";
     anim.rings[r.ans] = REL_COL[r.kind];
   }
-  setTimeout(nextRound, 900);
+  clearMoles();
+  setTimeout(nextRound, 950);
 }
 
 function endGame(){
   if(gTimer){ clearInterval(gTimer); gTimer = null; }
   if(!G) return;
   const sc = G.score, st = G.stats;
-  const best = Math.max(sc, +(localStorage.getItem(BEST_KEY) || 0));
+  const right = st.dongwi[0] + st.eot[0];
+  const prevBest = +(localStorage.getItem(BEST_KEY) || 0);
+  const best = Math.max(sc, prevBest);
   try{ localStorage.setItem(BEST_KEY, best); }catch(e){}
+
+  /* 교사 현황판·스프레드시트로 점수 보내기 */
+  if(window.MKLOG && MKLOG.score){
+    MKLOG.score(sc, `두더지 잡기 60초 · 정답 ${right} · 오답 ${G.wrong} · 놓침 ${G.miss}`);
+  }
 
   clearMoles(); anim.rings = {};
   banner(`게임 끝! 점수 ${sc}점`);
@@ -809,8 +855,9 @@ function endGame(){
     return `<p><b>${REL_KO[k]}</b> — ${t}문제 중 <b style="color:var(--ok)">${o}개</b> 맞힘</p>`;
   };
   $("gResultBody").innerHTML =
-    `<div class="fb ok" style="font-size:16px;">최종 점수 <b>${sc}점</b>${sc >= best ? " 🏆 최고 기록!" : ""}</div>` +
+    `<div class="fb ${sc >= 0 ? "ok" : "no"}" style="font-size:16px;">최종 점수 <b>${sc}점</b>${sc > prevBest ? " 🏆 최고 기록!" : ""}</div>` +
     line("dongwi") + line("eot") +
+    `<p style="margin-top:6px;">정답 ${right} · 오답 ${G.wrong} · 놓침 ${G.miss}</p>` +
     `<div class="row" style="margin-top:9px;"><button class="btn primary" id="btnAgain">🔄 한 번 더</button></div>`;
   $("btnAgain").addEventListener("click", startGame);
   G = null;
