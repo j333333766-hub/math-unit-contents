@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>수선의 발과 거리 — 직교·수직이등분선</title>
 <link rel="stylesheet" href="../assets/common.css">
-<script src="../assets/common.js" data-home="../index.html" defer></script>
-<script src="../assets/track.js?v=3" defer></script>
+<script src="../assets/common.js?v=2" data-home="../index.html" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -619,6 +619,7 @@ $("btnGridCheck").addEventListener("click", () => {
     `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답! " : `아쉬워요. 답은 <b>${want}칸</b>. `}` +
     `점 ${p.n} 에서 <i>l</i> 에 <b>수선</b>을 내리면 수선의 발까지 <b>${want}칸</b>이에요.</div>`;
   $("gTry").textContent = Q.tries; $("gOk").textContent = Q.ok; $("gStreak").textContent = Q.streak;
+  window.MKSCORE && MKSCORE.quiz(ok, "모눈에서 거리 재기");
   draw();
 });
 $("btnGridNext").addEventListener("click", newGrid);

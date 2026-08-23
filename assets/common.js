@@ -114,6 +114,49 @@
   };
   window.MK = MK;
 
+  /* -----------------------------------------------------------
+     점수 (교사 현황판·스프레드시트로 보내는 공용 계산기)
+
+       MKSCORE.quiz(맞았나, "설명")   문제 하나 채점 — 정답 +10
+                                      (연속 3회 +5, 5회 이상 +10 보너스) / 오답 -5
+       MKSCORE.add(점수, "설명")      그냥 더하기(미션 성공 등)
+       MKSCORE.once(열쇠, 점수, "설명") 같은 열쇠로는 한 번만 더한다(완성 보상 등)
+
+     한 페이지에서 여러 활동을 해도 **누적 한 값**으로 모인다.
+     현황판은 학생별 최고 점수를 쓰므로, 새로 시작해 낮게 나와도 기록은 남는다.
+     track.js 가 없으면(로컬에서 열었을 때) 조용히 계산만 한다.
+     ----------------------------------------------------------- */
+  var MKSCORE = (function(){
+    var total = 0, streak = 0, got = {};
+    function report(d){
+      if(window.MKLOG && MKLOG.score) MKLOG.score(total, d || "");
+    }
+    return {
+      quiz: function(ok, d){
+        if(ok){
+          streak++;
+          total += 10 + (streak >= 5 ? 10 : (streak >= 3 ? 5 : 0));
+        }else{
+          streak = 0;
+          total -= 5;
+        }
+        report(d);
+        return total;
+      },
+      add:  function(p, d){ total += Number(p) || 0; report(d); return total; },
+      once: function(key, p, d){
+        if(got[key]) return total;
+        got[key] = 1;
+        total += Number(p) || 0;
+        report(d);
+        return total;
+      },
+      total:  function(){ return total; },
+      streak: function(){ return streak; }
+    };
+  })();
+  window.MKSCORE = MKSCORE;
+
   /* ---------- 실행 ---------- */
   function boot(){ addHomeButton(); markVisited(); }
   if(document.readyState === "loading"){

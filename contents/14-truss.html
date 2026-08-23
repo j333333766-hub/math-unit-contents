@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>흔들리지 않는 삼각형 — 트러스 구조</title>
 <link rel="stylesheet" href="../assets/common.css">
-<script src="../assets/common.js" data-home="../index.html" defer></script>
-<script src="../assets/track.js?v=3" defer></script>
+<script src="../assets/common.js?v=2" data-home="../index.html" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -539,6 +539,8 @@ function updatePoly(){
     fb.innerHTML = (d === need)
       ? "고정되었어요! <b>가장 적은 개수</b>인 " + need + "개로 성공했습니다."
       : "고정되었어요. 그런데 " + need + "개로도 될까요? 대각선을 지워 보세요.";
+    if(d === need) window.MKSCORE && MKSCORE.once("poly" + S.n + "-min", 20, S.n + "각형 최소 개수로 고정");
+    else           window.MKSCORE && MKSCORE.once("poly" + S.n, 10, S.n + "각형 고정");
     $("banner").className = "ok"; $("banner").textContent = "흔들리지 않아요!";
   }else{
     fb.className = "fb no";
@@ -556,6 +558,8 @@ function updateQuake(){
     fb.innerHTML = (used === GM)
       ? "완벽해요! <b>보강재 " + GM + "개</b>로 흔들리지 않는 건물을 만들었습니다. 지진을 눌러 확인해 보세요."
       : "흔들리지 않는 건물이에요. 보강재를 <b>" + GM + "개</b>까지 줄일 수 있을까요?";
+    if(used === GM) window.MKSCORE && MKSCORE.once("quake-min", 30, "내진 설계 최소 보강재로 성공");
+    else            window.MKSCORE && MKSCORE.once("quake", 10, "내진 설계 고정 성공");
     $("banner").className = "ok"; $("banner").textContent = "흔들리지 않아요!";
   }else{
     fb.className = "fb no";

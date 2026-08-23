@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>에그 퍼즐 — 작도하고 조각내고 맞추기</title>
 <link rel="stylesheet" href="../assets/common.css">
-<script src="../assets/common.js" data-home="../index.html" defer></script>
-<script src="../assets/track.js?v=3" defer></script>
+<script src="../assets/common.js?v=2" data-home="../index.html" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -786,6 +786,7 @@ function answerQuiz(picked){
     $("banner").className = "no"; $("banner").textContent = "다시 생각해 볼까요?";
   }
   $("qTry").textContent = qTry; $("qOk").textContent = qOk; $("qStreak").textContent = qStreak;
+  window.MKSCORE && MKSCORE.quiz(right, "9조각 합동 퀴즈");
   draw();
 }
 $("bQuiz").onclick = newQuiz;
@@ -806,6 +807,7 @@ function updateProgress(){
   if(mode === "restore" && n === 9){
     $("banner").className = "ok"; $("banner").textContent = "🥚 달걀 완성!";
     $("playFb").className = "fb ok"; $("playFb").textContent = "9조각을 모두 제자리에 맞췄어요!";
+    window.MKSCORE && MKSCORE.once("egg9", 30, "달걀 9조각 완성");
   }
 }
 function unsnap(id){

@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>삼각형 결정 조건 — 될까? 하나로 정해질까?</title>
 <link rel="stylesheet" href="../assets/common.css">
-<script src="../assets/common.js" data-home="../index.html" defer></script>
-<script src="../assets/track.js?v=3" defer></script>
+<script src="../assets/common.js?v=2" data-home="../index.html" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -561,6 +561,7 @@ document.querySelectorAll("[data-q]").forEach(b => {
       `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답!" : `아쉬워요. 답은 <b>${QUIZ[Q.i].a ? "하나로 정해진다" : "정해지지 않는다"}</b>.`} ${QUIZ[Q.i].why}</div>`;
     $("btnQNext").classList.remove("hidden");
     $("qTry").textContent = Q.tries; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
+    window.MKSCORE && MKSCORE.quiz(ok, "삼각형 판별 퀴즈");
   });
 });
 $("btnQNext").addEventListener("click", newQuiz);

@@ -184,7 +184,7 @@
      콘텐츠들이 공통으로 쓰는 표시를 읽는다.
        · 헤더의 활동 탭 버튼을 누르면 → 활동 전환
        · 정답·완성일 때 붙는 .ok 표시가 나타나면 → 잘함 신호            */
-  var lastOk = 0;
+  var lastOk = 0, lastScoreFlush = 0;
   function watchProgress(){
     document.addEventListener("click", function(ev){
       var b = ev.target && ev.target.closest && ev.target.closest("header nav button");
@@ -308,7 +308,14 @@
     /* 점수가 나오는 콘텐츠는 끝났을 때 이걸 부른다 — 시트의 '점수' 탭에 쌓이고
        교사 현황판의 점수판·역대 최고에 그대로 나온다.
          MKLOG.score(120, "60초 두더지 잡기 · 정답 9개")                     */
-    score: function(value, d){ push("score", d || "", true, Number(value)); },
+    score: function(value, d){
+      /* 누적 점수를 계속 보내므로 중간 것 몇 개는 늦게 가도 상관없다.
+         6초에 한 번만 바로 보내고, 나머지는 25초 신호에 실어 보낸다(서버 부담 줄이기).
+         페이지를 떠날 때 남은 것은 sendBeacon 이 마저 보낸다. */
+      var t = Date.now(), now = (t - lastScoreFlush > 6000);
+      if(now) lastScoreFlush = t;
+      push("score", d || "", now, Number(value));
+    },
     who:  function(){ return NO; },
     ask:  function(){ askNo(true); }        /* 콘텐츠 안에서 번호 바꾸기 창 띄우기 */
   };

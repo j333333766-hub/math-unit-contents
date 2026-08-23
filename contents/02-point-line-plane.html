@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>점·선·면 탐구실</title>
 <link rel="stylesheet" href="../assets/common.css">
-<script src="../assets/common.js" data-home="../index.html" defer></script>
-<script src="../assets/track.js?v=3" defer></script>
+<script src="../assets/common.js?v=2" data-home="../index.html" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
 <script>
 window.MathJax = {
   tex:{ inlineMath:[["\\(","\\)"]] },
@@ -1065,6 +1065,7 @@ function autoFit(cv, draw){
     }
     TS(fb);
     $("score2").textContent = `${score} / ${tries}`;
+    window.MKSCORE && MKSCORE.quiz(ok, "기호 맞히기 퀴즈");
   }
   $("btnNextQ").addEventListener("click", newQuiz);
   autoFit(cq, drawQuiz);
@@ -1307,6 +1308,7 @@ function autoFit(cv, draw){
     }
     TS(fb);
     $("score3").textContent = `${cScore} / ${cTries}`;
+    window.MKSCORE && MKSCORE.quiz(allOk, "계산 도전");
   });
   $("btnNewCalc").addEventListener("click", newCalc);
   autoFit(cc, drawC);

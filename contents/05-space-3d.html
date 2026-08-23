@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>3D 위치 관계 탐험 — 꼬인 위치까지 눈으로</title>
 <link rel="stylesheet" href="../assets/common.css">
-<script src="../assets/common.js" data-home="../index.html" defer></script>
-<script src="../assets/track.js?v=3" defer></script>
+<script src="../assets/common.js?v=2" data-home="../index.html" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
 <script src="../assets/vendor/three.min.js"></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
@@ -739,6 +739,7 @@ $("btnQuizCheck").addEventListener("click", () => {
           (extra.length  ? `<br>잘못 고른 것 : <b>${extra.join(", ")}</b>` : "")) +
     `</div>`;
   $("qTry").textContent = quiz.tries; $("qOk").textContent = quiz.ok; $("qStreak").textContent = quiz.streak;
+  window.MKSCORE && MKSCORE.quiz(ok, "모두 찾기 도전");
 });
 $("btnQuizNext").addEventListener("click", newQuiz);
 

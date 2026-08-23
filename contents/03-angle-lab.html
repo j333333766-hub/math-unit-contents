@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>각도 실험실 — 각, 평각, 맞꼭지각</title>
 <link rel="stylesheet" href="../assets/common.css">
-<script src="../assets/common.js" data-home="../index.html" defer></script>
-<script src="../assets/track.js?v=3" defer></script>
+<script src="../assets/common.js?v=2" data-home="../index.html" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -401,6 +401,7 @@ function updateMake(){
       M.done = true; M.ok++; M.streak++;
       $("missionFb").innerHTML = `<div class="fb ok">🎉 성공! ∠AOB 를 <b>${M.target}°</b> 로 맞췄어요.</div>`;
       $("mOk").textContent = M.ok; $("mStreak").textContent = M.streak;
+      window.MKSCORE && MKSCORE.add(10, "각 만들기 미션 성공");
     }else{
       $("missionFb").innerHTML =
         `<div class="fb ${diff < 8 ? "warn" : "info"}">${diff < 8 ? "거의 다 왔어요! " : ""}` +
@@ -654,6 +655,7 @@ $("btnFlatCheck").addEventListener("click", () => {
     : `${list} = 180° 이므로 x = <b>${want}°</b>.`;
   $("flatFb").innerHTML = `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답! " : `아쉬워요. 답은 <b>${want}</b>. `}${why}</div>`;
   $("fTry").textContent = F.tries; $("fOk").textContent = F.ok; $("fStreak").textContent = F.streak;
+  window.MKSCORE && MKSCORE.quiz(ok, "평각·직각 문제");
 });
 $("btnFlatNext").addEventListener("click", () => newFlat(F.hard));
 $("btnFlatHard").addEventListener("click", e => {
@@ -687,6 +689,7 @@ $("btnVertCheck").addEventListener("click", () => {
     ? `∠${V.givenKey} 와 ∠${V.askKey} 는 <b>맞꼭지각</b>이므로 크기가 같아요.`
     : `∠${V.givenKey} 와 ∠${V.askKey} 는 한 직선을 이루므로 <b>더해서 180°</b> 예요.`;
   $("vertQFb").innerHTML = `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답! " : `아쉬워요. 답은 <b>${want}°</b>. `}${why}</div>`;
+  window.MKSCORE && MKSCORE.quiz(ok, "맞꼭지각 문제");
 });
 $("btnVertNext").addEventListener("click", newVertQ);
 $("vertIn").addEventListener("keydown", e => { if(e.key === "Enter") $("btnVertCheck").click(); });
