@@ -139,8 +139,8 @@
 <header>
   <h1>🔨 두더지 잡기</h1>
   <nav>
-    <button class="on" data-tab="learn">① 짝을 찾아라</button>
-    <button data-tab="game">② 두더지 잡기</button>
+    <button class="on" data-tab="learn">① 연습하기</button>
+    <button data-tab="game">② 게임 (60초)</button>
     <button data-tab="quiz">③ 관계 맞히기</button>
   </nav>
   <a class="home-btn" href="../index.html">← 목차</a>
@@ -153,23 +153,32 @@
   </div>
 
   <aside>
-    <!-- ================= ① 배우기 ================= -->
+    <!-- ================= ① 연습하기 ================= -->
     <section id="pLearn">
       <div class="blk">
-        <h2><span class="tag">활동 1</span> 짝이 되는 구멍을 찾아라</h2>
-        <p id="learnAsk"></p>
-        <div class="fb info" id="learnProg"></div>
-        <div id="learnFb"></div>
-        <div id="learnTerms"></div>
+        <h2><span class="tag">활동 1</span> 연습하기 <small style="font-weight:600;color:var(--sub);font-size:12px;">시간 제한 없음</small></h2>
+        <p>두더지 머리 위에 뜨는 <b style="color:#2f9e63">동위각</b> 또는 <b style="color:#f5820b">엇각</b>을 보고,
+           그 두더지와 그런 관계인 <b>구멍</b>을 누르세요.<br>
+           <b>서두르지 않아도 돼요.</b> 두더지는 답할 때까지 기다립니다.</p>
+        <div class="scoreboard" style="margin-top:10px;">
+          <div class="sc"><div class="v" id="pTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc score"><div class="v" id="pOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc combo"><div class="v" id="pStreak">0</div><div class="l">연속</div></div>
+        </div>
+        <div id="pFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnPracNext">🔄 새 문제</button>
+          <button class="btn sm" id="btnHint">💡 위치 이름 보기</button>
+        </div>
       </div>
 
       <div class="blk">
-        <h2>기준 구멍 바꾸기</h2>
-        <div class="row" id="learnPick"></div>
-        <div class="row" style="margin-top:9px;">
-          <button class="btn sm" id="btnHint">💡 위치 이름 보기</button>
-          <button class="btn sm" id="btnLearnReset">🔄 다시</button>
-        </div>
+        <h2>도움말</h2>
+        <p><b>동위각</b>은 두 사거리에서 <b>같은 위치</b>(왼쪽 위끼리, 오른쪽 아래끼리 …)에 있는 구멍이에요.<br>
+           <b>엇각</b>은 두 도로 <b>사이(안쪽)</b>에서 <b>엇갈린 위치</b>에 있는 구멍이에요.</p>
+        <p style="margin-top:7px;">엇각은 안쪽에서만 정할 수 있어서
+           <b>①④⑥⑦</b>번만 짝이 있어요. 연습에서는 점수가 기록되지 않아요 —
+           마음껏 틀려 보고, 익숙해지면 <b>② 게임</b>으로 가 보세요.</p>
       </div>
 
       <div class="blk">
@@ -303,9 +312,11 @@ const EOT_ABLE = [0, 3, 5, 6];   // 엇각 짝이 있는 구멍(번호 ①④⑥
 
 /* ---- 도로 기하 ---- */
 function norm(x, y){ const d = Math.hypot(x, y); return {x:x/d, y:y/d}; }
-const CROSS = [{x:498, y:250}, {x:390, y:580}];   // 두 사거리(직선 n 위에 있다)
-const U = norm(1, -0.33);      // 도로 l·m 방향(오른쪽 위)
-const V = norm(-230, 700);     // 도로 n 방향(아래 왼쪽)
+/* 교과서 그림처럼 l, m 은 **가로(x축과 평행)**, n 은 **오른쪽 위로 향하는(기울기 양수)** 직선.
+   l 이 위, m 이 아래이고 n 이 오른쪽 위로 가므로 위 사거리가 아래 사거리보다 오른쪽에 있다. */
+const CROSS = [{x:470, y:250}, {x:274, y:590}];   // 두 사거리(직선 n 위에 있다)
+const U = norm(1, 0);          // 도로 l·m 방향 — 가로
+const V = norm(-1, 1.732);     // 도로 n 을 따라 **내려가는** 방향(왼쪽 아래) = 기울기 양수인 직선
 const S = 122, T = 104;        // 사거리에서 구멍까지 떨어진 정도
 
 const POS = HOLES.map(h => {
@@ -445,8 +456,8 @@ function drawBoard(state){
   ctx.font = "italic 700 34px 'Times New Roman', serif";
   ctx.fillStyle = "#a08a5e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   const nameAt = (c, d, k) => ({ x:c.x + d.x*k, y:c.y + d.y*k });
-  const pl = nameAt(CROSS[0], U, -300);   // 직선 l 의 왼쪽 끝
-  const pm = nameAt(CROSS[1], U, -300);   // 직선 m 의 왼쪽 끝
+  const pl = nameAt(CROSS[0], U,  330);   // 직선 l 의 오른쪽 끝
+  const pm = nameAt(CROSS[1], U,  330);   // 직선 m 의 오른쪽 끝
   const pn = nameAt(CROSS[1], V,  150);   // 직선 n 의 아래쪽 끝
   ctx.fillText("l", pl.x, pl.y);
   ctx.fillText("m", pm.x, pm.y);
@@ -582,7 +593,7 @@ document.querySelectorAll("header nav button").forEach(b => {
     $("pQuiz") .classList.toggle("hidden", mode !== "quiz");
     stopGame(true);
     anim.moles = []; anim.rings = {}; anim.dash = {}; banner("");
-    if(mode === "learn") learnStart(learnTarget);
+    if(mode === "learn") pracIdle();
     if(mode === "game")  gameIdle();
     if(mode === "quiz")  quizStart();
   });
@@ -594,118 +605,71 @@ cv.addEventListener("click", ev => {
   const i = hitHole(p);
   anim.hits.push({ x:p.x, y:p.y, t:now() });
   if(i < 0) return;
-  if(mode === "learn") learnClick(i);
+  if(mode === "learn") pracClick(i);
   else if(mode === "game") gameClick(i);
 });
 
 /* ============================================================
-   4. 활동 ① — 짝을 찾아라 (교과서 152쪽 발견하기)
+   4. 활동 ① — 연습하기 (게임과 규칙은 같고 시간 제한·점수만 없다)
    ============================================================ */
-let learnTarget = 0, learnFound = new Set();
+let P = null;
 
-function learnTargets(i){
-  const list = [];
-  const d = partner(i, "dongwi"); if(d >= 0) list.push(d);
-  const e = partner(i, "eot");    if(e >= 0) list.push(e);
-  return list;
+function pracIdle(){
+  P = { tries:0, ok:0, streak:0, round:null };
+  $("pTry").textContent = 0; $("pOk").textContent = 0; $("pStreak").textContent = 0;
+  $("pFb").innerHTML = "";
+  pracNext();
 }
 
-function learnStart(i){
-  learnTarget = i;
-  learnFound = new Set();
-  anim.moles = []; anim.rings = {}; anim.dash = {};
-  addMole(i, true);
-  anim.rings[i] = "#f7c948";
+function pracNext(){
+  if(!P) return;
+  clearMoles(); anim.rings = {};
 
-  const need = learnTargets(i);
-  $("learnAsk").innerHTML =
-    `<b>${i+1}번</b> 구멍에 두더지가 나타났어요.<br>` +
-    `다른 두더지가 어느 구멍에 나타나야 점수를 얻을 수 있을까요?<br>` +
-    `<b>같은 위치</b> 또는 <b>엇갈린 위치</b>에 있는 구멍을 모두 두드려 보세요.`;
-  $("learnFb").innerHTML = "";
-  $("learnTerms").innerHTML = "";
-  learnProg();
-  banner(`👑 <b>${i+1}번</b> 두더지의 짝을 찾아라!`);
-  document.querySelectorAll("#learnPick .btn").forEach(b =>
-    b.classList.toggle("on", +b.dataset.i === i));
+  const kind = Math.random() < 0.5 ? "dongwi" : "eot";
+  /* 엇각은 두 도로 안쪽에서만 정해지므로 짝이 있는 구멍(①④⑥⑦)에서만 낸다 */
+  const base = (kind === "eot")
+    ? EOT_ABLE[Math.floor(Math.random() * EOT_ABLE.length)]
+    : Math.floor(Math.random() * 8);
+  P.round = { base, ans: partner(base, kind), kind, done:false };
+
+  /* 두더지 한 마리, 머리 위에 지시. 시간이 지나도 숨지 않는다. */
+  addMole(base, true, REL_KO[kind], REL_COL[kind]);
+  banner(`이 두더지의 <b class="${kind === "dongwi" ? "dw" : "et"}">${REL_KO[kind]}</b>인 구멍을 누르세요`);
 }
 
-function learnProg(){
-  const need = learnTargets(learnTarget);
-  $("learnProg").innerHTML =
-    `찾은 짝 <b>${learnFound.size} / ${need.length}</b>` +
-    (need.length === 1 ? " &nbsp;·&nbsp; 이 구멍은 두 도로 <b>바깥쪽</b>이라 엇각 짝이 없어요." : "");
-}
+function pracClick(i){
+  if(!P || !P.round || P.round.done) return;
+  const r = P.round;
+  if(i === r.base) return;                 // 문제로 나온 두더지 자신은 그냥 무시
 
-function learnClick(i){
-  if(i === learnTarget){
-    $("learnFb").innerHTML = `<div class="fb no">여기는 기준이 되는 👑 두더지예요. 다른 구멍을 찾아보세요!</div>`;
-    return;
-  }
-  if(learnFound.has(i)) return;
-
-  const r = rel(learnTarget, i);
-  if(r === "dongwi" || r === "eot"){
-    learnFound.add(i);
-    addMole(i);
-    anim.rings[i] = REL_COL[r];
-    const msg = (r === "dongwi")
-      ? `정답! <b>${i+1}번</b>은 <b>${learnTarget+1}번</b>과 사거리에서 <b>같은 위치</b>(${QNAME[HOLES[i].q]})예요.`
-      : `정답! <b>${i+1}번</b>은 두 도로 <b>사이</b>에서 <b>${learnTarget+1}번</b>과 <b>엇갈린 위치</b>에 있어요.`;
-    $("learnFb").innerHTML = `<div class="fb ok">🎉 ${msg}</div>`;
-    learnProg();
-    if(learnFound.size === learnTargets(learnTarget).length) learnDone();
+  r.done = true; P.tries++;
+  if(i === r.ans){
+    P.ok++; P.streak++;
+    $("pFb").innerHTML =
+      `<div class="fb ok">🎉 정답! ${r.base+1}번의 ${REL_KO[r.kind]} = <b>${r.ans+1}번</b>이에요.` +
+      (r.kind === "dongwi"
+        ? ` 두 사거리에서 똑같이 <b>${QNAME[HOLES[r.ans].q]}</b>에 있죠.`
+        : ` 두 도로 <b>사이</b>에서 엇갈린 자리예요.`) + `</div>`;
+    anim.rings[i] = REL_COL[r.kind];
   }else{
-    let why;
-    if(r === "matggokji"){
-      why = `<b>${i+1}번</b>은 <b>${learnTarget+1}번</b>과 <b>같은 사거리</b>에서 마주 보는 각(맞꼭지각)이에요. 짝은 <b>다른 사거리</b>에서 찾아야 해요.`;
-    }else if(HOLES[i].c === HOLES[learnTarget].c){
-      why = `<b>${i+1}번</b>은 <b>${learnTarget+1}번</b>과 같은 사거리에 있어요. 짝은 <b>다른 사거리</b>에 있어요.`;
-    }else{
-      why = `위치가 맞지 않아요. 사거리를 기준으로 <b>위/아래</b>와 <b>왼쪽/오른쪽</b>을 견주어 보세요.`;
-    }
-    $("learnFb").innerHTML = `<div class="fb no">🤔 ${why}</div>`;
-    anim.rings[i] = "#e5484d"; anim.dash[i] = true;
-    setTimeout(() => { delete anim.rings[i]; delete anim.dash[i]; }, 900);
+    P.streak = 0;
+    const why = REL_KO[rel(r.base, i)];
+    $("pFb").innerHTML =
+      `<div class="fb no">아쉬워요. ${i+1}번은 ${r.base+1}번과 <b>${why}</b> 관계예요. ` +
+      `${REL_KO[r.kind]}은 <b>${r.ans+1}번</b>이에요.</div>`;
+    anim.rings[i] = "#e5484d";
+    anim.rings[r.ans] = REL_COL[r.kind];
   }
+  $("pTry").textContent = P.tries; $("pOk").textContent = P.ok; $("pStreak").textContent = P.streak;
+  banner(`👉 <b>새 문제</b>를 눌러 계속해 보세요`);
 }
 
-function learnDone(){
-  const d = partner(learnTarget, "dongwi"), e = partner(learnTarget, "eot");
-  let html = `<div class="term"><h3>같은 위치 → <span class="k">동위각</span></h3>` +
-             `<p>${learnTarget+1}번과 ${d+1}번은 두 사거리에서 똑같이 <b>${QNAME[HOLES[learnTarget].q]}</b>에 있어요. ` +
-             `이렇게 같은 위치에 있는 두 각을 <b>동위각</b>이라고 해요.</p></div>`;
-  if(e >= 0){
-    html += `<div class="term et"><h3>엇갈린 위치 → <span class="k">엇각</span></h3>` +
-            `<p>${learnTarget+1}번과 ${e+1}번은 두 도로 <b>사이(안쪽)</b>에서 서로 엇갈려 있어요. ` +
-            `이런 두 각을 <b>엇각</b>이라고 해요.</p></div>`;
-  }else{
-    html += `<div class="term et"><h3><span class="k">엇각</span>은 안쪽에서만</h3>` +
-            `<p>${learnTarget+1}번은 두 도로 <b>바깥쪽</b>에 있어서 엇각인 짝이 없어요. ` +
-            `엇각은 두 도로 <b>사이</b>에 있는 ①·④·⑥·⑦번에서만 짝을 이뤄요.</p></div>`;
-  }
-  html += `<div class="fb info" style="margin-top:9px;">동위각과 엇각은 두 도로가 <b>평행하지 않아도</b> 정할 수 있어요. ` +
-          `평행할 때 각의 <b>크기</b>가 어떻게 되는지는 다음 활동에서 알아봐요!</div>`;
-  $("learnTerms").innerHTML = html;
-  banner(`🎉 짝을 모두 찾았어요!`);
-}
-
-/* 기준 구멍 고르는 버튼 */
-(function(){
-  const wrap = $("learnPick");
-  for(let i = 0; i < 8; i++){
-    const b = document.createElement("button");
-    b.className = "btn num sm"; b.textContent = i + 1; b.dataset.i = i;
-    b.addEventListener("click", () => learnStart(i));
-    wrap.appendChild(b);
-  }
-})();
+$("btnPracNext").addEventListener("click", () => { $("pFb").innerHTML = ""; pracNext(); });
 $("btnHint").addEventListener("click", e => {
   hintOn = !hintOn;
   e.currentTarget.classList.toggle("on", hintOn);
   e.currentTarget.textContent = hintOn ? "💡 위치 이름 숨기기" : "💡 위치 이름 보기";
 });
-$("btnLearnReset").addEventListener("click", () => learnStart(learnTarget));
 
 /* ============================================================
    5. 활동 ② — 두더지 잡기 게임
@@ -970,7 +934,7 @@ function quizEnd(){
    ============================================================ */
 function boot(){
   if(window.MK && MK.fit) MK.fit(cv);
-  learnStart(0);
+  pracIdle();
   requestAnimationFrame(loop);
 }
 if(document.readyState === "loading"){
