@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>평면 위의 위치 관계 — 점과 직선, 두 직선</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js?v=2" data-home="../index.html" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 350px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none;}
+  #tip{
+    position:absolute; left:50%; bottom:11px; transform:translateX(-50%); pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub); white-space:nowrap;
+    background:#f7f9fdd9; padding:6px 14px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+  .sym{font:italic 700 15px 'Times New Roman', serif; color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+
+  /* 지금 상태를 보여 주는 큰 판정 상자 (실시간이라 .fb 를 쓰지 않는다) */
+  .vbox{margin-top:10px; padding:12px; border-radius:11px; text-align:center;}
+  .vbox .k{font-size:19px; font-weight:800; line-height:1.3;}
+  .vbox .d{font-size:12.5px; margin-top:5px; line-height:1.6;}
+  .vbox.on   {background:var(--ok-soft);   color:var(--ok);}
+  .vbox.off  {background:#f7f9fd;          color:var(--sub);}
+  .vbox.meet {background:#eef2ff;          color:#2f4bb5;}
+  .vbox.same {background:#f4edff;          color:#6c33a8;}
+  .vbox.para {background:var(--warn-soft); color:#a75c00;}
+
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;}
+  .ball{border-radius:10px; padding:9px 6px; text-align:center; border:1px solid var(--line); background:#f7f9fd;}
+  .ball .n{font:italic 700 20px 'Times New Roman', serif;}
+  .ball .s{font-size:11.5px; font-weight:700; margin-top:4px; line-height:1.4;}
+  .ball.yes{background:var(--ok-soft); border-color:#9ad9b6;}
+  .ball.yes .n,.ball.yes .s{color:var(--ok);}
+  .ball.no .s{color:var(--sub);}
+
+  /* 미션 목록 */
+  .miss{list-style:none; margin-top:10px; display:flex; flex-direction:column; gap:5px;}
+  .miss li{
+    font-size:13px; font-weight:600; color:var(--sub);
+    background:#f7f9fd; border:1px solid var(--line); border-radius:9px; padding:8px 10px;
+    display:flex; align-items:center; gap:7px;
+  }
+  .miss li .mk{font-size:14px; width:16px; text-align:center;}
+  .miss li.done{background:var(--ok-soft); border-color:#9ad9b6; color:var(--ok);}
+
+  .choices{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
+  .choices button{
+    font:600 13px/1.5 var(--font); text-align:left; padding:9px 11px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer;
+  }
+  .choices button:hover{border-color:var(--accent); color:var(--accent);}
+  .choices button.pick{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .choices button:disabled{cursor:default; opacity:.75;}
+
+  .code{
+    margin-top:9px; padding:10px 11px; border-radius:9px; background:#f7f9fd; border:1px solid var(--line);
+    font:600 12px/1.75 'Consolas', 'D2Coding', monospace; color:var(--ink); white-space:pre-wrap;
+  }
+  .code b{color:var(--accent-dark);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .legend{display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--sub); margin-top:9px;}
+  .legend span{display:flex; align-items:center; gap:5px;}
+  .legend i{width:11px; height:11px; border-radius:3px; display:block;}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:52vh; min-height:330px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>📐 평면 위의 위치 관계</h1>
+  <nav>
+    <button class="on" data-tab="pt">① 점과 직선</button>
+    <button data-tab="two">② 평면에서 두 직선</button>
+    <button data-tab="fig">③ 도형에서 찾기</button>
+  </nav>
+  <a class="home-btn" href="../index.html">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ============ ① 점과 직선 ============ -->
+    <section id="pPt">
+      <div class="blk" id="bCourt">
+        <h2><span class="tag">활동 1</span> 공은 베이스라인 위에 있을까?</h2>
+        <p>테니스에서 공이 베이스라인 <b>안쪽</b>이나 <b>위</b>에 떨어지면 인(IN)이에요.
+           베이스라인을 직선 <span class="sym">l</span> 이라고 하고,
+           공 <span class="sym">A</span>, <span class="sym">B</span> 를 <b>끌어서</b> 옮겨 보세요.</p>
+        <div class="two" id="t1balls"></div>
+        <ul class="miss" id="t1miss"></ul>
+        <div id="t1fb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnToProb">교과서 146쪽 문제 1 ▶</button>
+        </div>
+      </div>
+
+      <div class="blk hidden" id="bProb">
+        <h2><span class="tag">문제 1</span> 교과서 146쪽</h2>
+        <p id="p1ask"></p>
+        <div id="p1sel" style="margin-top:9px;"></div>
+        <div id="p1fb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnP1Check">✅ 채점</button>
+          <button class="btn sm" id="btnP1Back">↩ 테니스 코트로</button>
+        </div>
+      </div>
+
+      <div class="blk">
+        <h2>점과 직선의 위치 관계</h2>
+        <p><b>❶ 점이 직선 위에 있다.</b> — 직선이 그 점을 지나요.<br>
+           <b>❷ 점이 직선 위에 있지 않다.</b><br>
+           이 두 가지뿐이에요. (교과서 146쪽)</p>
+      </div>
+    </section>
+
+    <!-- ============ ② 평면에서 두 직선 ============ -->
+    <section id="pTwo" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 두 직선을 움직여 보기</h2>
+        <p>직선 <span class="sym">l</span>, <span class="sym">m</span> 의 <b>동그란 손잡이</b>를 끌면 직선이 돌아가고,
+           <b>직선 위</b>를 끌면 직선 전체가 움직여요.</p>
+        <div id="t2read"></div>
+        <ul class="miss" id="t2miss"></ul>
+        <div id="t2fb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnT2Reset">↺ 처음 자리로</button>
+        </div>
+      </div>
+
+      <div class="blk">
+        <h2>한 평면에서 두 직선의 위치 관계</h2>
+        <p><b>❶ 한 점에서 만난다.</b> — 그 점을 두 직선의 <b>교점</b>이라고 해요.<br>
+           <b>❷ 일치한다.</b> — 두 직선이 완전히 포개져요.<br>
+           <b>❸ 평행하다.</b> — 아무리 늘여도 만나지 않아요.
+           기호로 <span class="sym">l</span> <b>∥</b> <span class="sym">m</span> 이라고 써요. (교과서 147쪽)</p>
+        <div class="legend">
+          <span><i style="background:#e5484d"></i>직선 <span class="sym">l</span></span>
+          <span><i style="background:#3e63dd"></i>직선 <span class="sym">m</span></span>
+          <span><i style="background:#2f9e63"></i>교점</span>
+        </div>
+      </div>
+
+      <div class="blk">
+        <h2><span class="tag">코딩</span> 이 코드의 문제점은?</h2>
+        <p>교과서 147쪽 코드예요. 이대로 두 직선의 위치 관계를 설명하면
+           어떤 오류가 생길까요?</p>
+        <div class="code">두 점 "A", "B" 로 <b>직선 l</b> 만들기
+두 점 "C", "D" 로 <b>직선 m</b> 만들기
+<b>만약</b> 두 직선 l 과 m 이 일치하면
+    "두 직선은 일치한다." 알림창
+<b>아니면</b>
+    "두 직선은 한 점에서 만난다." 알림창</div>
+        <div class="choices" id="codeChoices"></div>
+        <div id="codeFb"></div>
+      </div>
+    </section>
+
+    <!-- ============ ③ 도형에서 찾기 ============ -->
+    <section id="pFig" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 도형에서 모두 찾기</h2>
+        <p id="figAsk"></p>
+        <div id="figSel" style="margin-top:9px;"></div>
+        <div id="figFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnFigCheck">✅ 채점</button>
+          <button class="btn sm" id="btnFigNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="fTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="fOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="fStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>도움말</h2>
+        <p>답이 <b>하나도 없을 때</b>도 있어요. 그럴 때는 아무것도 고르지 말고 채점을 누르세요.<br>
+           고른 것을 <b>다시 누르면</b> 취소돼요.</p>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   공통 — 설계 좌표계와 그리기 도우미
+   ============================================================ */
+const DW = 900, DH = 620;
+const INK = "#1d2433", SUB = "#68738a", LINE = "#d9e0ee";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b", PURPLE = "#8e4ec6";
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+function toDesign(px, py){ const v = view(); return {x:(px - v.ox)/v.s, y:(py - v.oy)/v.s}; }
+
+function seg(a, b, color, w, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.restore();
+}
+function dot(P, color, r, fill){
+  ctx.fillStyle = fill || "#fff"; ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(P.x, P.y, r || 7, 0, 7); ctx.fill(); ctx.stroke();
+}
+function txt(t, x, y, color, size, halo, weight){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = (weight || 800) + " " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function ital(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "italic 700 " + size + "px 'Times New Roman', serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const sub  = (a, b) => ({x:a.x - b.x, y:a.y - b.y});
+const cross2 = (u, v) => u.x*v.y - u.y*v.x;
+const norm = u => { const L = Math.hypot(u.x, u.y) || 1; return {x:u.x/L, y:u.y/L}; };
+
+/* 점 P 와 선분 AB 사이의 거리 */
+function distSeg(P, A, B){
+  const d = sub(B, A), L2 = d.x*d.x + d.y*d.y;
+  if(L2 < 1e-9) return dist(P, A);
+  let t = ((P.x - A.x)*d.x + (P.y - A.y)*d.y)/L2;
+  t = Math.max(0, Math.min(1, t));
+  return dist(P, {x:A.x + t*d.x, y:A.y + t*d.y});
+}
+/* 점 P 와 '직선' AB 사이의 거리 (선분이 아니라 무한히 뻗은 직선) */
+function distLine(P, A, B){
+  const d = norm(sub(B, A));
+  return Math.abs(cross2(d, sub(P, A)));
+}
+/* 점 P 를 지나고 방향이 d 인 직선을 화면 안쪽으로 잘라 낸다 (Liang–Barsky) */
+function clipLine(P, d, pad){
+  const p = pad === undefined ? 26 : pad;
+  let t0 = -1e9, t1 = 1e9;
+  const cs = [[-d.x, P.x - p], [d.x, DW - p - P.x], [-d.y, P.y - p], [d.y, DH - p - P.y]];
+  for(let i = 0; i < 4; i++){
+    const a = cs[i][0], b = cs[i][1];
+    if(Math.abs(a) < 1e-9){ if(b < 0) return null; continue; }
+    const r = b/a;
+    if(a < 0){ if(r > t1) return null; if(r > t0) t0 = r; }
+    else     { if(r < t0) return null; if(r < t1) t1 = r; }
+  }
+  return [{x:P.x + t0*d.x, y:P.y + t0*d.y}, {x:P.x + t1*d.x, y:P.y + t1*d.y}];
+}
+/* 직선 양 끝의 화살촉 */
+function arrow(at, dir, color){
+  const u = norm(dir), n = {x:-u.y, y:u.x}, L = 13, W = 5.5;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(at.x, at.y);
+  ctx.lineTo(at.x - u.x*L + n.x*W, at.y - u.y*L + n.y*W);
+  ctx.lineTo(at.x - u.x*L - n.x*W, at.y - u.y*L - n.y*W);
+  ctx.closePath(); ctx.fill();
+}
+/* 두 점을 지나는 직선을 화살표까지 그리고, 이름을 붙인다 */
+function drawFullLine(A, B, color, w, name, labOff){
+  const d = norm(sub(B, A));
+  const c = clipLine(A, d);
+  if(!c) return null;
+  seg(c[0], c[1], color, w);
+  arrow(c[0], {x:-d.x, y:-d.y}, color);
+  arrow(c[1], d, color);
+  if(name){
+    const n = {x:-d.y, y:d.x};
+    const base = c[0].x < c[1].x ? c[0] : c[1];      // 왼쪽 끝에 이름을 붙인다
+    const away = c[0].x < c[1].x ? d : {x:-d.x, y:-d.y};
+    const k = 20 + (labOff || 0);
+    ital(name, base.x + away.x*22 + n.x*k, base.y + away.y*22 + n.y*k, color, 23, true);
+  }
+  return c;
+}
+
+/* ============================================================
+   상태
+   ============================================================ */
+let tab = "pt";
+
+/* ---- ① 점과 직선 ---- */
+const LY = 470;                                     // 베이스라인(직선 l) 의 y
+const COURT = {x0:180, x1:720, y0:130, y1:LY};
+const T1 = {
+  scene: "court",
+  balls: {A:{x:395, y:LY}, B:{x:575, y:392}},
+  drag: null,
+  m1: false, m2: false, rewarded: false,
+  /* 문제 1 (교과서 146쪽) */
+  P: {A:{x:430, y:392}, B:{x:520, y:305}, C:{x:680, y:331}},
+  step: 0,                                          // 0 = 직선 l, 1 = 직선 m, 2 = 끝
+  sel: {},
+  done: false
+};
+const P1LINES = {
+  l: ["B", "C"],        // 직선 l 은 점 B, C 를 지난다
+  m: ["A", "B"]         // 직선 m 은 점 A, B 를 지난다
+};
+
+/* ---- ② 평면에서 두 직선 ---- */
+const T2START = {
+  l: {p:{x:190, y:250}, q:{x:710, y:250}},
+  m: {p:{x:230, y:520}, q:{x:690, y:180}}
+};
+const T2 = {
+  l: {p:{x:190, y:250}, q:{x:710, y:250}},
+  m: {p:{x:230, y:520}, q:{x:690, y:180}},
+  drag: null,
+  moved: false,
+  got: {meet:false, same:false, para:false},
+  rewarded: false,
+  codeDone: false
+};
+function t2reset(){
+  T2.l = {p:{...T2START.l.p}, q:{...T2START.l.q}};
+  T2.m = {p:{...T2START.m.p}, q:{...T2START.m.q}};
+  T2.drag = null;
+}
+
+/* ---- ③ 도형에서 찾기 ---- */
+const FIGS = {
+  rect: {
+    label: "직사각형 ABCD",
+    names: ["A","B","C","D"],
+    pts: [{x:255,y:160},{x:255,y:460},{x:645,y:460},{x:645,y:160}],
+    ask: [0,1,2,3]
+  },
+  para: {
+    label: "평행사변형 ABCD",
+    names: ["A","B","C","D"],
+    pts: [{x:305,y:160},{x:215,y:460},{x:620,y:460},{x:710,y:160}],
+    ask: [0,1,2,3]
+  },
+  trap: {
+    label: "사다리꼴 ABCD",
+    names: ["A","B","C","D"],
+    pts: [{x:335,y:165},{x:220,y:460},{x:685,y:460},{x:600,y:165}],
+    ask: [1,3]                                   // AB·DC 는 서로 만나지도 평행하지도 않아 묻지 않는다
+  },
+  tri: {
+    label: "삼각형 ABC",
+    names: ["A","B","C"],
+    pts: [{x:450,y:150},{x:240,y:460},{x:690,y:460}],
+    ask: [0,1,2]
+  },
+  rhom: {
+    label: "마름모 ABCD",
+    names: ["A","B","C","D"],
+    pts: [{x:450,y:140},{x:255,y:310},{x:450,y:480},{x:645,y:310}],
+    ask: [0,1,2,3]
+  }
+};
+const T3 = {
+  key: "rect", type: "meet", asked: 0,
+  sel: [], ans: [], done: false,
+  tries: 0, ok: 0, streak: 0, lastKey: ""
+};
+
+/* ============================================================
+   ① 점과 직선
+   ============================================================ */
+const onLine = p => Math.abs(p.y - LY) < 1.5;
+
+function drawCourt(){
+  /* 코트 */
+  ctx.fillStyle = "#4e9b6b";
+  ctx.fillRect(COURT.x0, COURT.y0, COURT.x1 - COURT.x0, COURT.y1 - COURT.y0);
+  ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 3;
+  ctx.strokeRect(COURT.x0, COURT.y0, COURT.x1 - COURT.x0, COURT.y1 - COURT.y0);
+  seg({x:COURT.x0, y:235}, {x:COURT.x1, y:235}, "#ffffff", 3);
+  seg({x:COURT.x0, y:365}, {x:COURT.x1, y:365}, "#ffffff", 3);
+  seg({x:450, y:235}, {x:450, y:365}, "#ffffff", 3);
+  /* 네트 */
+  ctx.save();
+  ctx.strokeStyle = "#ffffff88"; ctx.lineWidth = 2;
+  for(let x = COURT.x0 - 12; x <= COURT.x1 + 12; x += 11){
+    ctx.beginPath(); ctx.moveTo(x, 288); ctx.lineTo(x, 312); ctx.stroke();
+  }
+  ctx.restore();
+  seg({x:COURT.x0 - 14, y:300}, {x:COURT.x1 + 14, y:300}, "#ffffff", 4);
+  txt("네트", 450, 272, "#ffffff", 13, false, 700);
+
+  /* 직선 l = 베이스라인 (코트 밖으로도 뻗어 나간다) */
+  const c = clipLine({x:450, y:LY}, {x:1, y:0}, 30);
+  seg(c[0], c[1], INK, 4.4);
+  arrow(c[0], {x:-1, y:0}, INK); arrow(c[1], {x:1, y:0}, INK);
+  ital("l", c[1].x - 14, LY - 26, INK, 25, true);
+  txt("베이스라인", 450, LY + 26, INK, 14, true, 700);
+
+  /* 공 */
+  ["A", "B"].forEach(n => {
+    const p = T1.balls[n], hit = onLine(p);
+    ctx.save();
+    ctx.shadowColor = "#00000033"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+    ctx.fillStyle = hit ? "#ffe14d" : "#e9f45c";
+    ctx.strokeStyle = hit ? OK : "#9aa61f"; ctx.lineWidth = 3.2;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 15, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    ital(n, p.x, p.y - 33, hit ? OK : INK, 23, true);
+  });
+  $("tip").textContent = "공을 끌어서 옮겨 보세요";
+}
+
+function drawProb1(){
+  const P = T1.P;
+  /* 직선 l (B, C 를 지난다) 과 직선 m (A, B 를 지난다) */
+  drawFullLine(P.B, P.C, INK, 3.6, "l");
+  drawFullLine(P.A, P.B, INK, 3.6, "m");
+
+  const want = T1.step === 0 ? "l" : "m";
+  ["A", "B", "C"].forEach(n => {
+    const p = P[n], picked = !!T1.sel[n];
+    let col = INK;
+    if(T1.done){
+      const isAns = P1LINES[want].indexOf(n) >= 0;
+      col = isAns ? OK : (picked ? RED : SUB);
+    }else if(picked) col = BLUE;
+    dot(p, col, picked || T1.done ? 11 : 8, picked ? col + "22" : "#fff");
+    if(picked || T1.done){
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, 7); ctx.fill();
+    }
+    ital(n, p.x - 6, p.y - 26, col, 23, true);
+  });
+  txt("점을 눌러 고르세요", 450, 560, SUB, 15, true, 700);
+  $("tip").textContent = "직선 " + want + " 위에 있는 점을 모두 고르세요";
+}
+
+function t1render(){
+  const on = {A:onLine(T1.balls.A), B:onLine(T1.balls.B)};
+  $("t1balls").innerHTML = ["A", "B"].map(n =>
+    '<div class="ball ' + (on[n] ? "yes" : "no") + '">' +
+      '<div class="n">' + n + '</div>' +
+      '<div class="s">직선 <i>l</i> 위에<br>' + (on[n] ? "있다" : "있지 않다") + '</div>' +
+    '</div>').join("");
+
+  $("t1miss").innerHTML =
+    '<li class="' + (T1.m1 ? "done" : "") + '"><span class="mk">' + (T1.m1 ? "✓" : "①") + '</span>' +
+      '두 공을 <b>모두</b> 직선 <i>l</i> 위에 놓기</li>' +
+    '<li class="' + (T1.m2 ? "done" : "") + '"><span class="mk">' + (T1.m2 ? "✓" : "②") + '</span>' +
+      '두 공을 <b>모두</b> 직선 <i>l</i> 위에 있지 않게 놓기</li>';
+
+  if(T1.m1 && T1.m2){
+    if(!T1.rewarded){
+      T1.rewarded = true;
+      if(window.MKSCORE) MKSCORE.once("t1", 10, "점과 직선 미션");
+    }
+    $("t1fb").innerHTML = '<div class="fb ok">🎉 두 가지를 모두 만들었어요! 점과 직선의 위치 관계는 ' +
+      '<b>위에 있다 / 위에 있지 않다</b> 두 가지뿐이에요.</div>';
+  }else{
+    $("t1fb").innerHTML = '<div class="fb info">공이 <b>베이스라인 위</b>에 딱 놓이면 초록색이 돼요.</div>';
+  }
+}
+
+function p1render(){
+  const want = T1.step === 0 ? "l" : "m";
+  $("p1ask").innerHTML = '오른쪽 그림에서 <b>직선 <i>' + want + '</i> 위에 있는 점</b>을 모두 고르세요. ' +
+    '<span style="color:var(--sub)">(' + (T1.step + 1) + '/2)</span>';
+  const picked = ["A", "B", "C"].filter(n => T1.sel[n]);
+  $("p1sel").innerHTML = '<div class="fb info">고른 점 : <b>' +
+    (picked.length ? picked.join(", ") : "아직 없음") + '</b></div>';
+}
+
+function p1check(){
+  if(T1.done) return;
+  const want = T1.step === 0 ? "l" : "m";
+  const ans = P1LINES[want].slice().sort();
+  const got = ["A", "B", "C"].filter(n => T1.sel[n]).sort();
+  const ok = ans.join() === got.join();
+  T1.done = true;
+  if(window.MKSCORE) MKSCORE.quiz(ok, "146쪽 문제1 (" + want + ")");
+  const other = ["A", "B", "C"].filter(n => ans.indexOf(n) < 0);
+  $("p1fb").innerHTML = '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+    (ok ? "🎉 정답! " : "아쉬워요. 답은 <b>" + ans.join(", ") + "</b>. ") +
+    '직선 <i>' + want + '</i> 은 점 ' + ans.join(", ") + ' 를 지나요. ' +
+    '점 ' + other.join(", ") + ' 는 직선 <i>' + want + '</i> 위에 있지 않아요.</div>' +
+    (T1.step === 0
+      ? '<div class="row" style="margin-top:9px;"><button class="btn primary" id="btnP1Next">다음 문제 ▶</button></div>'
+      : '<div class="fb info">두 문제 모두 끝났어요. 점은 <b>직선 위에 있거나, 있지 않거나</b> 둘 중 하나예요.</div>');
+  const nx = $("btnP1Next");
+  if(nx) nx.addEventListener("click", () => {
+    T1.step = 1; T1.sel = {}; T1.done = false;
+    $("p1fb").innerHTML = ""; p1render(); draw();
+  });
+  draw();
+}
+
+/* ============================================================
+   ② 평면에서 두 직선
+   ============================================================ */
+const SNAP_ANG = 0.055;     // sinθ 기준 (약 3°)
+const SNAP_D   = 17;        // 일치로 붙는 거리
+
+function relTwo(){
+  const dl = norm(sub(T2.l.q, T2.l.p)), dm = norm(sub(T2.m.q, T2.m.p));
+  const s = Math.abs(cross2(dl, dm));
+  if(s < 0.004){
+    const d = distLine(T2.m.p, T2.l.p, T2.l.q);
+    return d < 2.5 ? {k:"same"} : {k:"para", d:d};
+  }
+  /* 교점 : l.p + t*dl */
+  const t = cross2(sub(T2.m.p, T2.l.p), dm)/cross2(dl, dm);
+  return {k:"meet", at:{x:T2.l.p.x + t*dl.x, y:T2.l.p.y + t*dl.y}};
+}
+
+/* 드래그한 직선을 상대 직선에 자석처럼 붙인다 */
+function snapTwo(which){
+  const me = T2[which], other = T2[which === "l" ? "m" : "l"];
+  const dOther = norm(sub(other.q, other.p));
+  const dMe = sub(me.q, me.p);
+  const L = Math.hypot(dMe.x, dMe.y) || 1;
+  const u = {x:dMe.x/L, y:dMe.y/L};
+  if(Math.abs(cross2(dOther, u)) > SNAP_ANG) return;
+
+  /* 방향을 정확히 같게 맞춘다 (부호는 원래 향하던 쪽을 유지) */
+  const sgn = (u.x*dOther.x + u.y*dOther.y) >= 0 ? 1 : -1;
+  const c = {x:(me.p.x + me.q.x)/2, y:(me.p.y + me.q.y)/2};
+  me.p = {x:c.x - dOther.x*sgn*L/2, y:c.y - dOther.y*sgn*L/2};
+  me.q = {x:c.x + dOther.x*sgn*L/2, y:c.y + dOther.y*sgn*L/2};
+
+  /* 충분히 가까우면 완전히 포갠다 */
+  const n = {x:-dOther.y, y:dOther.x};
+  const off = cross2(dOther, sub(me.p, other.p));      // 부호 있는 거리
+  if(Math.abs(off) < SNAP_D){
+    me.p = {x:me.p.x - n.x*off, y:me.p.y - n.y*off};
+    me.q = {x:me.q.x - n.x*off, y:me.q.y - n.y*off};
+  }
+}
+
+function drawTwo(){
+  const r = relTwo();
+  /* 일치할 때는 두 직선을 살짝 어긋나게 그려 둘 다 보이게 한다 */
+  if(r.k === "same"){
+    const d = norm(sub(T2.l.q, T2.l.p)), n = {x:-d.y, y:d.x};
+    const off = 3.2;
+    drawFullLine({x:T2.l.p.x - n.x*off, y:T2.l.p.y - n.y*off},
+                 {x:T2.l.q.x - n.x*off, y:T2.l.q.y - n.y*off}, RED, 4.4, "l", -36);
+    drawFullLine({x:T2.m.p.x + n.x*off, y:T2.m.p.y + n.y*off},
+                 {x:T2.m.q.x + n.x*off, y:T2.m.q.y + n.y*off}, BLUE, 4.4, "m", 8);
+  }else{
+    drawFullLine(T2.l.p, T2.l.q, RED, 4.4, "l");
+    drawFullLine(T2.m.p, T2.m.q, BLUE, 4.4, "m");
+  }
+
+  if(r.k === "meet"){
+    const a = r.at;
+    if(a.x > 10 && a.x < DW - 10 && a.y > 10 && a.y < DH - 10){
+      dot(a, OK, 11, "#ffffff");
+      ctx.fillStyle = OK; ctx.beginPath(); ctx.arc(a.x, a.y, 5, 0, 7); ctx.fill();
+      txt("교점", a.x + 34, a.y - 24, OK, 15, true, 800);
+    }
+  }
+  if(r.k === "para"){
+    /* 두 직선 사이 간격을 눈으로 보여 준다 */
+    const d = norm(sub(T2.l.q, T2.l.p)), n = {x:-d.y, y:d.x};
+    const c = {x:(T2.l.p.x + T2.l.q.x)/2, y:(T2.l.p.y + T2.l.q.y)/2};
+    const off = cross2(d, sub(T2.m.p, T2.l.p));
+    const foot = {x:c.x + n.x*off, y:c.y + n.y*off};
+    seg(c, foot, ORANGE, 2.4, [7, 6]);
+  }
+
+  /* 손잡이 */
+  [["l", RED], ["m", BLUE]].forEach(function(e){
+    const k = e[0], col = e[1];
+    dot(T2[k].p, col, 10, "#fff");
+    dot(T2[k].q, col, 10, "#fff");
+  });
+  $("tip").textContent = "손잡이를 끌면 돌아가고, 직선을 끌면 통째로 움직여요";
+}
+
+function t2render(){
+  const r = relTwo();
+  const box = {
+    meet: ['meet', '한 점에서 만난다', '만나는 그 점을 두 직선 <i>l</i>, <i>m</i> 의 <b>교점</b>이라고 해요.'],
+    same: ['same', '일치한다', '두 직선이 완전히 포개졌어요. 사실은 같은 직선이에요.'],
+    para: ['para', '평행하다 &nbsp;<i>l</i> ∥ <i>m</i>', '아무리 늘여도 만나지 않아요. 두 직선 사이 간격이 늘 같아요.']
+  }[r.k];
+  $("t2read").innerHTML = '<div class="vbox ' + box[0] + '"><div class="k">' + box[1] +
+    '</div><div class="d">' + box[2] + '</div></div>';
+
+  if(T2.moved) T2.got[r.k] = true;
+  const M = [["meet", "한 점에서 만나게"], ["same", "일치하게"], ["para", "평행하게"]];
+  $("t2miss").innerHTML = M.map(function(e, i){
+    const d = T2.got[e[0]];
+    return '<li class="' + (d ? "done" : "") + '"><span class="mk">' + (d ? "✓" : "①②③"[i]) + '</span>' +
+      '두 직선을 <b>' + e[1] + '</b> 만들기</li>';
+  }).join("");
+
+  if(T2.got.meet && T2.got.same && T2.got.para){
+    if(!T2.rewarded){
+      T2.rewarded = true;
+      if(window.MKSCORE) MKSCORE.once("t2", 15, "평면에서 두 직선 미션");
+    }
+    $("t2fb").innerHTML = '<div class="fb ok">🎉 세 가지를 모두 만들었어요! 한 평면 위의 두 직선은 ' +
+      '<b>만나거나(한 점에서 만나거나 일치하거나), 평행하거나</b> 둘 중 하나예요.</div>';
+  }else{
+    $("t2fb").innerHTML = '<div class="fb info">직선을 돌리다 보면 <b>거의 나란해질 때</b> 자석처럼 딱 붙어요.</div>';
+  }
+}
+
+/* 코딩 문제 (교과서 147쪽) */
+const CODE_OPTS = [
+  {t:"두 직선이 <b>평행한 경우</b>인데도 '한 점에서 만난다'고 잘못 알려 준다.", ok:true},
+  {t:"두 직선이 <b>일치하는 경우</b>를 아예 빠뜨렸다.", ok:false},
+  {t:"이 코드에는 오류가 없다.", ok:false}
+];
+function codeRender(){
+  $("codeChoices").innerHTML = CODE_OPTS.map((o, i) =>
+    '<button data-i="' + i + '">' + "①②③"[i] + " " + o.t + '</button>').join("");
+  $("codeChoices").querySelectorAll("button").forEach(b => {
+    b.addEventListener("click", () => {
+      if(T2.codeDone) return;
+      T2.codeDone = true;
+      const i = +b.dataset.i, ok = CODE_OPTS[i].ok;
+      $("codeChoices").querySelectorAll("button").forEach((x, j) => {
+        x.disabled = true;
+        if(CODE_OPTS[j].ok) x.classList.add("pick");
+      });
+      if(window.MKSCORE) MKSCORE.quiz(ok, "147쪽 코딩");
+      $("codeFb").innerHTML = '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+        (ok ? "🎉 정답! " : "답은 ① 이에요. ") +
+        '코드는 <b>일치하지 않으면 무조건 한 점에서 만난다</b>고 말해요. ' +
+        '하지만 <b>평행한</b> 두 직선은 일치하지도 않고 만나지도 않아요. ' +
+        '<b>평행한 경우</b>를 먼저 확인하는 부분이 있어야 해요.</div>';
+    });
+  });
+}
+
+/* ============================================================
+   ③ 도형에서 찾기
+   ============================================================ */
+const F = () => FIGS[T3.key];
+/* 마지막 변(마지막 꼭짓점 -> A)은 교과서처럼 '변 AD' 순서로 쓴다 */
+function sidePair(i){
+  const f = F(), n = f.names.length;
+  return i === n - 1 ? f.names[0] + f.names[n-1] : f.names[i] + f.names[i+1];
+}
+function sideName(i){ return "변 " + sidePair(i); }
+function sidePts(i){
+  const f = F(), n = f.pts.length;
+  return [f.pts[i], f.pts[(i+1)%n]];
+}
+function sideVerts(i){
+  const f = F(), n = f.names.length;
+  return [i, (i+1)%n];
+}
+function isParallel(i, j){
+  const a = sidePts(i), b = sidePts(j);
+  return Math.abs(cross2(norm(sub(a[1], a[0])), norm(sub(b[1], b[0])))) < 0.01;
+}
+function sharesVertex(i, j){
+  const a = sideVerts(i), b = sideVerts(j);
+  return a.some(v => b.indexOf(v) >= 0);
+}
+
+const TYPES = ["vert", "meet", "para"];
+function newFigQuestion(){
+  const keys = Object.keys(FIGS);
+  let key, type, asked, tries = 0;
+  do{
+    type  = TYPES[Math.floor(Math.random()*TYPES.length)];      // 유형을 먼저 균등하게
+    key   = keys[Math.floor(Math.random()*keys.length)];
+    T3.key = key;
+    const list = FIGS[key].ask;
+    asked = list[Math.floor(Math.random()*list.length)];
+    tries++;
+  }while(tries < 30 && (type + key + asked) === T3.lastKey);
+  T3.lastKey = type + key + asked;
+  T3.type = type; T3.asked = asked;
+  T3.sel = []; T3.done = false;
+
+  const f = F(), n = f.names.length;
+  if(type === "vert"){
+    const on = sideVerts(asked);
+    T3.ans = f.names.map((_, i) => i).filter(i => on.indexOf(i) < 0);
+  }else if(type === "meet"){
+    T3.ans = [];
+    for(let i = 0; i < n; i++) if(i !== asked && sharesVertex(asked, i)) T3.ans.push(i);
+  }else{
+    T3.ans = [];
+    for(let i = 0; i < n; i++) if(i !== asked && isParallel(asked, i)) T3.ans.push(i);
+  }
+  figRender();
+  $("figFb").innerHTML = "";
+  draw();
+}
+
+function figRender(){
+  const f = F();
+  const q = {
+    vert: '<b>' + sideName(T3.asked) + ' 위에 있지 않은 꼭짓점</b>을 모두 고르세요.',
+    meet: '<b>' + sideName(T3.asked) + ' 와 한 점에서 만나는 변</b>을 모두 고르세요.',
+    para: '<b>' + sideName(T3.asked) + ' 와 평행한 변</b>을 모두 고르세요.'
+  }[T3.type];
+  $("figAsk").innerHTML = f.label + '에서 ' + q;
+  const names = T3.sel.map(i => T3.type === "vert" ? "점 " + f.names[i] : sideName(i));
+  $("figSel").innerHTML = '<div class="fb info">고른 것 : <b>' +
+    (names.length ? names.join(", ") : "아직 없음") + '</b></div>';
+}
+
+function drawFig(){
+  const f = F(), n = f.pts.length;
+  /* 면 */
+  ctx.beginPath();
+  f.pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+  ctx.closePath();
+  ctx.fillStyle = "#eef2fb"; ctx.fill();
+
+  const cx = f.pts.reduce((s, p) => s + p.x, 0)/n;
+  const cy = f.pts.reduce((s, p) => s + p.y, 0)/n;
+
+  /* 변 */
+  for(let i = 0; i < n; i++){
+    const s = sidePts(i);
+    let col = "#8d99b3", w = 5;
+    if(i === T3.asked){ col = RED; w = 7.5; }
+    else if(T3.type !== "vert"){
+      if(T3.done && T3.ans.indexOf(i) >= 0){ col = OK; w = 7.5; }
+      else if(T3.done && T3.sel.indexOf(i) >= 0){ col = ORANGE; w = 7.5; }   // 잘못 고른 것
+      else if(T3.sel.indexOf(i) >= 0){ col = BLUE; w = 7.5; }
+    }
+    seg(s[0], s[1], col, w);
+    /* 변 이름 */
+    const mx = (s[0].x + s[1].x)/2, my = (s[0].y + s[1].y)/2;
+    const dx = mx - cx, dy = my - cy, L = Math.hypot(dx, dy) || 1;
+    txt(sidePair(i), mx + dx/L*30, my + dy/L*30,
+        col === "#8d99b3" ? SUB : col, 15, true, 800);
+  }
+  /* 꼭짓점 */
+  for(let i = 0; i < n; i++){
+    const p = f.pts[i];
+    let col = INK;
+    if(T3.type === "vert"){
+      if(T3.done && T3.ans.indexOf(i) >= 0) col = OK;
+      else if(T3.done && T3.sel.indexOf(i) >= 0) col = ORANGE;               // 잘못 고른 것
+      else if(T3.sel.indexOf(i) >= 0) col = BLUE;
+      else if(sideVerts(T3.asked).indexOf(i) >= 0) col = RED;
+    }
+    dot(p, col, T3.sel.indexOf(i) >= 0 && T3.type === "vert" ? 11 : 8, "#fff");
+    if(T3.sel.indexOf(i) >= 0 && T3.type === "vert"){
+      ctx.fillStyle = col; ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, 7); ctx.fill();
+    }
+    const dx = p.x - cx, dy = p.y - cy, L = Math.hypot(dx, dy) || 1;
+    ital(f.names[i], p.x + dx/L*27, p.y + dy/L*27, col, 24, true);
+  }
+  $("tip").textContent = T3.type === "vert" ? "꼭짓점을 눌러 고르세요" : "변을 눌러 고르세요";
+}
+
+function figCheck(){
+  if(T3.done) return;
+  const a = T3.ans.slice().sort().join(),
+        g = T3.sel.slice().sort().join();
+  const ok = a === g;
+  T3.done = true; T3.tries++;
+  if(ok){ T3.ok++; T3.streak++; } else { T3.streak = 0; }
+  if(window.MKSCORE) MKSCORE.quiz(ok, "도형에서 찾기");
+  $("fTry").textContent = T3.tries; $("fOk").textContent = T3.ok; $("fStreak").textContent = T3.streak;
+
+  const f = F();
+  const ansTxt = T3.ans.length
+    ? T3.ans.map(i => T3.type === "vert" ? "점 " + f.names[i] : sideName(i)).join(", ")
+    : "없어요";
+  let why;
+  if(T3.type === "vert"){
+    const on = sideVerts(T3.asked).map(i => f.names[i]).join(", ");
+    why = sideName(T3.asked) + ' 위에 있는 꼭짓점은 양 끝 점인 <b>' + on + '</b> 뿐이에요. ' +
+          '나머지 꼭짓점은 그 변 위에 있지 않아요.';
+  }else if(T3.type === "meet"){
+    why = sideName(T3.asked) + ' 와 <b>꼭짓점을 함께 가지는 변</b>이 한 점에서 만나는 변이에요.';
+  }else{
+    why = T3.ans.length
+      ? '두 변은 <b>아무리 늘여도 만나지 않아요.</b> 그래서 평행해요.'
+      : '이 도형에는 서로 평행한 변이 없어요. <b>답이 없을 때도 있다</b>는 걸 기억하세요.';
+  }
+  $("figFb").innerHTML = '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+    (ok ? "🎉 정답! " : "아쉬워요. 답은 <b>" + ansTxt + "</b>. ") + why + '</div>';
+  figRender();
+  draw();
+}
+
+/* ============================================================
+   그리기
+   ============================================================ */
+function draw(){
+  if(!cv.clientWidth) return;
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);
+  if(tab === "pt")      T1.scene === "court" ? drawCourt() : drawProb1();
+  else if(tab === "two") drawTwo();
+  else                   drawFig();
+  ctx.restore();
+}
+
+/* ============================================================
+   조작
+   ============================================================ */
+cv.addEventListener("pointerdown", ev => {
+  const p = toDesign(ev.offsetX, ev.offsetY);
+  if(tab === "pt"){
+    if(T1.scene === "court"){
+      let best = null, bd = 34;
+      ["A", "B"].forEach(n => { const d = dist(p, T1.balls[n]); if(d < bd){ bd = d; best = n; } });
+      if(best){ T1.drag = best; cv.setPointerCapture(ev.pointerId); }
+    }else{
+      if(T1.done) return;
+      let best = null, bd = 28;
+      ["A", "B", "C"].forEach(n => { const d = dist(p, T1.P[n]); if(d < bd){ bd = d; best = n; } });
+      if(best){
+        T1.sel[best] = !T1.sel[best];
+        p1render(); draw();
+      }
+    }
+  }else if(tab === "two"){
+    let best = null, bd = 26;
+    [["l", "p"], ["l", "q"], ["m", "p"], ["m", "q"]].forEach(e => {
+      const d = dist(p, T2[e[0]][e[1]]);
+      if(d < bd){ bd = d; best = {line:e[0], h:e[1]}; }
+    });
+    if(!best){
+      /* 직선 몸통을 잡으면 통째로 옮긴다 */
+      ["m", "l"].forEach(k => {                       // m 을 먼저 (위에 그려진 쪽)
+        if(best) return;
+        if(distLine(p, T2[k].p, T2[k].q) < 15) best = {line:k, h:"body", from:{x:p.x, y:p.y}};
+      });
+    }
+    if(best){ T2.drag = best; cv.setPointerCapture(ev.pointerId); }
+  }else{
+    if(T3.done) return;
+    const f = F(), n = f.pts.length;
+    if(T3.type === "vert"){
+      let best = -1, bd = 30;
+      for(let i = 0; i < n; i++){ const d = dist(p, f.pts[i]); if(d < bd){ bd = d; best = i; } }
+      if(best >= 0) toggle(T3.sel, best);
+    }else{
+      let best = -1, bd = 18;
+      for(let i = 0; i < n; i++){
+        if(i === T3.asked) continue;
+        const s = sidePts(i), d = distSeg(p, s[0], s[1]);
+        if(d < bd){ bd = d; best = i; }
+      }
+      if(best >= 0) toggle(T3.sel, best);
+    }
+    figRender(); draw();
+  }
+});
+function toggle(arr, v){
+  const i = arr.indexOf(v);
+  if(i >= 0) arr.splice(i, 1); else arr.push(v);
+}
+
+cv.addEventListener("pointermove", ev => {
+  const p = toDesign(ev.offsetX, ev.offsetY);
+  if(tab === "pt" && T1.drag){
+    const b = T1.balls[T1.drag];
+    b.x = Math.max(60, Math.min(DW - 60, p.x));
+    b.y = Math.max(95, Math.min(DH - 55, p.y));
+    if(Math.abs(b.y - LY) < 13) b.y = LY;             // 베이스라인에 자석처럼 붙는다
+    const on = {A:onLine(T1.balls.A), B:onLine(T1.balls.B)};
+    if(on.A && on.B) T1.m1 = true;
+    if(!on.A && !on.B) T1.m2 = true;
+    t1render(); draw();
+  }else if(tab === "two" && T2.drag){
+    T2.moved = true;
+    const D = T2.drag, me = T2[D.line];
+    if(D.h === "body"){
+      const dx = p.x - D.from.x, dy = p.y - D.from.y;
+      me.p = {x:me.p.x + dx, y:me.p.y + dy};
+      me.q = {x:me.q.x + dx, y:me.q.y + dy};
+      D.from = {x:p.x, y:p.y};
+    }else{
+      me[D.h] = {x:Math.max(40, Math.min(DW - 40, p.x)), y:Math.max(40, Math.min(DH - 40, p.y))};
+      /* 두 손잡이가 너무 가까우면 직선이 정해지지 않는다 */
+      if(dist(me.p, me.q) < 70){
+        const d = norm(sub(me[D.h], me[D.h === "p" ? "q" : "p"]));
+        me[D.h] = {x:me[D.h === "p" ? "q" : "p"].x + d.x*70, y:me[D.h === "p" ? "q" : "p"].y + d.y*70};
+      }
+    }
+    snapTwo(D.line);
+    t2render(); draw();
+  }
+});
+function endDrag(){ T1.drag = null; T2.drag = null; }
+cv.addEventListener("pointerup", endDrag);
+cv.addEventListener("pointercancel", endDrag);
+
+/* ---- 버튼 ---- */
+$("btnToProb").addEventListener("click", () => {
+  T1.scene = "prob1"; T1.step = 0; T1.sel = {}; T1.done = false;
+  $("bCourt").classList.add("hidden"); $("bProb").classList.remove("hidden");
+  $("p1fb").innerHTML = "";
+  p1render(); draw();
+});
+$("btnP1Back").addEventListener("click", () => {
+  T1.scene = "court";
+  $("bCourt").classList.remove("hidden"); $("bProb").classList.add("hidden");
+  t1render(); draw();
+});
+$("btnP1Check").addEventListener("click", p1check);
+$("btnT2Reset").addEventListener("click", () => { t2reset(); t2render(); draw(); });
+$("btnFigCheck").addEventListener("click", figCheck);
+$("btnFigNext").addEventListener("click", newFigQuestion);
+
+document.querySelectorAll("header nav button").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll("header nav button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    $("pPt") .classList.toggle("hidden", tab !== "pt");
+    $("pTwo").classList.toggle("hidden", tab !== "two");
+    $("pFig").classList.toggle("hidden", tab !== "fig");
+    if(tab === "two") t2render();
+    if(tab === "fig" && !T3.tries && !T3.done) newFigQuestion();
+    draw();
+  });
+});
+
+/* ============================================================
+   시작 — common.js 는 defer 이므로 반드시 DOMContentLoaded 이후에
+   ============================================================ */
+function boot(){
+  t1render();
+  t2render();
+  codeRender();
+  newFigQuestion();
+  tab = "pt";
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3D 위치 관계 탐험 — 꼬인 위치까지 눈으로</title>
+<title>공간에서의 위치 관계 — 꼬인 위치까지 눈으로</title>
 <link rel="stylesheet" href="../assets/common.css">
 <script src="../assets/common.js?v=2" data-home="../index.html" defer></script>
 <script src="../assets/track.js?v=4" defer></script>
@@ -134,7 +134,7 @@
 <div id="app">
 
 <header>
-  <h1>🧊 3D 위치 관계 탐험</h1>
+  <h1>🧊 공간에서의 위치 관계</h1>
   <nav>
     <button class="on" data-tab="edge">① 모서리와 모서리</button>
     <button data-tab="face">② 모서리와 면</button>
@@ -173,9 +173,14 @@
       <div class="blk">
         <h2>공간에서 두 직선의 위치 관계</h2>
         <p><b>① 한 점에서 만난다</b> — 두 모서리가 한 꼭짓점에서 만나요.<br>
-           <b>② 평행하다</b> — 한 평면 위에 있으면서 만나지 않아요.<br>
-           <b>③ 꼬인 위치에 있다</b> — 만나지도 않고 평행하지도 않아요.
-           이때 두 직선은 <b>한 평면 위에 있지 않아요.</b></p>
+           <b>② 일치한다</b> — 두 직선이 완전히 포개져요.<br>
+           <b>③ 평행하다</b> — 한 평면 위에 있으면서 만나지 않아요.<br>
+           <b>④ 꼬인 위치에 있다</b> — 만나지도 않고 평행하지도 않아요.
+           이때 두 직선은 <b>한 평면 위에 있지 않아요.</b><br>
+           ①②③ 은 <b>한 평면 위에 있고</b>, ④ 만 한 평면 위에 있지 않아요. (교과서 148쪽)</p>
+        <p style="margin-top:8px;">평면 위에서의 위치 관계(146~147쪽)는
+           <a href="05-plane-position.html" style="color:var(--accent); font-weight:700;">평면 위의 위치 관계</a>
+           에서 먼저 확인해 보세요.</p>
         <div class="legend">
           <span><i style="background:#e5484d"></i>첫째 모서리</span>
           <span><i style="background:#3e63dd"></i>둘째 모서리</span>
