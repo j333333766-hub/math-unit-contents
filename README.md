@@ -17,7 +17,7 @@ math-unit-contents/
 │   ├── 03-angle-lab.html            # 각도 실험실          (141~143쪽)
 │   ├── 04-perp-foot.html            # 수선의 발과 거리      (144쪽)
 │   ├── 05-plane-position.html       # 평면 위의 위치 관계   (146~147쪽)
-│   ├── 05-space-3d.html             # 공간에서의 위치 관계  (148~151쪽)
+│   ├── 05-space-3d.html             # 공간에서의 위치 관계  (148~151쪽, 개념 2탭 + 적용 3탭)
 │   ├── 06-mole-game.html            # 두더지 잡기          (152쪽)
 │   ├── 07-parallel-angles.html      # 평행선 각 탐구실      (153~155쪽)
 │   ├── 08-aux-line.html             # 보조선 도전          (154~155쪽)
