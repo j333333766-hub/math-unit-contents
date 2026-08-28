@@ -11,7 +11,7 @@
 math-unit-contents/
 ├── index.html                       # 콘텐츠 목록(메인 허브) 페이지
 ├── contents/                        # 실제 콘텐츠 html 파일들을 넣는 폴더
-│   ├── sample-content.html          #  └ 새 콘텐츠를 만들 때 복사해서 쓰는 예시
+│   ├── sample-content.html          #  └ 새 콘텐츠를 만들 때 복사해서 쓰는 예시 (허브 목록에는 넣지 않음)
 │   ├── 01-pixel-zoom.html           # 픽셀 돋보기          (중1 Ⅳ단원 137쪽)
 │   ├── 02-point-line-plane.html     # 점·선·면 탐구실      (137~139쪽)
 │   ├── 03-angle-lab.html            # 각도 실험실          (141~143쪽)
