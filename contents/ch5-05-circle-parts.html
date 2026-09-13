@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>원의 부분 이름 찾기 — 호·현·할선·부채꼴·활꼴</title>
+<link rel="stylesheet" href="../assets/common.css?v=4">
+<script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 352px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none;}
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+
+  /* 용어 단추 — 켜면 색이 해당 도형 색과 같아진다 */
+  .terms{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px;}
+  .term{
+    font:700 13px/1 var(--font); padding:9px 4px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--panel); color:var(--sub);
+  }
+  .term.on{color:#fff; border-color:transparent;}
+  .term.on[data-t="arc"]{background:#e5484d;}
+  .term.on[data-t="chord"]{background:#3e63dd;}
+  .term.on[data-t="secant"]{background:#2f9e63;}
+  .term.on[data-t="sector"]{background:#f5820b;}
+  .term.on[data-t="segment"]{background:#8e4ec6;}
+
+  .slider{margin-top:11px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .quiz-q{
+    font-size:15px; font-weight:800; color:var(--ink); background:#f7f9fd;
+    border:1px solid var(--line); border-radius:10px; padding:11px 12px; margin-top:9px; text-align:center;
+  }
+  .choices{display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px;}
+  .choices button{
+    font:700 13.5px/1.4 var(--font); padding:10px 6px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer;
+  }
+  .choices button:hover{background:var(--accent-soft); border-color:var(--accent);}
+  .choices button.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .choices button.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>⭕ 원의 부분 이름 찾기</h1>
+  <nav>
+    <button class="on" data-tab="learn">① 이름 익히기</button>
+    <button data-tab="make">② 직접 나타내기</button>
+    <button data-tab="quiz">③ 이름 맞히기</button>
+  </nav>
+  <a class="home-btn" href="../index.html?unit=5">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ① 이름 익히기 -->
+    <section id="pLearn">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 눌러서 하나씩 보세요</h2>
+        <p>원 위의 두 점 <b>A</b>, <b>B</b> 를 슬라이더로 움직이면서
+           호·현·부채꼴·활꼴이 어떻게 달라지는지 보세요. (교과서 191~192쪽)</p>
+        <div class="terms" id="terms">
+          <button class="term on" data-t="arc">호 AB</button>
+          <button class="term" data-t="chord">현 AB</button>
+          <button class="term" data-t="secant">할선 CD</button>
+          <button class="term" data-t="sector">부채꼴 AOB</button>
+          <button class="term" data-t="segment">활꼴 AB</button>
+        </div>
+        <div class="slider">
+          <label><span>중심각 ∠AOB</span><span class="v" id="vX">120°</span></label>
+          <input type="range" id="rX" min="20" max="340" step="5" value="120">
+        </div>
+        <div id="learnFb"></div>
+      </div>
+      <div class="blk">
+        <h2>알게 된 것</h2>
+        <p><b>호</b>는 원 위의 두 점 사이의 <b>굽은 선</b>, <b>현</b>은 그 두 점을 이은 <b>선분</b>,
+           <b>할선</b>은 두 점을 지나는 <b>직선</b>이에요.<br>
+           <b>부채꼴</b>은 두 반지름과 호로, <b>활꼴</b>은 호와 현으로 둘러싸인 도형이에요.</p>
+        <div id="halfFb"></div>
+      </div>
+    </section>
+
+    <!-- ② 직접 나타내기 -->
+    <section id="pMake" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 그림에 직접 나타내 보세요</h2>
+        <p id="ask"></p>
+        <p style="margin-top:7px;font-size:12.5px;">원 위의 <b>점 두 개</b>를 차례로 누르면 돼요.
+           부채꼴은 두 반지름이 함께 그려져요.</p>
+        <div id="makeFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnAgain">↺ 다시 고르기</button>
+          <button class="btn sm" id="btnSkip">다음 문제 ▶</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="mTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="mOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="mLeft">6</div><div class="l">남은 문제</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ③ 이름 맞히기 -->
+    <section id="pQuiz" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 그림을 보고 이름을 고르세요</h2>
+        <div class="quiz-q" id="quizQ">왼쪽 그림에 표시된 것은 무엇일까요?</div>
+        <div class="choices" id="qChoices"></div>
+        <div id="quizFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+const DW = 900, DH = 600;
+const INK = "#1d2433", SUB = "#68738a";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b", PURPLE = "#8e4ec6";
+const rad = d => d*Math.PI/180;
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+function toDesign(px, py){ const v = view(); return {x:(px - v.ox)/v.s, y:(py - v.oy)/v.s}; }
+
+function seg(a, b, color, w, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.restore();
+}
+function dot(P, color, r, filled){
+  ctx.fillStyle = filled ? color : "#fff";
+  ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(P.x, P.y, r || 7, 0, 7); ctx.fill(); ctx.stroke();
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function ital(t, x, y, color, size){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "italic 700 " + size + "px 'Times New Roman', serif";
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+
+/* 수학 각(반시계, 도) → 화면 좌표 */
+function at(C, R, deg){ return {x:C.x + Math.cos(rad(deg))*R, y:C.y - Math.sin(rad(deg))*R}; }
+/* 캔버스 호 : 수학 각 a→b 를 반시계로 (y 가 뒤집히므로 부호를 바꾼다) */
+function arcPath(C, R, a, b){ ctx.arc(C.x, C.y, R, -rad(a), -rad(b), true); }
+
+function drawCircle(C, R, color, w){
+  ctx.beginPath(); ctx.arc(C.x, C.y, R, 0, 7);
+  ctx.strokeStyle = color || INK; ctx.lineWidth = w || 3.4; ctx.stroke();
+}
+/* 호 (수학 각 a → b 반시계) */
+function drawArc(C, R, a, b, color, w){
+  ctx.beginPath(); arcPath(C, R, a, b);
+  ctx.strokeStyle = color; ctx.lineWidth = w || 6; ctx.lineCap = "round"; ctx.stroke();
+  ctx.lineCap = "butt";
+}
+/* 부채꼴 칠하기 */
+function fillSector(C, R, a, b, color, alpha){
+  ctx.beginPath(); ctx.moveTo(C.x, C.y); arcPath(C, R, a, b); ctx.closePath();
+  ctx.fillStyle = color + (alpha || "33"); ctx.fill();
+}
+/* 활꼴 칠하기 (호 a→b 와 현 AB 사이) */
+function fillSegment(C, R, a, b, color, alpha){
+  ctx.beginPath(); arcPath(C, R, a, b); ctx.closePath();
+  ctx.fillStyle = color + (alpha || "33"); ctx.fill();
+}
+
+/* ============================================================
+   상태
+   ============================================================ */
+let tab = "learn";
+
+/* ① */
+const LC = {x:420, y:300}, LR = 195;
+let xDeg = 120;
+const show = {arc:true, chord:false, secant:false, sector:false, segment:false};
+
+/* ② */
+const MC = {x:430, y:300}, MR = 195;
+const PT = [                                   /* 원 위의 점 — 교과서 문제와 비슷한 배치 */
+  {name:"A", deg: 72},
+  {name:"B", deg:140},
+  {name:"C", deg:212},
+  {name:"D", deg:288},
+  {name:"E", deg:  8}
+];
+const TASKS = [
+  {kind:"arc",     pts:["A","D"], ask:'호 <b>AD</b> 를 나타내세요.'},
+  {kind:"chord",   pts:["B","C"], ask:'현 <b>BC</b> 를 나타내세요.'},
+  {kind:"secant",  pts:["C","D"], ask:'할선 <b>CD</b> 를 나타내세요.'},
+  {kind:"sector",  pts:["A","E"], ask:'부채꼴 <b>AOE</b> 를 나타내세요.'},
+  {kind:"angle",   pts:["C","D"], ask:'호 <b>CD</b> 에 대한 <b>중심각</b>을 나타내세요.'},
+  {kind:"segment", pts:["B","C"], ask:'현 BC 와 호 BC 로 이루어진 <b>활꼴</b>을 나타내세요.'}
+];
+let tIdx = 0, picked = [], mDone = false, M = {tries:0, ok:0};
+
+/* ③ */
+const QC = {x:430, y:300}, QR = 190;
+const KINDS = ["arc", "chord", "secant", "sector", "segment"];
+const KNAME = {arc:"호", chord:"현", secant:"할선", sector:"부채꼴", segment:"활꼴", angle:"중심각"};
+let Q = {kind:"arc", a:0, b:0, done:false, tries:0, ok:0, streak:0};
+
+const KCOLOR = {arc:RED, chord:BLUE, secant:OK, sector:ORANGE, segment:PURPLE, angle:BLUE};
+
+/* 받침에 따라 조사를 고른다 — "호를 / 현을" 처럼 말이 되게 */
+function josa(w, withJong, without){
+  const code = w.charCodeAt(w.length - 1) - 0xAC00;
+  const has = code >= 0 && code <= 11171 && (code % 28) !== 0;
+  return w + (has ? withJong : without);
+}
+
+/* 어떤 종류를 원 C(중심)·R 에 각 a,b 로 그린다 */
+function drawKind(kind, C, R, a, b, color){
+  const A = at(C, R, a), B = at(C, R, b);
+  if(kind === "sector"){
+    fillSector(C, R, b, a, color, "33");
+    seg(C, A, color, 3.4); seg(C, B, color, 3.4);
+    drawArc(C, R, b, a, color, 6);
+  }else if(kind === "segment"){
+    fillSegment(C, R, b, a, color, "33");
+    drawArc(C, R, b, a, color, 6);
+    seg(A, B, color, 3.6);
+  }else if(kind === "arc"){
+    drawArc(C, R, b, a, color, 7);
+  }else if(kind === "chord"){
+    seg(A, B, color, 4.4);
+  }else if(kind === "secant"){
+    const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1;
+    const u = {x:dx/L, y:dy/L}, ext = 120;
+    seg({x:A.x - u.x*ext, y:A.y - u.y*ext}, {x:B.x + u.x*ext, y:B.y + u.y*ext}, color, 3.6);
+  }else if(kind === "angle"){
+    seg(C, A, color, 3); seg(C, B, color, 3);
+    ctx.beginPath(); ctx.moveTo(C.x, C.y); arcPath(C, 52, b, a); ctx.closePath();
+    ctx.fillStyle = color + "33"; ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 2.6; ctx.stroke();
+  }
+}
+
+/* ============================================================
+   ① 이름 익히기
+   ============================================================ */
+function drawLearn(){
+  const aA = 90, aB = 90 - xDeg;                 /* A 는 위, B 는 시계 방향으로 x 만큼 */
+  const A = at(LC, LR, aA), B = at(LC, LR, aB);
+  const Cp = at(LC, LR, 205), Dp = at(LC, LR, 335);
+
+  if(show.sector)  fillSector(LC, LR, aB, aA, ORANGE, "33");
+  if(show.segment) fillSegment(LC, LR, aB, aA, PURPLE, "33");
+  drawCircle(LC, LR, INK, 3.4);
+
+  if(show.secant){
+    const dx = Dp.x - Cp.x, dy = Dp.y - Cp.y, L = Math.hypot(dx, dy);
+    const u = {x:dx/L, y:dy/L};
+    seg({x:Cp.x - u.x*115, y:Cp.y - u.y*115}, {x:Dp.x + u.x*115, y:Dp.y + u.y*115}, OK, 3.6);
+    dot(Cp, OK, 7, true); dot(Dp, OK, 7, true);
+    ital("C", Cp.x - 24, Cp.y + 16, OK, 21);
+    ital("D", Dp.x + 24, Dp.y + 16, OK, 21);
+    txt("할선 CD", (Cp.x + Dp.x)/2, (Cp.y + Dp.y)/2 + 26, OK, 17, true);
+  }
+  const mid = 90 - xDeg/2;
+  const both = (xDeg === 180) && show.sector && show.segment;   /* 반원이면 둘이 같은 도형 */
+  if(show.sector){
+    seg(LC, A, ORANGE, 3.4); seg(LC, B, ORANGE, 3.4);
+    ctx.beginPath(); ctx.moveTo(LC.x, LC.y); arcPath(LC, 44, aB, aA); ctx.closePath();
+    ctx.strokeStyle = ORANGE; ctx.lineWidth = 2.4; ctx.stroke();
+    txt(xDeg + "°", LC.x + Math.cos(rad(mid))*62, LC.y - Math.sin(rad(mid))*62, ORANGE, 16, true);
+    if(!both)
+      txt("부채꼴", LC.x + Math.cos(rad(mid))*LR*0.56, LC.y - Math.sin(rad(mid))*LR*0.56, ORANGE, 18, true);
+  }
+  if(show.arc)   drawArc(LC, LR, aB, aA, RED, 7);
+  if(show.chord) seg(A, B, BLUE, 4.4);
+  if(show.segment && !both)
+    txt("활꼴", LC.x + Math.cos(rad(mid))*LR*0.88, LC.y - Math.sin(rad(mid))*LR*0.88, PURPLE, 17, true);
+  if(both)
+    txt("부채꼴 = 활꼴", LC.x + Math.cos(rad(mid))*LR*0.62, LC.y - Math.sin(rad(mid))*LR*0.62, PURPLE, 19, true);
+
+  dot(LC, INK, 6, true); ital("O", LC.x - 20, LC.y + 16, INK, 20);
+  dot(A, INK, 8); dot(B, INK, 8);
+  ital("A", LC.x + Math.cos(rad(aA))*(LR + 26), LC.y - Math.sin(rad(aA))*(LR + 26), INK, 22);
+  ital("B", LC.x + Math.cos(rad(aB))*(LR + 26), LC.y - Math.sin(rad(aB))*(LR + 26), INK, 22);
+
+  if(show.arc)   txt("호 AB",  LC.x + Math.cos(rad(90 - xDeg/2))*(LR + 40),
+                               LC.y - Math.sin(rad(90 - xDeg/2))*(LR + 40), RED, 17, true);
+  if(show.chord){
+    /* 현 가운데에 쓰면 부채꼴·중심각 글자와 겹친다 — 현 위 A 쪽 1/4 지점에 붙인다 */
+    const t = 0.26;
+    const mx = A.x + (B.x - A.x)*t, my = A.y + (B.y - A.y)*t;
+    const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1;
+    let nx = -dy/L*18, ny = dx/L*18;
+    const away = at(LC, LR, mid);                       /* 호 쪽 */
+    if((mx + nx - away.x)*(mx + nx - away.x) + (my + ny - away.y)*(my + ny - away.y) >
+       (mx - nx - away.x)*(mx - nx - away.x) + (my - ny - away.y)*(my - ny - away.y)){ nx = -nx; ny = -ny; }
+    txt("현 AB", mx + nx, my + ny, BLUE, 17, true);     /* 호 쪽(활꼴 안)으로 살짝 */
+  }
+
+  $("tip").textContent = "단추를 눌러 하나씩 켜 보세요";
+}
+
+function paintLearn(){
+  $("vX").textContent = xDeg + "°";
+  const on = Object.keys(show).filter(function(k){ return show[k]; });
+  const TXT = {
+    arc:     '<b style="color:#e5484d">호 AB</b> — 원 위의 두 점 A, B 사이의 <b>굽은 선</b>이에요. 기호로 <b>⌒AB</b>.',
+    chord:   '<b style="color:#3e63dd">현 AB</b> — 두 점 A, B 를 이은 <b>선분</b>이에요. 지름도 현이에요.',
+    secant:  '<b style="color:#2f9e63">할선 CD</b> — 원 위의 두 점을 지나는 <b>직선</b>이에요.',
+    sector:  '<b style="color:#f5820b">부채꼴 AOB</b> — 두 반지름 OA, OB 와 호 AB 로 둘러싸인 도형. ∠AOB 가 <b>중심각</b>이에요.',
+    segment: '<b style="color:#8e4ec6">활꼴</b> — 호 AB 와 현 AB 로 둘러싸인 도형이에요.'
+  };
+  $("learnFb").innerHTML = on.length
+    ? '<div class="fb info">' + on.map(function(k){ return TXT[k]; }).join("<br>") + '</div>'
+    : '<div class="fb warn">위 단추를 눌러 보고 싶은 것을 켜 보세요.</div>';
+
+  $("halfFb").innerHTML = xDeg === 180
+    ? '<div class="fb ok">🎉 중심각이 <b>180°</b> 라서 <b>반원</b>이 되었어요.' +
+      ' 이때는 <b>부채꼴이면서 동시에 활꼴</b>이에요! (교과서 192쪽 생각 KEY 우기)</div>'
+    : '<div class="fb info">중심각을 <b>180°</b> 로 맞추면 무슨 일이 생길까요? 부채꼴 과 활꼴 을 함께 켜고 찾아보세요.</div>';
+}
+
+$("rX").addEventListener("input", function(e){ xDeg = +e.target.value; paintLearn(); draw(); });
+document.querySelectorAll("#terms .term").forEach(function(b){
+  b.addEventListener("click", function(){
+    const k = b.dataset.t;
+    show[k] = !show[k];
+    b.classList.toggle("on", show[k]);
+    paintLearn(); draw();
+    if(show.sector && show.segment && xDeg === 180 && window.MKSCORE)
+      MKSCORE.once("halfcircle", 10, "반원 = 부채꼴이면서 활꼴 찾기");
+  });
+});
+
+/* ============================================================
+   ② 직접 나타내기
+   ============================================================ */
+function ptOf(name){ return PT.filter(function(p){ return p.name === name; })[0]; }
+
+function drawMake(){
+  const T = TASKS[tIdx];
+  drawCircle(MC, MR, INK, 3.4);
+
+  if(mDone){
+    const a = ptOf(T.pts[0]).deg, b = ptOf(T.pts[1]).deg;
+    /* 두 점 사이의 '짧은 쪽' 을 쓴다 */
+    let lo = a, hi = b;
+    let d = (b - a + 360) % 360;
+    if(d > 180){ lo = b; hi = a; }
+    drawKind(T.kind, MC, MR, hi, lo, KCOLOR[T.kind]);
+  }
+
+  dot(MC, INK, 6, true); ital("O", MC.x + 20, MC.y + 16, INK, 20);
+  PT.forEach(function(p){
+    const P = at(MC, MR, p.deg);
+    const on = picked.indexOf(p.name) >= 0;
+    dot(P, on ? BLUE : INK, on ? 10 : 8, on);
+    ital(p.name, MC.x + Math.cos(rad(p.deg))*(MR + 28), MC.y - Math.sin(rad(p.deg))*(MR + 28),
+         on ? BLUE : SUB, 22);
+  });
+
+  txt(mDone ? KNAME[T.kind] + " 완성!" : "점 두 개를 차례로 누르세요", MC.x, 52,
+      mDone ? OK : SUB, 20, true);
+  $("tip").textContent = picked.length === 1 ? "점을 하나 더 누르세요" : "";
+}
+
+function paintMake(){
+  const T = TASKS[tIdx];
+  $("ask").innerHTML = '<b>' + (tIdx + 1) + '.</b> ' + T.ask;
+  $("mTry").textContent = M.tries;
+  $("mOk").textContent = M.ok;
+  $("mLeft").textContent = TASKS.length - tIdx - (mDone ? 1 : 0);
+}
+
+function checkMake(){
+  const T = TASKS[tIdx];
+  const want = T.pts.slice().sort().join("");
+  const got = picked.slice().sort().join("");
+  const ok = want === got;
+  M.tries++;
+  if(ok){
+    M.ok++; mDone = true;
+    $("makeFb").innerHTML =
+      '<div class="fb ok">🎉 맞았어요! <b>' + josa(KNAME[T.kind], "을", "를") + '</b> 잘 나타냈어요.</div>';
+    if(window.MKSCORE) MKSCORE.quiz(true, "원의 부분 나타내기");
+  }else{
+    $("makeFb").innerHTML =
+      '<div class="fb no">그 두 점이 아니에요. 문제에 적힌 <b>점 이름</b>을 다시 보세요.</div>';
+    picked = [];
+    if(window.MKSCORE) MKSCORE.quiz(false, "원의 부분 나타내기");
+  }
+  paintMake(); draw();
+}
+
+function nextTask(){
+  if(tIdx < TASKS.length - 1){
+    tIdx++; picked = []; mDone = false;
+    $("makeFb").innerHTML = "";
+  }else{
+    $("makeFb").innerHTML =
+      '<div class="fb ok">🎉 여섯 문제를 모두 봤어요. <b>' + M.ok + '번</b> 맞혔어요!</div>';
+    if(window.MKSCORE) MKSCORE.once("makeAll", 10, "원의 부분 나타내기 끝까지");
+  }
+  paintMake(); draw();
+}
+
+$("btnAgain").addEventListener("click", function(){
+  picked = []; mDone = false; $("makeFb").innerHTML = ""; paintMake(); draw();
+});
+$("btnSkip").addEventListener("click", nextTask);
+
+cv.addEventListener("pointerdown", function(ev){
+  if(tab !== "make" || mDone) return;
+  const p = (window.MK && MK.pos) ? MK.pos(cv, ev) : {x:ev.offsetX, y:ev.offsetY};
+  const d = toDesign(p.x, p.y);
+  let best = null, bd = 40;                       /* 가장 가까운 점 (pitfalls #8) */
+  PT.forEach(function(q){
+    const P = at(MC, MR, q.deg);
+    const dd = Math.hypot(P.x - d.x, P.y - d.y);
+    if(dd < bd){ bd = dd; best = q.name; }
+  });
+  if(!best) return;
+  if(picked.indexOf(best) >= 0){ picked = picked.filter(function(x){ return x !== best; }); draw(); return; }
+  picked.push(best);
+  draw();
+  if(picked.length === 2) checkMake();
+});
+
+/* ============================================================
+   ③ 이름 맞히기
+   ============================================================ */
+function drawQuiz(){
+  drawCircle(QC, QR, INK, 3.4);
+  drawKind(Q.kind, QC, QR, Q.a, Q.b, KCOLOR[Q.kind]);
+  dot(QC, INK, 6, true); ital("O", QC.x + 20, QC.y + 16, INK, 20);
+  const A = at(QC, QR, Q.a), B = at(QC, QR, Q.b);
+  if(Q.kind !== "angle"){ dot(A, INK, 7); dot(B, INK, 7); }
+  $("tip").textContent = "";
+}
+
+function newQuestion(){
+  let kind, guard = 0;
+  do{ kind = KINDS[Math.floor(Math.random()*KINDS.length)]; guard++; }
+  while(guard < 12 && kind === Q.kind);
+
+  const a = Math.floor(Math.random()*12)*30 + 15;
+  let span = 60 + Math.floor(Math.random()*4)*40;          /* 60·100·140·180 */
+  if(kind === "segment" && span > 160) span = 120;         /* 활꼴은 작은 쪽이 알아보기 쉽다 */
+  Q.kind = kind; Q.a = a; Q.b = a - span; Q.done = false;
+
+  $("quizQ").textContent = "왼쪽 그림에 표시된 것은 무엇일까요?";
+  const box = $("qChoices");
+  box.innerHTML = "";
+  KINDS.forEach(function(k){
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = KNAME[k]; b.dataset.k = k;
+    b.addEventListener("click", function(){ answer(k, b); });
+    box.appendChild(b);
+  });
+  $("quizFb").innerHTML = "";
+  draw();
+}
+const WHY = {
+  arc:     "원 위의 두 점 사이의 <b>굽은 선</b>이므로 <b>호</b>예요.",
+  chord:   "두 점을 이은 <b>선분</b>이므로 <b>현</b>이에요.",
+  secant:  "두 점을 지나 <b>원 밖까지 뻗은 직선</b>이므로 <b>할선</b>이에요.",
+  sector:  "두 <b>반지름</b>과 호로 둘러싸였으므로 <b>부채꼴</b>이에요.",
+  segment: "<b>호와 현</b>으로 둘러싸였으므로 <b>활꼴</b>이에요."
+};
+function answer(k, btn){
+  if(Q.done) return;
+  Q.done = true; Q.tries++;
+  const ok = k === Q.kind;
+  if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
+  btn.className = ok ? "good" : "bad";
+  if(!ok) $("qChoices").querySelector('button[data-k="' + Q.kind + '"]').className = "good";
+  $("quizFb").innerHTML =
+    '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+    (ok ? "🎉 정답! " : '아쉬워요. 답은 <b>' + KNAME[Q.kind] + '</b>. ') + WHY[Q.kind] + '</div>';
+  $("qTry").textContent = Q.tries; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
+  if(window.MKSCORE) MKSCORE.quiz(ok, "원의 부분 이름 맞히기");
+}
+$("btnNext").addEventListener("click", newQuestion);
+
+/* ============================================================
+   그리기 / 탭
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);    /* 화면 전체를 칠한다 */
+  if(tab === "learn") drawLearn();
+  else if(tab === "make") drawMake();
+  else drawQuiz();
+  ctx.restore();
+}
+
+document.querySelectorAll("header nav button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    $("pLearn").classList.toggle("hidden", tab !== "learn");
+    $("pMake") .classList.toggle("hidden", tab !== "make");
+    $("pQuiz") .classList.toggle("hidden", tab !== "quiz");
+    draw();
+  });
+});
+
+/* ============================================================
+   시작 — common.js 는 defer 이므로 반드시 DOMContentLoaded 이후에
+   ============================================================ */
+function boot(){
+  paintLearn();
+  paintMake();
+  newQuestion();                 /* 데이터 먼저 (pitfalls #16) */
+  tab = "learn";
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
