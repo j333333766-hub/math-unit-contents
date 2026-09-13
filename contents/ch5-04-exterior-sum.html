@@ -181,7 +181,7 @@
         </div>
         <div class="slider">
           <label><span>드론 높이</span><span class="v" id="vH">10 m</span></label>
-          <input type="range" id="rH" min="10" max="100" step="1" value="10">
+          <input type="range" id="rH" min="10" max="500" step="5" value="10">
         </div>
         <div class="row" style="margin-top:10px;">
           <button class="btn primary sm" id="btnUp">🚁 드론 띄우기</button>
@@ -326,12 +326,14 @@ let Q = {kind:"one", n:0, ans:0, done:false, tries:0, ok:0, streak:0};
    각 변을 운동장 경계까지 늘여 둔다. 드론이 높이 올라갈수록 축척이 작아져
    다각형은 점처럼 줄고, 외각 부채꼴만 한 점 둘레에 모여 360° 를 채운다.
    ============================================================ */
-const HW = 1500, HH = 1000;        /* 운동장 절반 크기 (땅 좌표) */
-const R0 = 150;                    /* 다각형 반지름 (땅 좌표) */
+const HW = 2400, HH = 1600;        /* 운동장 절반 크기 (땅 좌표) */
+const R0 = 25;                     /* 다각형 반지름 (땅 좌표) — 운동장의 1/96 */
 const CX = 430, CY = 300;          /* 화면 한가운데 */
 const WEDGE_R = 96;                /* 외각 부채꼴 반지름 — 화면 기준 고정 */
 
-const altScale = h => 10/h;        /* 10 m 일 때 1배, 100 m 일 때 0.1배 */
+/* 축척 : 10 m 에서 5.8배(다각형 반지름 145px), 500 m 에서 0.116배(2.9px = 점).
+   운동장은 다각형의 96배라 높이 올라가야 경계가 화면에 들어온다. */
+const altScale = h => 58/h;
 const g2s = (g, k) => ({x:CX + g.x*k, y:CY + g.y*k});
 
 /* 땅 좌표에서 상자(±HW, ±HH) 경계까지 가는 길이 */
@@ -344,7 +346,8 @@ function rayLen(o, d){
 
 function drawDrone(){
   const k = altScale(alt);
-  const shrink = clamp01((alt - 10)/70);          /* 0 = 낮게, 1 = 충분히 높이 */
+  const pr = R0*k;                                 /* 다각형 반지름(화면 px) */
+  const shrink = clamp01((14 - pr)/6);             /* 14px → 0, 8px 이하 → 1 */
 
   /* 운동장 */
   const a = g2s({x:-HW, y:-HH}, k), b = g2s({x:HW, y:HH}, k);
@@ -378,23 +381,25 @@ function drawDrone(){
     wedge(g2s(B, k), dirAB, w, WEDGE_R, FILLS[i % FILLS.length], "40");
   }
 
-  /* 다각형 */
+  /* 다각형 — 아주 작아지면 점으로 보이게 굵기를 지킨다 */
   for(let i = 0; i < n; i++)
-    seg(g2s(G[i], k), g2s(G[(i+1)%n], k), INK, Math.max(2, 4.4*Math.min(1, k)));
-  if(k > 0.25) for(let i = 0; i < n; i++) dot(g2s(G[i], k), INK, 6*Math.min(1, k));
+    seg(g2s(G[i], k), g2s(G[(i+1)%n], k), INK, Math.max(2.2, 4.4*Math.min(1, pr/145)));
+  if(pr > 26) for(let i = 0; i < n; i++) dot(g2s(G[i], k), INK, Math.min(6, pr/24));
+  if(pr < 6) dot({x:CX, y:CY}, INK, 3.6, true);    /* 점처럼 보이는 순간 */
 
   /* 충분히 높이 올라오면 한 바퀴를 강조한다 */
-  if(shrink > 0.55){
-    const al = Math.round(((shrink - 0.55)/0.45)*255).toString(16).padStart(2, "0");
+  if(shrink > 0){
+    const al = Math.round(shrink*255).toString(16).padStart(2, "0");
     ctx.beginPath(); ctx.arc(CX, CY, WEDGE_R + 16, 0, 7);
     ctx.strokeStyle = RED + al; ctx.lineWidth = 3.2;
     ctx.setLineDash([9, 7]); ctx.stroke(); ctx.setLineDash([]);
-    txt("외각의 합 = 360°", CX, CY - WEDGE_R - 44, RED, 23, true);
+    if(shrink > 0.5) txt("외각의 합 = 360°", CX, CY - WEDGE_R - 44, RED, 23, true);
   }
 
   txt(nameOf(n) + " · 드론 높이 " + alt + " m", CX, 46, SUB, 19, true);
-  $("tip").textContent = alt < 20 ? "드론을 올려 보세요"
-                       : shrink > 0.55 ? "다각형은 점, 남은 것은 외각뿐!" : "올라가는 중…";
+  if(pr < 6) txt("다각형은 점 하나", CX, CY + WEDGE_R + 52, SUB, 18, true);
+  $("tip").textContent = pr > 90 ? "드론을 올려 보세요"
+                       : pr < 6 ? "다각형은 점, 남은 것은 외각뿐!" : "올라가는 중…";
 }
 
 function paintDrone(){
@@ -404,7 +409,7 @@ function paintDrone(){
     '<span class="it">n</span>각형의 외각의 크기의 합 = <span class="big">360°</span>' +
     '<br><span style="color:var(--sub);font-size:13.5px;">' +
     '180° × ' + n + ' − 180° × (' + n + ' − 2) = ' + (180*n) + '° − ' + (180*(n-2)) + '° = <b>360°</b></span>';
-  $("droneFb").innerHTML = alt >= 80
+  $("droneFb").innerHTML = R0*altScale(alt) < 6
     ? '<div class="fb ok">🎉 ' + nameOf(n) + '이 점처럼 작아졌어요. 외각 ' + n +
       '개가 빈틈없이 <b>한 바퀴(360°)</b> 를 채웁니다. 변의 개수를 바꿔도 똑같아요.</div>'
     : '';
@@ -417,20 +422,21 @@ function flyTo(target){
   (function step(now){
     const u = Math.min(1, (now - t0)/DUR);
     const e = u < 0.5 ? 2*u*u : 1 - Math.pow(-2*u + 2, 2)/2;    /* 부드럽게 */
-    alt = Math.round(from + (target - from)*e);
+    /* 높이를 그냥 더하면 앞부분만 확 줄어든다 — 배(倍)로 올라가야 고르게 보인다 */
+    alt = Math.round(from*Math.pow(target/from, e));
     $("rH").value = alt;
     paintDrone(); draw();
     if(u < 1) droneAnim = requestAnimationFrame(step);
     else{
       droneAnim = null;
-      if(target >= 100 && window.MKSCORE) MKSCORE.once("drone" + n, 5, nameOf(n) + " 드론으로 외각 모으기");
+      if(target >= 500 && window.MKSCORE) MKSCORE.once("drone" + n, 5, nameOf(n) + " 드론으로 외각 모으기");
     }
   })(t0);
 }
 
 $("rN").addEventListener("input", function(e){ stopDrone(); n = +e.target.value; paintDrone(); draw(); });
 $("rH").addEventListener("input", function(e){ stopDrone(); alt = +e.target.value; paintDrone(); draw(); });
-$("btnUp").addEventListener("click", function(){ flyTo(100); });
+$("btnUp").addEventListener("click", function(){ flyTo(500); });
 $("btnDown").addEventListener("click", function(){ flyTo(10); });
 
 /* ============================================================
@@ -443,7 +449,7 @@ let run = null;
 let turtleAnim = null;
 
 function newBlock(kind){
-  if(kind === "move") return {kind:"move", v:120};
+  if(kind === "move") return {kind:"move", v:1};
   if(kind === "turn") return {kind:"turn", v:120};
   return {kind:"repeat", v:3, body:[]};
 }
@@ -606,7 +612,7 @@ function endDrag(ev){
 function buildPalette(){
   const box = $("palette");
   box.innerHTML = "";
-  [["move", "앞으로 120 만큼 이동하기"],
+  [["move", "앞으로 1 만큼 이동하기"],
    ["turn", "반시계방향으로 120 도 회전하기"],
    ["repeat", "3 회 반복하기"]].forEach(function(p){
     const el = document.createElement("div");
@@ -652,18 +658,52 @@ function fitOf(pts){
     if(p.y < y0) y0 = p.y;
     if(p.y > y1) y1 = p.y;
   });
-  const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
-  const s = Math.min(600/w, 400/h, 1.3);
+  const w = Math.max(1e-6, x1 - x0), h = Math.max(1e-6, y1 - y0);
+  let s = Math.min(600/w, 400/h);
+  if(!isFinite(s) || s <= 0) s = 1;
   return {s:s, ox:450 - (x0 + x1)/2*s, oy:315 - (y0 + y1)/2*s};
 }
-function turtleShape(P, dirDeg, color){
-  const a = rad(dirDeg);
-  const nose = {x:P.x + Math.cos(a)*15, y:P.y - Math.sin(a)*15};
-  const l = {x:P.x + Math.cos(a + 2.5)*11, y:P.y - Math.sin(a + 2.5)*11};
-  const r = {x:P.x + Math.cos(a - 2.5)*11, y:P.y - Math.sin(a - 2.5)*11};
-  ctx.beginPath(); ctx.moveTo(nose.x, nose.y); ctx.lineTo(l.x, l.y); ctx.lineTo(r.x, r.y); ctx.closePath();
-  ctx.fillStyle = color; ctx.fill();
-  ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+/* 거북이 — 머리가 +x 쪽을 보도록 제자리 좌표에 그린 뒤 진행 방향으로 돌린다 */
+const T_SHELL = "#2f9e63", T_PAT = "#9fdcba", T_SKIN = "#5ec98c", T_LINE = "#1c6b43";
+function turtleShape(P, dirDeg){
+  ctx.save();
+  ctx.translate(P.x, P.y);
+  ctx.rotate(-rad(dirDeg));                    /* 캔버스는 y 가 아래로 간다 */
+  ctx.scale(1.25, 1.25);                       /* 교실 화면에서도 보이도록 조금 크게 */
+
+  ctx.fillStyle = T_SKIN;
+  ctx.strokeStyle = T_LINE; ctx.lineWidth = 1.3;
+
+  /* 다리 넷 */
+  [[7.2, -7.2, -0.7], [7.2, 7.2, 0.7], [-7.4, -7.2, -2.4], [-7.4, 7.2, 2.4]].forEach(function(o){
+    ctx.save(); ctx.translate(o[0], o[1]); ctx.rotate(o[2]);
+    ctx.beginPath(); ctx.ellipse(0, 0, 5.6, 3.5, 0, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  });
+  /* 꼬리 */
+  ctx.beginPath();
+  ctx.moveTo(-10.5, 0); ctx.lineTo(-17, -2.6); ctx.lineTo(-17, 2.6);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  /* 머리 */
+  ctx.beginPath(); ctx.ellipse(12.4, 0, 5.6, 4.6, 0, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#12331f";
+  ctx.beginPath(); ctx.arc(14.6, -2.2, 1.15, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(14.6, 2.2, 1.15, 0, 7); ctx.fill();
+
+  /* 등딱지 */
+  ctx.fillStyle = T_SHELL; ctx.strokeStyle = T_LINE; ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.ellipse(0, 0, 12, 10, 0, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = T_PAT;
+  ctx.beginPath(); ctx.ellipse(0, 0, 5.4, 4.5, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = T_PAT; ctx.lineWidth = 1.5;
+  for(let i = 0; i < 6; i++){
+    const a = i*Math.PI/3 + Math.PI/6;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a)*5.8, Math.sin(a)*4.8);
+    ctx.lineTo(Math.cos(a)*11, Math.sin(a)*9.2);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawTurtle(){
@@ -679,7 +719,7 @@ function drawTurtle(){
     for(let i = 0; i + 1 < sim.pts.length; i++)
       seg(put(sim.pts[i]), put(sim.pts[i+1]), FILLS[i % FILLS.length], 4.2);
     dot(put(sim.pts[0]), OK, 8, true);
-    turtleShape(put(sim.pts[sim.pts.length - 1]), sim.dir, "#2f9e63");
+    turtleShape(put(sim.pts[sim.pts.length - 1]), sim.dir);
     $("tip").textContent = "▶ 실행 을 누르면 한 블록씩 그려요";
     return;
   }
@@ -690,7 +730,7 @@ function drawTurtle(){
   const tail = run.done[run.done.length - 1];
   if(run.partial) seg(put(tail), put(run.partial), FILLS[(run.done.length - 1) % FILLS.length], 4.2);
   dot(put(run.done[0]), OK, 8, true);
-  turtleShape(put(run.partial || tail), run.dir, "#2f9e63");
+  turtleShape(put(run.partial || tail), run.dir);
   txt((run.i + 1) + " / " + run.steps.length + " 걸음", 450, 46, SUB, 18, true);
   $("tip").textContent = "거북이가 그리는 중…";
 }
@@ -720,7 +760,8 @@ function runTurtle(){
   (function step(now){
     if(!run) return;
     const s = run.steps[run.i];
-    const dur = (s.kind === "turn" ? 380 : Math.max(260, Math.min(900, Math.abs(s.v)*4)))*speed;
+    const drawn = Math.abs(Math.max(-STEP_LEN_MAX, Math.min(STEP_LEN_MAX, s.v)))*run.fit.s;
+    const dur = (s.kind === "turn" ? 380 : Math.max(280, Math.min(900, drawn*2.2)))*speed;
     const u = clamp01((now - run.t0)/dur);
     markRunning(s.path);
 
@@ -748,7 +789,17 @@ function finishTurtle(){
   const steps = run.steps;
   const sim = simulate(steps);
   const first = sim.pts[0], last = sim.pts[sim.pts.length - 1];
-  const closed = Math.hypot(last.x - first.x, last.y - first.y) < 1.5;
+  /* 닫혔는지는 **도형 크기에 견주어** 판단한다.
+     고정된 길이(예: 1.5)로 재면 '앞으로 1' 처럼 작은 도형은 무엇을 그려도 닫힌 것이 된다. */
+  let bx0 = 1e9, bx1 = -1e9, by0 = 1e9, by1 = -1e9;
+  sim.pts.forEach(function(q){
+    if(q.x < bx0) bx0 = q.x;
+    if(q.x > bx1) bx1 = q.x;
+    if(q.y < by0) by0 = q.y;
+    if(q.y > by1) by1 = q.y;
+  });
+  const size = Math.max(bx1 - bx0, by1 - by0, 1e-9);
+  const closed = Math.hypot(last.x - first.x, last.y - first.y) < size*0.005;
 
   const moves = steps.filter(function(s){ return s.kind === "move"; });
   const turns = steps.filter(function(s){ return s.kind === "turn"; });
@@ -798,7 +849,7 @@ $("btnEmpty").addEventListener("click", function(){
 });
 $("btnSample").addEventListener("click", function(){
   stopTurtle();
-  prog = [{kind:"repeat", v:3, body:[{kind:"move", v:120}, {kind:"turn", v:120}]}];
+  prog = [{kind:"repeat", v:3, body:[{kind:"move", v:1}, {kind:"turn", v:120}]}];
   renderProg();
   $("turtleFb").innerHTML =
     '<div class="fb info">교과서 190쪽의 코드예요. ▶ 실행 을 눌러 보고, 숫자를 바꿔 정오각형도 만들어 보세요.</div>';
@@ -932,7 +983,7 @@ document.querySelectorAll("header nav button").forEach(function(b){
 function boot(){
   paintDrone();
   buildPalette();
-  prog = [{kind:"repeat", v:3, body:[{kind:"move", v:120}, {kind:"turn", v:120}]}];
+  prog = [{kind:"repeat", v:3, body:[{kind:"move", v:1}, {kind:"turn", v:120}]}];
   renderProg();
   $("prog").addEventListener("pointerdown", function(ev){
     const el = ev.target.closest(".bk");
