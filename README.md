@@ -36,7 +36,7 @@ math-unit-contents/
 │   ├── ch5-01-diagonals.html        # 대각선 탐험대        (중1 Ⅴ단원 179~180쪽)
 │   ├── ch5-02-exterior-angle.html   # 삼각형 외각 실험실    (181~182쪽)
 │   ├── ch5-03-interior-sum.html     # 내각의 합 조립실      (185~186쪽)
-│   └── ch5-04-exterior-sum.html     # 외각 360° 모으기      (187~188·190쪽)
+│   └── ch5-04-exterior-sum.html     # 외각 360° 모으기      (187~188·190쪽, 드론 시점 + 블록코딩)
 └── assets/
     ├── style.css                    # 허브 페이지와 간단한 콘텐츠가 쓰는 스타일시트
     ├── common.css                   # 색·글꼴 토큰, '목차로' 버튼, 기본 부품
