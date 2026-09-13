@@ -68,6 +68,13 @@
   .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
   .fb.warn{background:var(--warn-soft); color:#a75c00;}
 
+  .counts{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:11px;}
+  .cnt{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .cnt .v{font-size:22px; font-weight:800; line-height:1.1;}
+  .cnt .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .cnt.d .v{color:var(--accent);}
+  .cnt.t .v{color:var(--ok);}
+
   .formula{
     margin-top:10px; text-align:center; font-size:15px; font-weight:700; color:var(--ink);
     background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:11px 8px; line-height:1.95;
@@ -140,15 +147,20 @@
     <!-- ① 한 꼭짓점에서 쪼개기 -->
     <section id="pSplit">
       <div class="blk">
-        <h2><span class="tag">활동 1</span> 한 꼭짓점에서 대각선을 그어 보세요</h2>
-        <p><b>한 꼭짓점</b>에서 대각선을 모두 그으면 다각형이 삼각형 여러 개로 나누어져요.
+        <h2><span class="tag">활동 1</span> 두 꼭짓점을 눌러 대각선을 그어요</h2>
+        <p>꼭짓점 <b>두 개</b>를 차례로 눌러 대각선을 그으면 다각형이 조각으로 나누어져요.
+           조각이 <b>모두 삼각형</b>이 될 때까지 그어 보세요.
            삼각형 하나의 내각의 합이 <b>180°</b> 인 것을 이용해요.</p>
         <div class="slider">
           <label><span>변의 개수 <span class="it">n</span></span><span class="v" id="vN">육각형 (n = 6)</span></label>
           <input type="range" id="rN" min="3" max="12" step="1" value="6">
         </div>
+        <div class="counts">
+          <div class="cnt d"><div class="v" id="cDiag">0</div><div class="l">그은 대각선</div></div>
+          <div class="cnt t"><div class="v" id="cTri">1</div><div class="l">생긴 삼각형</div></div>
+        </div>
         <div class="row" style="margin-top:10px;">
-          <button class="btn primary sm" id="btnSplit">대각선 긋고 나누기</button>
+          <button class="btn primary sm" id="btnSplit">한 꼭짓점에서 모두 긋기</button>
           <button class="btn sm" id="btnSplitClear">↺ 지우기</button>
         </div>
         <div id="splitFb"></div>
@@ -156,8 +168,9 @@
       <div class="blk">
         <h2>알게 된 것</h2>
         <div class="formula" id="fSplit"></div>
-        <p style="margin-top:9px;">한 꼭짓점에서 그은 대각선은 <b>(<span class="it">n</span>−3)개</b>,
-           그래서 삼각형은 <b>(<span class="it">n</span>−2)개</b> 가 생겨요. (교과서 185쪽)</p>
+        <p style="margin-top:9px;">한 꼭짓점에서 그으면 대각선은 <b>(<span class="it">n</span>−3)개</b>,
+           삼각형은 <b>(<span class="it">n</span>−2)개</b>. 다른 꼭짓점끼리 이어도
+           <b>엇갈리지만 않으면</b> 삼각형은 언제나 (<span class="it">n</span>−2)개예요. (교과서 185쪽)</p>
       </div>
     </section>
 
@@ -239,6 +252,7 @@ function view(){
   const s = Math.min(W/DW, H/DH);
   return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
 }
+function toDesign(px, py){ const v = view(); return {x:(px - v.ox)/v.s, y:(py - v.oy)/v.s}; }
 
 function seg(a, b, color, w, dash){
   ctx.save(); if(dash) ctx.setLineDash(dash);
@@ -287,7 +301,8 @@ function markInner(P, i, color, r){
    ============================================================ */
 let tab = "split";
 let n = 6;
-let splitOn = false;      /* ① 대각선 그었나 */
+let splitDiags = new Set();   /* ① 그은 대각선 "i-j" (i<j) */
+let splitFirst = -1;          /* ① 먼저 누른 꼭짓점 */
 let innerOn = false;      /* ② 가운데 점에서 나눴나 */
 let picked = -1;          /* ② 고른 보기 */
 let Q = {n:0, kind:"sum", ans:0, done:false, tries:0, ok:0, streak:0};
@@ -305,55 +320,202 @@ function verts(cnt, cx, cy, R){
    ① 한 꼭짓점에서 쪼개기
    ============================================================ */
 const C1 = {x:430, y:300}, R1 = 215;
+
+const dkey = (a, b) => Math.min(a, b) + "-" + Math.max(a, b);
+const isAdj = (i, j, cnt) => { const d = Math.abs(i - j); return d === 1 || d === cnt - 1; };
+
+/* 볼록다각형에서 x 가 a→b 로 도는 호 안쪽에 (양 끝은 빼고) 있는가 */
+function arcHas(x, a, b, cnt){
+  const t = (x - a + cnt) % cnt, L = (b - a + cnt) % cnt;
+  return t > 0 && t < L;
+}
+/* 두 대각선이 안에서 엇갈리는가 — 꼭짓점을 함께 쓰면 엇갈리는 게 아니다 */
+function crossing(a, b, c, d, cnt){
+  if(a === c || a === d || b === c || b === d) return false;
+  return arcHas(c, a, b, cnt) !== arcHas(d, a, b, cnt);
+}
+
+/* 그은 대각선들이 다각형을 어떤 조각으로 나누는지 (엇갈리지 않는다는 전제) */
+function facesOf(list){
+  const L = list.length;
+  for(let i = 0; i < L; i++){
+    for(let j = i + 2; j < L; j++){
+      if(i === 0 && j === L - 1) continue;              /* 그건 변이다 */
+      if(splitDiags.has(dkey(list[i], list[j]))){
+        return facesOf(list.slice(i, j + 1))
+          .concat(facesOf(list.slice(j).concat(list.slice(0, i + 1))));
+      }
+    }
+  }
+  return [list];
+}
+function allFaces(){
+  const list = [];
+  for(let i = 0; i < n; i++) list.push(i);
+  return facesOf(list);
+}
+function poly(P, idx, color, alpha){
+  ctx.beginPath();
+  idx.forEach(function(v, k){ k ? ctx.lineTo(P[v].x, P[v].y) : ctx.moveTo(P[v].x, P[v].y); });
+  ctx.closePath();
+  ctx.fillStyle = color + (alpha || "26"); ctx.fill();
+}
+
 function drawSplit(){
   const P = verts(n, C1.x, C1.y, R1);
+  const faces = allFaces();
 
-  if(splitOn && n >= 4){
-    /* 삼각형 (n-2)개를 번갈아 칠하고 번호를 붙인다 */
-    for(let k = 1; k <= n - 2; k++){
-      const a = P[0], b = P[k], c = P[k+1];
-      tri(a, b, c, FILLS[(k-1) % FILLS.length]);
-      const gx = (a.x + b.x + c.x)/3, gy = (a.y + b.y + c.y)/3;
-      txt(String(k), gx, gy, FILLS[(k-1) % FILLS.length], 21, true);
+  /* 조각 칠하기 — 삼각형은 색과 번호를, 아직 더 나눠야 할 조각은 옅은 회색으로 */
+  let tNo = 0;
+  faces.forEach(function(f){
+    let cx = 0, cy = 0;
+    f.forEach(function(v){ cx += P[v].x; cy += P[v].y; });
+    cx /= f.length; cy /= f.length;
+    if(f.length === 3){
+      const col = FILLS[tNo % FILLS.length];
+      poly(P, f, col);
+      txt(String(++tNo), cx, cy, col, 21, true);
+    }else{
+      poly(P, f, "#8e99ad", "1a");
+      txt(nameOf(f.length), cx, cy, SUB, 17, true);
     }
-    for(let k = 2; k <= n - 2; k++) seg(P[0], P[k], BLUE, 3);
-  }
+  });
+
+  splitDiags.forEach(function(k){
+    const q = k.split("-").map(Number);
+    seg(P[q[0]], P[q[1]], BLUE, 3);
+  });
   for(let i = 0; i < n; i++) seg(P[i], P[(i+1)%n], INK, 4.6);
   for(let i = 0; i < n; i++){
-    dot(P[i], i === 0 && splitOn ? RED : INK, i === 0 && splitOn ? 9.5 : 7.5, i === 0 && splitOn);
+    const on = (i === splitFirst);
+    dot(P[i], on ? BLUE : INK, on ? 10 : 7.5, on);
     const a = -90 + 360*i/n;
-    ital(LETTERS[i], C1.x + Math.cos(rad(a))*(R1 + 30), C1.y + Math.sin(rad(a))*(R1 + 30), SUB, 20);
+    ital(LETTERS[i], C1.x + Math.cos(rad(a))*(R1 + 30), C1.y + Math.sin(rad(a))*(R1 + 30),
+         on ? BLUE : SUB, 20);
   }
-  if(splitOn && n >= 4)
-    txt("삼각형 " + (n-2) + "개", C1.x, C1.y + R1 + 72, INK, 22, true);
-  else if(n === 3)
+
+  let tri3 = 0;
+  faces.forEach(function(f){ if(f.length === 3) tri3++; });
+  if(n === 3)
     txt("삼각형은 그 자체로 180°", C1.x, C1.y + R1 + 72, ORANGE, 21, true);
-  $("tip").textContent = splitOn ? "삼각형 " + (n-2) + "개 × 180°" : "버튼을 눌러 대각선을 그어 보세요";
+  else if(splitDiags.size === n - 3)
+    txt("삼각형 " + tri3 + "개 × 180° = " + (180*tri3) + "°", C1.x, C1.y + R1 + 72, INK, 22, true);
+
+  $("tip").textContent = splitFirst >= 0 ? "이을 꼭짓점을 하나 더 눌러 보세요"
+                       : splitDiags.size ? "조각이 모두 삼각형이 되면 끝이에요"
+                       : "꼭짓점 두 개를 차례로 눌러 보세요";
 }
 
 function paintSplit(){
   $("vN").textContent = nameOf(n) + " (n = " + n + ")";
+  const faces = allFaces();
+  let tri3 = 0;
+  faces.forEach(function(f){ if(f.length === 3) tri3++; });
+  const done = (n === 3) || (splitDiags.size === n - 3);
+
+  $("cDiag").textContent = splitDiags.size;
+  $("cTri").textContent = tri3;
+
   const t = n - 2, sum = 180*t;
   $("fSplit").innerHTML =
     '<span class="it">n</span>각형의 내각의 크기의 합 = <span class="big">180° × (<span class="it">n</span> − 2)</span>' +
     '<br><span style="color:var(--sub);font-size:13.5px;">지금은 ' + nameOf(n) + ' → 180° × (' + n + ' − 2) = 180° × ' + t +
     ' = <b>' + sum + '°</b></span>';
-  if(!splitOn){ $("splitFb").innerHTML = ""; return; }
-  $("splitFb").innerHTML = n === 3
-    ? '<div class="fb warn">삼각형은 대각선을 그을 수 없어요. 내각의 합은 그대로 <b>180°</b> 예요.</div>'
-    : '<div class="fb ok">대각선 <b>' + (n-3) + '개</b>를 그었더니 삼각형이 <b>' + (n-2) + '개</b> 생겼어요.' +
-      ' 그래서 내각의 합은 <b>180° × ' + (n-2) + ' = ' + (180*(n-2)) + '°</b> 예요.</div>';
+
+  if(n === 3){
+    $("splitFb").innerHTML =
+      '<div class="fb warn">삼각형은 대각선을 그을 수 없어요. 내각의 합은 그대로 <b>180°</b> 예요.</div>';
+    return;
+  }
+  if(done){
+    $("splitFb").innerHTML =
+      '<div class="fb ok">🎉 대각선 <b>' + splitDiags.size + '개</b>로 삼각형 <b>' + tri3 + '개</b>가 되었어요.' +
+      ' 그래서 내각의 합은 <b>180° × ' + tri3 + ' = ' + (180*tri3) + '°</b> 예요.</div>';
+    if(window.MKSCORE) MKSCORE.once("split" + n, 10, nameOf(n) + " 삼각형으로 모두 나누기");
+  }else if(splitDiags.size === 0){
+    $("splitFb").innerHTML = "";
+  }else{
+    $("splitFb").innerHTML =
+      '<div class="fb info">대각선을 <b>' + (n - 3 - splitDiags.size) + '개</b> 더 그으면 모두 삼각형이 돼요.</div>';
+  }
 }
 
 $("rN").addEventListener("input", function(e){
-  n = +e.target.value; splitOn = false;
+  n = +e.target.value;
+  splitDiags.clear(); splitFirst = -1;
   paintSplit(); paintInner(); draw();
 });
 $("btnSplit").addEventListener("click", function(){
-  splitOn = true; paintSplit(); draw();
-  if(n >= 4 && window.MKSCORE) MKSCORE.once("split" + n, 5, nameOf(n) + " 삼각형으로 나누기");
+  splitDiags.clear(); splitFirst = -1;
+  for(let j = 2; j <= n - 2; j++) splitDiags.add(dkey(0, j));   /* 꼭짓점 A 에서 부채꼴로 */
+  paintSplit(); draw();
 });
-$("btnSplitClear").addEventListener("click", function(){ splitOn = false; paintSplit(); draw(); });
+$("btnSplitClear").addEventListener("click", function(){
+  splitDiags.clear(); splitFirst = -1;
+  paintSplit(); draw();
+});
+
+cv.addEventListener("pointerdown", function(ev){
+  if(tab !== "split") return;
+  const p = (window.MK && MK.pos) ? MK.pos(cv, ev) : {x:ev.offsetX, y:ev.offsetY};
+  const d = toDesign(p.x, p.y);
+  const P = verts(n, C1.x, C1.y, R1);
+  let best = -1, bd = 36;                        /* 가장 가까운 꼭짓점 (pitfalls #8) */
+  for(let i = 0; i < n; i++){
+    const dd = Math.hypot(P[i].x - d.x, P[i].y - d.y);
+    if(dd < bd){ bd = dd; best = i; }
+  }
+  if(best < 0) return;
+  if(n === 3){
+    $("splitFb").innerHTML =
+      '<div class="fb warn">삼각형은 이웃하지 않는 꼭짓점이 없어서 대각선을 그을 수 없어요.</div>';
+    splitFirst = -1; draw();
+    return;
+  }
+  if(splitFirst < 0){
+    splitFirst = best;
+    $("splitFb").innerHTML =
+      '<div class="fb info">꼭짓점 <b>' + LETTERS[best] + '</b> 를 골랐어요. 이을 꼭짓점을 하나 더 누르세요.</div>';
+    draw();
+    return;
+  }
+
+  const a = splitFirst, b = best;
+  splitFirst = -1;
+  if(a === b){
+    $("splitFb").innerHTML =
+      '<div class="fb no">같은 꼭짓점 <b>' + LETTERS[a] + '</b> 를 두 번 눌렀어요.' +
+      ' <b>자기 자신</b>과는 선을 그을 수 없어요.</div>';
+    draw(); return;
+  }
+  if(isAdj(a, b, n)){
+    $("splitFb").innerHTML =
+      '<div class="fb no"><b>' + LETTERS[a] + LETTERS[b] + '</b> 는 <b>이웃한</b> 두 꼭짓점이라' +
+      ' 이으면 다각형의 <b>변</b>이 돼요. 대각선이 아니에요.</div>';
+    draw(); return;
+  }
+  if(splitDiags.has(dkey(a, b))){
+    $("splitFb").innerHTML =
+      '<div class="fb warn">대각선 <b>' + LETTERS[a] + LETTERS[b] + '</b> 는 이미 그었어요.</div>';
+    draw(); return;
+  }
+  /* 이미 그은 대각선과 안에서 엇갈리면 조각이 삼각형으로 깔끔하게 나뉘지 않는다 */
+  let bad = null;
+  splitDiags.forEach(function(k){
+    if(bad) return;
+    const q = k.split("-").map(Number);
+    if(crossing(a, b, q[0], q[1], n)) bad = q;
+  });
+  if(bad){
+    $("splitFb").innerHTML =
+      '<div class="fb no">이미 그은 <b>' + LETTERS[bad[0]] + LETTERS[bad[1]] + '</b> 와 <b>엇갈려요</b>.' +
+      ' 대각선이 서로 가로지르면 조각이 삼각형으로 나뉘지 않아요.</div>';
+    draw(); return;
+  }
+
+  splitDiags.add(dkey(a, b));
+  paintSplit(); draw();
+});
 
 /* ============================================================
    ② 가운데 점에서 쪼개기 — 항상 육각형(교과서 그림과 같게)
