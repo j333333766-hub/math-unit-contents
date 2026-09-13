@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>중심각과 호 실험실 — 무엇이 정비례할까</title>
+<link rel="stylesheet" href="../assets/common.css?v=4">
+<script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 356px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none;}
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+
+  .slider{margin-top:11px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  table.meas{width:100%; border-collapse:collapse; margin-top:10px; font-size:13px;}
+  table.meas th, table.meas td{border:1px solid var(--line); padding:7px 5px; text-align:center;}
+  table.meas th{background:#f7f9fd; font-weight:700; font-size:12px; color:var(--sub);}
+  table.meas td b{font-size:14px;}
+  table.meas .ratio{color:var(--ok); font-weight:800;}
+  table.meas .bad{color:var(--no); font-weight:800;}
+
+  .ansrow{display:flex; align-items:center; gap:8px; margin-top:10px;}
+  .ansrow input{
+    width:104px; font:700 17px var(--font); padding:9px 10px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+
+  .choices{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
+  .choices button{
+    text-align:left; font:600 13.5px/1.5 var(--font); padding:10px 12px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer;
+  }
+  .choices button:hover{background:var(--accent-soft); border-color:var(--accent);}
+  .choices button.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .choices button.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🥧 중심각과 호 실험실</h1>
+  <nav>
+    <button class="on" data-tab="prop">① 몇 배가 될까</button>
+    <button data-tab="chord">② 현은 어떨까</button>
+    <button data-tab="quiz">③ 비례식으로 풀기</button>
+  </nav>
+  <a class="home-btn" href="../index.html?unit=5">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ① 정비례 -->
+    <section id="pProp">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 중심각을 몇 배로 키워 보세요</h2>
+        <p>기준이 되는 부채꼴(파랑)과, 중심각을 <b>몇 배</b>로 키운 부채꼴(주황)을 견줍니다.
+           호의 길이와 넓이가 몇 배가 되는지 보세요. (교과서 193쪽)</p>
+        <div class="slider">
+          <label><span>기준 중심각</span><span class="v" id="vBase">30°</span></label>
+          <input type="range" id="rBase" min="10" max="60" step="5" value="30">
+        </div>
+        <div class="slider">
+          <label><span>몇 배</span><span class="v" id="vK">2배</span></label>
+          <input type="range" id="rK" min="1" max="5" step="1" value="2">
+        </div>
+        <table class="meas">
+          <tr><th></th><th>중심각</th><th>호의 길이</th><th>넓이</th></tr>
+          <tr><th style="color:#3e63dd">기준</th><td id="m1a">–</td><td id="m1l">–</td><td id="m1s">–</td></tr>
+          <tr><th style="color:#f5820b">키운 것</th><td id="m2a">–</td><td id="m2l">–</td><td id="m2s">–</td></tr>
+          <tr><th>몇 배</th><td class="ratio" id="mra">–</td><td class="ratio" id="mrl">–</td><td class="ratio" id="mrs">–</td></tr>
+        </table>
+        <div id="propFb"></div>
+      </div>
+      <div class="blk">
+        <h2>알게 된 것</h2>
+        <p>한 원에서 부채꼴의 <b>호의 길이</b>와 <b>넓이</b>는 <b>중심각의 크기에 정비례</b>해요.
+           중심각이 2배·3배가 되면 호와 넓이도 2배·3배가 돼요. (교과서 193쪽)</p>
+      </div>
+    </section>
+
+    <!-- ② 현 -->
+    <section id="pChord" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 현도 정비례할까요?</h2>
+        <p>∠AOB = ∠BOC 가 되게 점을 잡았어요. 그러면 <b>호 AB = 호 BC</b> 인데,
+           <b>현 AB + 현 BC</b> 와 <b>현 AC</b> 는 어떨까요? (교과서 197쪽 생각 쑥)</p>
+        <div class="slider">
+          <label><span>∠AOB = ∠BOC</span><span class="v" id="vC">60°</span></label>
+          <input type="range" id="rC" min="40" max="85" step="5" value="60">
+        </div>
+        <table class="meas">
+          <tr><th></th><th>호</th><th>현</th></tr>
+          <tr><th>AB + BC</th><td id="c1l">–</td><td id="c1c">–</td></tr>
+          <tr><th>AC</th><td id="c2l">–</td><td id="c2c">–</td></tr>
+          <tr><th>같은가?</th><td class="ratio" id="crl">–</td><td class="bad" id="crc">–</td></tr>
+        </table>
+        <div id="chordFb"></div>
+      </div>
+      <div class="blk">
+        <h2>알게 된 것</h2>
+        <p><b>호</b>는 중심각에 정비례하지만 <b>현은 정비례하지 않아요.</b>
+           중심각이 2배가 되어도 현의 길이는 2배가 되지 않아요.</p>
+        <div class="choices" id="chordChoice">
+          <button data-c="0">현의 길이도 중심각에 정비례한다</button>
+          <button data-c="1">현의 길이는 중심각에 정비례하지 않는다</button>
+        </div>
+        <div id="chordPick"></div>
+      </div>
+    </section>
+
+    <!-- ③ 퀴즈 -->
+    <section id="pQuiz" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 비례식으로 <em style="font-family:'Times New Roman',serif">x</em> 구하기</h2>
+        <p id="ask"></p>
+        <div class="ansrow">
+          <span style="font:italic 700 19px 'Times New Roman',serif;">x =</span>
+          <input type="number" id="ansIn" placeholder="?" inputmode="numeric">
+          <span style="font-size:15px;font-weight:700;color:var(--sub);" id="unit">cm</span>
+        </div>
+        <div id="quizFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnCheck">✅ 확인</button>
+          <button class="btn sm" id="btnNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+const DW = 900, DH = 600;
+const INK = "#1d2433", SUB = "#68738a";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b", PURPLE = "#8e4ec6";
+const rad = d => d*Math.PI/180;
+const r1 = v => Math.round(v*10)/10;
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+function seg(a, b, color, w, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.restore();
+}
+function dot(P, color, r, filled){
+  ctx.fillStyle = filled ? color : "#fff";
+  ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(P.x, P.y, r || 7, 0, 7); ctx.fill(); ctx.stroke();
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function ital(t, x, y, color, size){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "italic 700 " + size + "px 'Times New Roman', serif";
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function at(C, R, deg){ return {x:C.x + Math.cos(rad(deg))*R, y:C.y - Math.sin(rad(deg))*R}; }
+function arcPath(C, R, a, b){ ctx.arc(C.x, C.y, R, -rad(a), -rad(b), true); }
+function drawCircle(C, R, color, w){
+  ctx.beginPath(); ctx.arc(C.x, C.y, R, 0, 7);
+  ctx.strokeStyle = color || INK; ctx.lineWidth = w || 3.2; ctx.stroke();
+}
+function drawArc(C, R, a, b, color, w){
+  ctx.beginPath(); arcPath(C, R, a, b);
+  ctx.strokeStyle = color; ctx.lineWidth = w || 6; ctx.lineCap = "round"; ctx.stroke();
+  ctx.lineCap = "butt";
+}
+function fillSector(C, R, a, b, color, alpha){
+  ctx.beginPath(); ctx.moveTo(C.x, C.y); arcPath(C, R, a, b); ctx.closePath();
+  ctx.fillStyle = color + (alpha || "33"); ctx.fill();
+}
+
+/* ============================================================
+   상태
+   ============================================================ */
+let tab = "prop";
+let base = 30, kMul = 2;          /* ① */
+let cAng = 60, cPicked = -1;      /* ② */
+let Q = {kind:"arc", a1:0, a2:0, v1:0, ans:0, done:false, tries:0, ok:0, streak:0};
+
+/* ============================================================
+   ① 중심각을 몇 배로
+   두 원을 나란히 두면 '한 원에서' 라는 조건이 흐려지므로 **같은 원**에 그린다.
+   ============================================================ */
+const PC = {x:410, y:310}, PR = 205;
+const RCM = 6;                    /* 반지름을 6 cm 로 보고 길이를 잰다 */
+
+function drawProp(){
+  const a2 = Math.min(340, base*kMul);
+  drawCircle(PC, PR, INK, 3.2);
+
+  /* 키운 부채꼴(주황)을 먼저, 기준(파랑)을 위에 */
+  fillSector(PC, PR, 90 - a2, 90, ORANGE, "2e");
+  fillSector(PC, PR, 90 - base, 90, BLUE, "38");
+
+  drawArc(PC, PR, 90 - a2, 90, ORANGE, 7);
+  drawArc(PC, PR, 90 - base, 90, BLUE, 7);
+
+  const A = at(PC, PR, 90), B = at(PC, PR, 90 - base), C2 = at(PC, PR, 90 - a2);
+  seg(PC, A, INK, 3); seg(PC, B, BLUE, 3.2); seg(PC, C2, ORANGE, 3.2);
+  dot(PC, INK, 6, true);
+  dot(A, INK, 7); dot(B, BLUE, 7, true); dot(C2, ORANGE, 7, true);
+
+  /* 각 표시 */
+  ctx.beginPath(); ctx.moveTo(PC.x, PC.y); arcPath(PC, 56, 90 - base, 90); ctx.closePath();
+  ctx.strokeStyle = BLUE; ctx.lineWidth = 2.6; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(PC.x, PC.y); arcPath(PC, 86, 90 - a2, 90); ctx.closePath();
+  ctx.strokeStyle = ORANGE; ctx.lineWidth = 2.6; ctx.stroke();
+
+  txt(base + "°", PC.x + Math.cos(rad(90 - base/2))*76, PC.y - Math.sin(rad(90 - base/2))*76, BLUE, 17, true);
+  txt(Math.round(a2) + "°", PC.x + Math.cos(rad(90 - a2/2))*106, PC.y - Math.sin(rad(90 - a2/2))*106, ORANGE, 17, true);
+
+  ital("O", PC.x - 20, PC.y + 18, INK, 20);
+  txt("중심각 " + kMul + "배 → 호도 " + kMul + "배, 넓이도 " + kMul + "배",
+      PC.x, 52, kMul === 1 ? SUB : OK, 20, true);
+  $("tip").textContent = "슬라이더로 몇 배인지 바꿔 보세요";
+}
+
+function paintProp(){
+  const a2 = Math.min(340, base*kMul);
+  const arcLen = d => 2*Math.PI*RCM*d/360;
+  const area   = d => Math.PI*RCM*RCM*d/360;
+  $("vBase").textContent = base + "°";
+  $("vK").textContent = kMul + "배";
+  $("m1a").innerHTML = "<b>" + base + "°</b>";
+  $("m2a").innerHTML = "<b>" + Math.round(a2) + "°</b>";
+  $("m1l").textContent = r1(arcLen(base)) + " cm";
+  $("m2l").textContent = r1(arcLen(a2)) + " cm";
+  $("m1s").textContent = r1(area(base)) + " cm²";
+  $("m2s").textContent = r1(area(a2)) + " cm²";
+  const k = a2/base;
+  $("mra").textContent = r1(k) + "배";
+  $("mrl").textContent = r1(arcLen(a2)/arcLen(base)) + "배";
+  $("mrs").textContent = r1(area(a2)/area(base)) + "배";
+  $("propFb").innerHTML = kMul === 1
+    ? '<div class="fb info">슬라이더를 움직여 중심각을 <b>2배·3배</b> 로 키워 보세요.</div>'
+    : '<div class="fb ok">중심각이 <b>' + r1(k) + '배</b> 가 되니 호도 <b>' + r1(k) +
+      '배</b>, 넓이도 <b>' + r1(k) + '배</b> 가 되었어요. 세 칸의 수가 똑같죠?</div>';
+  if(kMul >= 2 && window.MKSCORE) MKSCORE.once("prop" + kMul, 5, "중심각 " + kMul + "배 확인");
+}
+$("rBase").addEventListener("input", function(e){ base = +e.target.value; paintProp(); draw(); });
+$("rK").addEventListener("input", function(e){ kMul = +e.target.value; paintProp(); draw(); });
+
+/* ============================================================
+   ② 현은 정비례하지 않는다 (197쪽 생각 쑥)
+   ============================================================ */
+const CC = {x:420, y:305}, CR = 200;
+
+function drawChord(){
+  const aA = 90 + cAng, aB = 90, aC = 90 - cAng;
+  const A = at(CC, CR, aA), B = at(CC, CR, aB), C = at(CC, CR, aC);
+  drawCircle(CC, CR, INK, 3.2);
+
+  drawArc(CC, CR, aB, aA, RED, 6.5);
+  drawArc(CC, CR, aC, aB, ORANGE, 6.5);
+
+  seg(CC, A, SUB, 2.4); seg(CC, B, SUB, 2.4); seg(CC, C, SUB, 2.4);
+  seg(A, B, BLUE, 4.2); seg(B, C, BLUE, 4.2);
+  seg(A, C, PURPLE, 4.2);
+
+  ctx.beginPath(); ctx.moveTo(CC.x, CC.y); arcPath(CC, 54, aB, aA); ctx.closePath();
+  ctx.strokeStyle = RED; ctx.lineWidth = 2.4; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(CC.x, CC.y); arcPath(CC, 78, aC, aB); ctx.closePath();
+  ctx.strokeStyle = ORANGE; ctx.lineWidth = 2.4; ctx.stroke();
+  txt(cAng + "°", CC.x + Math.cos(rad(90 + cAng/2))*76, CC.y - Math.sin(rad(90 + cAng/2))*76, RED, 16, true);
+  txt(cAng + "°", CC.x + Math.cos(rad(90 - cAng/2))*100, CC.y - Math.sin(rad(90 - cAng/2))*100, ORANGE, 16, true);
+
+  dot(CC, INK, 6, true); ital("O", CC.x + 20, CC.y + 18, INK, 20);
+  [[A, "A", aA], [B, "B", aB], [C, "C", aC]].forEach(function(p){
+    dot(p[0], INK, 7.5);
+    ital(p[1], CC.x + Math.cos(rad(p[2]))*(CR + 26), CC.y - Math.sin(rad(p[2]))*(CR + 26), INK, 22);
+  });
+
+  txt("파란 현 두 개를 이어도 보라 현보다 길어요", CC.x, 52, PURPLE, 19, true);
+  $("tip").textContent = "각을 바꿔도 늘 그런지 보세요";
+}
+
+function paintChord(){
+  const R = 6;                               /* 반지름 6 cm 로 재서 보여 준다 */
+  const arc1 = 2*Math.PI*R*cAng/360;
+  const ch1  = 2*R*Math.sin(rad(cAng/2));
+  const arc2 = 2*arc1;
+  const ch2  = 2*R*Math.sin(rad(cAng));
+  $("vC").textContent = cAng + "°";
+  $("c1l").textContent = r1(arc1) + " + " + r1(arc1) + " = " + r1(arc2) + " cm";
+  $("c2l").textContent = r1(arc2) + " cm";
+  $("c1c").textContent = r1(ch1) + " + " + r1(ch1) + " = " + r1(2*ch1) + " cm";
+  $("c2c").textContent = r1(ch2) + " cm";
+  $("crl").textContent = "같다 ✔";
+  $("crc").textContent = r1(2*ch1) + " > " + r1(ch2) + " 다르다 ✘";
+  $("chordFb").innerHTML =
+    '<div class="fb warn">호는 <b>⌒AB + ⌒BC = ⌒AC</b> 로 딱 맞는데,' +
+    ' 현은 <b>AB + BC = ' + r1(2*ch1) + ' cm</b> 이고 <b>AC = ' + r1(ch2) + ' cm</b> 라서 <b>같지 않아요</b>.</div>';
+}
+$("rC").addEventListener("input", function(e){ cAng = +e.target.value; paintChord(); draw(); });
+document.querySelectorAll("#chordChoice button").forEach(function(b){
+  b.addEventListener("click", function(){
+    if(cPicked >= 0) return;
+    cPicked = +b.dataset.c;
+    const ok = cPicked === 1;
+    b.className = ok ? "good" : "bad";
+    if(!ok) document.querySelector('#chordChoice button[data-c="1"]').className = "good";
+    $("chordPick").innerHTML = ok
+      ? '<div class="fb ok">🎉 맞아요! 중심각이 2배가 되어도 현은 2배가 되지 않아요.' +
+        ' 현 AB 두 개를 이어 붙이면 현 AC 보다 <b>길어요</b>.</div>'
+      : '<div class="fb no">호는 정비례하지만 <b>현은 아니에요</b>. 위 표에서 파란 현의 합이' +
+        ' 보라 현보다 큰 것을 확인해 보세요.</div>';
+    if(window.MKSCORE) MKSCORE.quiz(ok, "현은 정비례하지 않는다");
+  });
+});
+
+/* ============================================================
+   ③ 비례식으로 x 구하기 (교과서 193·194쪽 함께풀기·문제3)
+   ============================================================ */
+const QC = {x:430, y:310}, QR = 190;
+function drawQuiz(){
+  drawCircle(QC, QR, INK, 3.2);
+  const A = at(QC, QR, 90), B = at(QC, QR, 90 - Q.a1), C = at(QC, QR, 90 - Q.a1 - Q.a2);
+  fillSector(QC, QR, 90 - Q.a1, 90, BLUE, "2e");
+  fillSector(QC, QR, 90 - Q.a1 - Q.a2, 90 - Q.a1, ORANGE, "2e");
+  seg(QC, A, INK, 2.8); seg(QC, B, INK, 2.8); seg(QC, C, INK, 2.8);
+  drawArc(QC, QR, 90 - Q.a1, 90, BLUE, 6);
+  drawArc(QC, QR, 90 - Q.a1 - Q.a2, 90 - Q.a1, ORANGE, 6);
+  dot(QC, INK, 6, true); ital("O", QC.x - 20, QC.y + 18, INK, 20);
+
+  ctx.beginPath(); ctx.moveTo(QC.x, QC.y); arcPath(QC, 50, 90 - Q.a1, 90); ctx.closePath();
+  ctx.strokeStyle = BLUE; ctx.lineWidth = 2.4; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(QC.x, QC.y); arcPath(QC, 74, 90 - Q.a1 - Q.a2, 90 - Q.a1); ctx.closePath();
+  ctx.strokeStyle = ORANGE; ctx.lineWidth = 2.4; ctx.stroke();
+  txt(Q.a1 + "°", QC.x + Math.cos(rad(90 - Q.a1/2))*70, QC.y - Math.sin(rad(90 - Q.a1/2))*70, BLUE, 17, true);
+  txt(Q.a2 + "°", QC.x + Math.cos(rad(90 - Q.a1 - Q.a2/2))*96, QC.y - Math.sin(rad(90 - Q.a1 - Q.a2/2))*96, ORANGE, 17, true);
+
+  const u = Q.kind === "arc" ? " cm" : " cm²";
+  const m1 = 90 - Q.a1/2, m2 = 90 - Q.a1 - Q.a2/2;
+  txt(Q.v1 + u, QC.x + Math.cos(rad(m1))*(QR + 42), QC.y - Math.sin(rad(m1))*(QR + 42), BLUE, 19, true);
+  txt("x" + u, QC.x + Math.cos(rad(m2))*(QR + 42), QC.y - Math.sin(rad(m2))*(QR + 42), ORANGE, 19, true);
+  $("tip").textContent = Q.kind === "arc" ? "호의 길이를 물었어요" : "넓이를 물었어요";
+}
+
+function newQuestion(){
+  let a1, a2, v1, guard = 0;
+  do{
+    a1 = (2 + Math.floor(Math.random()*5))*10;          /* 20~60 */
+    const k = [2, 3, 4][Math.floor(Math.random()*3)];
+    a2 = a1*k;
+    v1 = (2 + Math.floor(Math.random()*7));            /* 2~8 */
+    guard++;
+  }while(guard < 30 && (a1 + a2 > 330 || (a1 === Q.a1 && a2 === Q.a2)));
+
+  Q.kind = Math.random() < 0.5 ? "arc" : "area";
+  Q.a1 = a1; Q.a2 = a2; Q.v1 = v1;
+  Q.ans = v1*a2/a1;
+  Q.done = false;
+  $("unit").textContent = Q.kind === "arc" ? "cm" : "cm²";
+  $("ask").innerHTML = Q.kind === "arc"
+    ? '중심각이 <b>' + a1 + '°</b> 인 부채꼴의 호의 길이가 <b>' + v1 + ' cm</b> 예요.' +
+      ' 중심각이 <b>' + a2 + '°</b> 인 부채꼴의 호의 길이 <b>x</b> 를 구하세요.'
+    : '중심각이 <b>' + a1 + '°</b> 인 부채꼴의 넓이가 <b>' + v1 + ' cm²</b> 예요.' +
+      ' 중심각이 <b>' + a2 + '°</b> 인 부채꼴의 넓이 <b>x</b> 를 구하세요.';
+  const inp = $("ansIn"); inp.value = ""; inp.className = "";
+  $("quizFb").innerHTML = "";
+  draw();
+}
+$("btnCheck").addEventListener("click", function(){
+  if(Q.done) return;
+  const inp = $("ansIn");
+  if(inp.value === ""){ $("quizFb").innerHTML = '<div class="fb warn">답을 적어 주세요.</div>'; return; }
+  const ok = Math.abs(+inp.value - Q.ans) < 0.01;
+  Q.done = true; Q.tries++;
+  if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
+  inp.className = ok ? "good" : "bad";
+  const u = Q.kind === "arc" ? "cm" : "cm²";
+  $("quizFb").innerHTML =
+    '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+    (ok ? "🎉 정답! " : '아쉬워요. 답은 <b>' + Q.ans + ' ' + u + '</b>. ') +
+    '중심각에 정비례하므로 <b>' + Q.a1 + ' : ' + Q.a2 + ' = ' + Q.v1 + ' : x</b>,' +
+    ' 즉 <b>x = ' + Q.v1 + ' × ' + Q.a2 + ' ÷ ' + Q.a1 + ' = ' + Q.ans + '</b> 예요.</div>';
+  $("qTry").textContent = Q.tries; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
+  if(window.MKSCORE) MKSCORE.quiz(ok, "중심각 비례식");
+});
+$("btnNext").addEventListener("click", newQuestion);
+$("ansIn").addEventListener("keydown", function(e){ if(e.key === "Enter") $("btnCheck").click(); });
+
+/* ============================================================
+   그리기 / 탭
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);    /* 화면 전체를 칠한다 */
+  if(tab === "prop") drawProp();
+  else if(tab === "chord") drawChord();
+  else drawQuiz();
+  ctx.restore();
+}
+
+document.querySelectorAll("header nav button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    $("pProp") .classList.toggle("hidden", tab !== "prop");
+    $("pChord").classList.toggle("hidden", tab !== "chord");
+    $("pQuiz") .classList.toggle("hidden", tab !== "quiz");
+    draw();
+  });
+});
+
+/* ============================================================
+   시작 — common.js 는 defer 이므로 반드시 DOMContentLoaded 이후에
+   ============================================================ */
+function boot(){
+  paintProp();
+  paintChord();
+  newQuestion();                 /* 데이터 먼저 (pitfalls #16) */
+  tab = "prop";
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
