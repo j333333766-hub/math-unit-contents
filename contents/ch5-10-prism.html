@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>기둥 펼치기 — 겉넓이와 부피</title>
+<link rel="stylesheet" href="../assets/common.css?v=4">
+<script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 356px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none;}
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+
+  .kinds{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px;}
+
+  .slider{margin-top:11px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .calc{
+    margin-top:10px; background:#f7f9fd; border:1px solid var(--line); border-radius:10px;
+    padding:11px 12px; font-size:13.5px; font-weight:700; line-height:1.95; color:var(--ink);
+  }
+  .calc .step{color:var(--sub); font-size:12.5px; font-weight:600;}
+  .calc .res{color:var(--accent); font-size:16px;}
+  .it{font-family:'Times New Roman',serif; font-style:italic; font-weight:700;}
+
+  .ansrow{display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .ansrow input{
+    width:104px; font:700 17px var(--font); padding:9px 10px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+  .ansrow .unit{font-size:14px; font-weight:700; color:var(--sub);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>📦 기둥 펼치기</h1>
+  <nav>
+    <button class="on" data-tab="net">① 전개도로 펼치기</button>
+    <button data-tab="vol">② 부피 쌓아 보기</button>
+    <button data-tab="quiz">③ 스스로 풀기</button>
+  </nav>
+  <a class="home-btn" href="../index.html?unit=5">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ① 전개도 -->
+    <section id="pNet">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 기둥을 펼쳐 겉넓이를 구해요</h2>
+        <p>기둥을 펼치면 <b>밑면 2개</b>와 <b>옆면 1개</b>가 돼요.
+           옆면은 가로가 <b>밑면의 둘레</b>, 세로가 <b>높이</b> 인 직사각형이에요. (교과서 206~207쪽)</p>
+        <div class="kinds" id="kindBtns">
+          <button class="btn sm on" data-k="cyl">원기둥</button>
+          <button class="btn sm" data-k="tri">삼각기둥</button>
+          <button class="btn sm" data-k="rect">직육면체</button>
+        </div>
+        <div class="slider">
+          <label><span id="lR">밑면 반지름 <span class="it">r</span></span><span class="v" id="vR">2 cm</span></label>
+          <input type="range" id="rR" min="1" max="6" step="1" value="2">
+        </div>
+        <div class="slider">
+          <label><span>높이 <span class="it">h</span></span><span class="v" id="vH">6 cm</span></label>
+          <input type="range" id="rH" min="2" max="12" step="1" value="6">
+        </div>
+        <div class="slider">
+          <label><span>펼치기</span><span class="v" id="vT">0 %</span></label>
+          <input type="range" id="rT" min="0" max="100" step="1" value="0">
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary sm" id="btnOpen">▶ 천천히 펼치기</button>
+          <button class="btn sm" id="btnClose">↺ 접기</button>
+        </div>
+        <div class="calc" id="netCalc"></div>
+        <div id="netFb"></div>
+      </div>
+    </section>
+
+    <!-- ② 부피 -->
+    <section id="pVol" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 밑면을 높이만큼 쌓아요</h2>
+        <p>기둥의 부피는 <b>밑넓이 × 높이</b> 예요. 밑면을 한 층씩 쌓아 올려 보세요.
+           (교과서 208~209쪽)</p>
+        <div class="slider">
+          <label><span>밑넓이</span><span class="v" id="vB">12 cm²</span></label>
+          <input type="range" id="rB" min="4" max="24" step="2" value="12">
+        </div>
+        <div class="slider">
+          <label><span>높이</span><span class="v" id="vVH">5 cm</span></label>
+          <input type="range" id="rVH" min="1" max="10" step="1" value="5">
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary sm" id="btnStack">▶ 한 층씩 쌓기</button>
+          <button class="btn sm" id="btnClear2">↺ 지우기</button>
+        </div>
+        <div class="calc" id="volCalc"></div>
+        <div id="volFb"></div>
+      </div>
+    </section>
+
+    <!-- ③ 퀴즈 -->
+    <section id="pQuiz" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 스스로 풀기</h2>
+        <p id="ask"></p>
+        <div class="ansrow">
+          <input type="number" id="ansIn" placeholder="?" inputmode="decimal" step="any">
+          <span class="unit" id="unit">cm²</span>
+        </div>
+        <p style="margin-top:7px;font-size:12.5px;" id="hintPi">π 가 있는 답은 π 를 빼고 <b>숫자만</b> 적어 주세요.</p>
+        <div id="quizFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnCheck">✅ 확인</button>
+          <button class="btn sm" id="btnNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+const DW = 900, DH = 600;
+const INK = "#1d2433", SUB = "#68738a";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b", PURPLE = "#8e4ec6";
+const rad = d => d*Math.PI/180;
+const clamp01 = v => Math.max(0, Math.min(1, v));
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+function seg(a, b, color, w, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.restore();
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function rect(x, y, w, h, fill, stroke, lw){
+  ctx.beginPath(); ctx.rect(x, y, w, h);
+  if(fill){ ctx.fillStyle = fill; ctx.fill(); }
+  if(stroke){ ctx.strokeStyle = stroke; ctx.lineWidth = lw || 2.4; ctx.stroke(); }
+}
+function ellipse(cx, cy, rx, ry, fill, stroke, lw){
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, 7);
+  if(fill){ ctx.fillStyle = fill; ctx.fill(); }
+  if(stroke){ ctx.strokeStyle = stroke; ctx.lineWidth = lw || 2.4; ctx.stroke(); }
+}
+function poly(pts, fill, stroke, lw){
+  ctx.beginPath();
+  pts.forEach(function(p, i){ i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); });
+  ctx.closePath();
+  if(fill){ ctx.fillStyle = fill; ctx.fill(); }
+  if(stroke){ ctx.strokeStyle = stroke; ctx.lineWidth = lw || 2.4; ctx.stroke(); }
+}
+const r2 = v => Math.round(v*100)/100;
+function frac(n, d){
+  const g = (function gcd(a, b){ return b ? gcd(b, a % b) : a; })(Math.abs(n), Math.abs(d));
+  return (d/g === 1) ? String(n/g) : (n/g) + "/" + (d/g);
+}
+
+/* ============================================================
+   상태
+   ============================================================ */
+let tab = "net";
+let kind = "cyl", rr = 2, hh = 6, tOpen = 0, openAnim = null;   /* ① */
+let base = 12, vh = 5, stack = 0, stackAnim = null;              /* ② */
+let Q = {kind:"cylS", r:0, h:0, a:0, b:0, ans:0, pi:false, done:false, tries:0, ok:0, streak:0};
+
+/* ============================================================
+   ① 전개도로 펼치기
+   ============================================================ */
+const SC = 17;                      /* 1 cm → 17 px */
+function drawNet(){
+  const t = clamp01(tOpen);
+  const R = rr*SC, H = hh*SC;
+  const cx = 300, cy = 320;
+
+  if(kind === "cyl"){
+    /* 옆면 : 접힌 상태는 원기둥 옆면, 펼치면 가로 2πr 인 직사각형 */
+    const w = 2*Math.PI*R;
+    const sideX = cx - R + (450 - (cx - R))*t;          /* 펼치면 오른쪽으로 이동 */
+    const sideW = 2*R + (w - 2*R)*t;
+    rect(sideX - sideW/2 + R, cy - H/2, sideW, H, BLUE + "33", BLUE, 2.6);
+    if(t < 0.5){
+      ellipse(cx, cy - H/2, R, R*0.34, "#ffffffcc", BLUE, 2.4);
+      ellipse(cx, cy + H/2, R, R*0.34, ORANGE + "44", ORANGE, 2.4);
+    }
+    /* 밑면 두 개 — 펼치면 위·아래로 빠져나온다 */
+    const bx = cx + (sideX - sideW/2 + R - 30 - cx)*t;
+    const upY  = cy - H/2 - (R + 26)*t;
+    const dnY  = cy + H/2 + (R + 26)*t;
+    ellipse(t > 0.5 ? bx : cx, upY, R, t > 0.5 ? R : R*0.34, ORANGE + "44", ORANGE, 2.4);
+    ellipse(t > 0.5 ? bx : cx, dnY, R, t > 0.5 ? R : R*0.34, ORANGE + "44", ORANGE, 2.4);
+    if(t > 0.75){
+      txt("2π×" + rr + " = " + r2(2*rr) + "π cm", sideX + R, cy + H/2 + 24, BLUE, 17, true);
+      txt(hh + " cm", sideX - sideW/2 + R - 30, cy, BLUE, 17, true);
+    }
+  }else{
+    /* 각기둥 : 밑면 다각형 n개 변 → 옆면은 변마다 직사각형 */
+    const n = (kind === "tri") ? 3 : 4;
+    const sides = (kind === "tri") ? [3, 4, 5] : [rr, 4, rr, 4];   /* cm */
+    const per = sides.reduce(function(a, b){ return a + b; }, 0);
+    const totalW = per*SC;
+    const x0 = 470 - totalW/2;
+    let x = x0;
+    const openX = cx - totalW/2;
+    for(let i = 0; i < sides.length; i++){
+      const w = sides[i]*SC;
+      const fx = x0 + (x - x0)*0 + (x - x0);            /* 펼친 자리 */
+      const sx = cx - totalW/2 + (x - x0);              /* 접힌 자리(대충 겹쳐 보이게) */
+      const px = sx + (x - sx)*t;
+      rect(px, cy - H/2, w, H, BLUE + "33", BLUE, 2.4);
+      if(t > 0.75) txt(sides[i] + "", px + w/2, cy + H/2 - 14, BLUE, 15, true);
+      x += w;
+    }
+    /* 밑면 두 개 */
+    const bw = (kind === "tri") ? 4*SC : rr*SC;
+    const bh = (kind === "tri") ? 3*SC : 4*SC;
+    const bx = x0 + 10, byU = cy - H/2 - bh - 18*t, byD = cy + H/2 + 18*t;
+    if(kind === "tri"){
+      poly([{x:bx, y:byU + bh}, {x:bx + bw, y:byU + bh}, {x:bx, y:byU}], ORANGE + "44", ORANGE, 2.4);
+      poly([{x:bx, y:byD}, {x:bx + bw, y:byD}, {x:bx, y:byD + bh}], ORANGE + "44", ORANGE, 2.4);
+    }else{
+      rect(bx, byU, bw, bh, ORANGE + "44", ORANGE, 2.4);
+      rect(bx, byD, bw, bh, ORANGE + "44", ORANGE, 2.4);
+    }
+    if(t > 0.75) txt("옆면 : 밑면의 둘레 " + per + " cm × 높이 " + hh + " cm", 450, cy + H/2 + 54, BLUE, 17, true);
+  }
+
+  txt(t > 0.9 ? "전개도" : (t < 0.1 ? "기둥" : "펼치는 중…"), 450, 52, t > 0.9 ? OK : INK, 21, true);
+  $("tip").textContent = "펼치기 슬라이더를 밀어 보세요";
+}
+
+function prismInfo(){
+  if(kind === "cyl"){
+    const b = Math.PI*rr*rr, side = 2*Math.PI*rr*hh;
+    return {name:"원기둥", baseTxt:"π×" + rr + "² = " + (rr*rr) + "π cm²",
+            sideTxt:"(2π×" + rr + ")×" + hh + " = " + (2*rr*hh) + "π cm²",
+            surf:(2*rr*rr + 2*rr*hh), volCoef:(rr*rr*hh), pi:true};
+  }
+  if(kind === "tri"){
+    const b = 3*4/2, per = 12, side = per*hh;
+    return {name:"삼각기둥", baseTxt:"½×4×3 = 6 cm²",
+            sideTxt:"(3+4+5)×" + hh + " = " + (12*hh) + " cm²",
+            surf:(2*6 + 12*hh), volCoef:(6*hh), pi:false};
+  }
+  const b = rr*4, per = 2*(rr + 4);
+  return {name:"직육면체", baseTxt:rr + "×4 = " + (rr*4) + " cm²",
+          sideTxt:"(" + rr + "+4)×2×" + hh + " = " + (per*hh) + " cm²",
+          surf:(2*rr*4 + per*hh), volCoef:(rr*4*hh), pi:false};
+}
+function paintNet(){
+  $("vR").textContent = rr + " cm";
+  $("vH").textContent = hh + " cm";
+  $("vT").textContent = Math.round(tOpen*100) + " %";
+  $("lR").innerHTML = kind === "cyl" ? '밑면 반지름 <span class="it">r</span>'
+                    : kind === "tri" ? '밑면은 3·4·5 삼각형(고정)' : '밑면 가로';
+  $("rR").disabled = (kind === "tri");
+  const info = prismInfo();
+  const u = info.pi ? "π cm²" : "cm²";
+  $("netCalc").innerHTML =
+    '<span class="step">밑넓이</span><br>' + info.baseTxt +
+    '<br><span class="step">옆넓이</span><br>' + info.sideTxt +
+    '<br><span class="step">겉넓이 = 밑넓이 × 2 + 옆넓이</span><br>' +
+    '<span class="res">' + info.surf + ' ' + u + '</span>';
+  $("netFb").innerHTML = tOpen > 0.9
+    ? '<div class="fb ok">🎉 펼쳤더니 <b>밑면 2개 + 옆면</b> 이 보이죠? 옆면의 가로는 <b>밑면의 둘레</b>,' +
+      ' 세로는 <b>높이</b> 예요.</div>'
+    : '<div class="fb info"><b>펼치기</b> 를 끝까지 밀어 전개도를 만들어 보세요.</div>';
+  if(tOpen > 0.9 && window.MKSCORE) MKSCORE.once("net" + kind, 5, info.name + " 전개도 펼치기");
+}
+function stopOpen(){ if(openAnim){ cancelAnimationFrame(openAnim); openAnim = null; } }
+document.querySelectorAll("#kindBtns button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("#kindBtns button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    stopOpen(); kind = b.dataset.k; tOpen = 0; $("rT").value = 0;
+    paintNet(); draw();
+  });
+});
+$("rR").addEventListener("input", function(e){ rr = +e.target.value; paintNet(); draw(); });
+$("rH").addEventListener("input", function(e){ hh = +e.target.value; paintNet(); draw(); });
+$("rT").addEventListener("input", function(e){ stopOpen(); tOpen = +e.target.value/100; paintNet(); draw(); });
+$("btnOpen").addEventListener("click", function(){
+  stopOpen();
+  const from = tOpen, t0 = performance.now(), DUR = 2000;
+  (function step(now){
+    const u = Math.min(1, (now - t0)/DUR);
+    tOpen = from + (1 - from)*u;
+    $("rT").value = Math.round(tOpen*100);
+    paintNet(); draw();
+    if(u < 1) openAnim = requestAnimationFrame(step); else openAnim = null;
+  })(performance.now());
+});
+$("btnClose").addEventListener("click", function(){
+  stopOpen(); tOpen = 0; $("rT").value = 0; paintNet(); draw();
+});
+
+/* ============================================================
+   ② 부피 쌓아 보기
+   ============================================================ */
+function drawVol(){
+  const cx = 430, cyB = 460;
+  const w = base*9, d = 46, layerH = 22;
+  const shown = Math.min(vh, stack);
+  /* 밑면 */
+  const basePts = [{x:cx - w/2, y:cyB}, {x:cx + w/2, y:cyB},
+                   {x:cx + w/2 + d, y:cyB - d*0.6}, {x:cx - w/2 + d, y:cyB - d*0.6}];
+  poly(basePts, ORANGE + "55", ORANGE, 2.6);
+  txt("밑넓이 " + base + " cm²", cx + d/2, cyB + 26, ORANGE, 18, true);
+
+  for(let i = 0; i < shown; i++){
+    const y = cyB - (i + 1)*layerH;
+    const p = [{x:cx - w/2, y:y}, {x:cx + w/2, y:y},
+               {x:cx + w/2 + d, y:y - d*0.6}, {x:cx - w/2 + d, y:y - d*0.6}];
+    poly(p, BLUE + "2e", BLUE, 1.8);
+    /* 옆면 */
+    poly([{x:cx - w/2, y:y}, {x:cx + w/2, y:y},
+          {x:cx + w/2, y:y + layerH}, {x:cx - w/2, y:y + layerH}], BLUE + "22", BLUE, 1.4);
+  }
+  if(shown > 0){
+    const topY = cyB - shown*layerH;
+    seg({x:cx + w/2 + d + 16, y:cyB - d*0.6}, {x:cx + w/2 + d + 16, y:topY - d*0.6}, OK, 3);
+    txt(shown + " cm", cx + w/2 + d + 48, (cyB + topY)/2 - d*0.6, OK, 17, true);
+  }
+  txt(shown >= vh ? "밑넓이 × 높이 = " + (base*vh) + " cm³" : "한 층씩 쌓는 중… (" + shown + "층)",
+      430, 52, shown >= vh ? OK : INK, 21, true);
+  $("tip").textContent = "밑면을 높이만큼 쌓으면 부피예요";
+}
+function paintVol(){
+  $("vB").textContent = base + " cm²";
+  $("vVH").textContent = vh + " cm";
+  $("volCalc").innerHTML =
+    '<span class="step">기둥의 부피</span><br>(밑넓이) × (높이) = ' + base + ' × ' + vh +
+    ' = <span class="res">' + (base*vh) + ' cm³</span>';
+  $("volFb").innerHTML = stack >= vh
+    ? '<div class="fb ok">🎉 밑면을 <b>' + vh + '층</b> 쌓았어요. 부피는 <b>' + base + ' × ' + vh +
+      ' = ' + (base*vh) + ' cm³</b> 예요.</div>'
+    : '<div class="fb info"><b>한 층씩 쌓기</b> 를 눌러 보세요.</div>';
+  if(stack >= vh && window.MKSCORE) MKSCORE.once("stack", 5, "기둥 부피 쌓기");
+}
+function stopStack(){ if(stackAnim){ cancelAnimationFrame(stackAnim); stackAnim = null; } }
+$("rB").addEventListener("input", function(e){ stopStack(); base = +e.target.value; stack = 0; paintVol(); draw(); });
+$("rVH").addEventListener("input", function(e){ stopStack(); vh = +e.target.value; stack = 0; paintVol(); draw(); });
+$("btnStack").addEventListener("click", function(){
+  stopStack(); stack = 0;
+  const t0 = performance.now(), per = 320;
+  (function step(now){
+    stack = Math.min(vh, Math.floor((now - t0)/per) + 1);
+    paintVol(); draw();
+    if(stack < vh) stackAnim = requestAnimationFrame(step); else stackAnim = null;
+  })(performance.now());
+});
+$("btnClear2").addEventListener("click", function(){ stopStack(); stack = 0; paintVol(); draw(); });
+
+/* ============================================================
+   ③ 스스로 풀기
+   ============================================================ */
+const QC = {x:430, y:310};
+function drawQuiz(){
+  const R = 62, H = 150;
+  if(Q.kind.indexOf("cyl") === 0){
+    rect(QC.x - R, QC.y - H/2, 2*R, H, BLUE + "26", BLUE, 2.6);
+    ellipse(QC.x, QC.y - H/2, R, R*0.3, "#ffffffdd", BLUE, 2.4);
+    ellipse(QC.x, QC.y + H/2, R, R*0.3, BLUE + "26", BLUE, 2.4);
+    seg({x:QC.x, y:QC.y - H/2}, {x:QC.x + R, y:QC.y - H/2}, INK, 2.2, [6, 5]);
+    txt(Q.r + " cm", QC.x + R/2, QC.y - H/2 - 18, INK, 17, true);
+    seg({x:QC.x + R + 24, y:QC.y - H/2}, {x:QC.x + R + 24, y:QC.y + H/2}, INK, 2.2);
+    txt(Q.h + " cm", QC.x + R + 62, QC.y, INK, 17, true);
+  }else{
+    const w = 150, d = 52;
+    const x0 = QC.x - w/2, y0 = QC.y + H/2;
+    poly([{x:x0, y:y0}, {x:x0 + w, y:y0}, {x:x0 + w + d, y:y0 - d*0.55}, {x:x0 + d, y:y0 - d*0.55}],
+         ORANGE + "40", ORANGE, 2.4);
+    rect(x0, y0 - H, w, H, BLUE + "26", BLUE, 2.6);
+    poly([{x:x0, y:y0 - H}, {x:x0 + w, y:y0 - H}, {x:x0 + w + d, y:y0 - H - d*0.55}, {x:x0 + d, y:y0 - H - d*0.55}],
+         BLUE + "26", BLUE, 2.4);
+    seg({x:x0 + w + d + 18, y:y0 - d*0.55}, {x:x0 + w + d + 18, y:y0 - H - d*0.55}, INK, 2.2);
+    txt(Q.h + " cm", x0 + w + d + 56, y0 - H/2 - d*0.3, INK, 17, true);
+    txt("밑넓이 " + Q.b + " cm²", QC.x + d/2, y0 + 28, ORANGE, 18, true);
+  }
+  txt(Q.kind.slice(-1) === "S" ? "겉넓이는?" : "부피는?", 430, 52,
+      Q.kind.slice(-1) === "S" ? BLUE : OK, 21, true);
+  $("tip").textContent = "";
+}
+const QKINDS = ["cylS", "cylV", "priS", "priV"];
+function newQuestion(){
+  let k, guard = 0;
+  do{ k = QKINDS[Math.floor(Math.random()*QKINDS.length)]; guard++; }while(guard < 12 && k === Q.kind);
+  Q.kind = k; Q.done = false;
+  if(k.indexOf("cyl") === 0){
+    Q.r = 2 + Math.floor(Math.random()*5);          /* 2~6 */
+    Q.h = 3 + Math.floor(Math.random()*9);          /* 3~11 */
+    Q.pi = true;
+    if(k === "cylS"){
+      Q.ans = 2*Q.r*Q.r + 2*Q.r*Q.h;
+      $("ask").innerHTML = '반지름이 <b>' + Q.r + ' cm</b>, 높이가 <b>' + Q.h +
+        ' cm</b> 인 원기둥의 <b>겉넓이</b> 를 π 를 써서 구하세요.';
+      $("unit").textContent = "π cm²";
+    }else{
+      Q.ans = Q.r*Q.r*Q.h;
+      $("ask").innerHTML = '반지름이 <b>' + Q.r + ' cm</b>, 높이가 <b>' + Q.h +
+        ' cm</b> 인 원기둥의 <b>부피</b> 를 π 를 써서 구하세요.';
+      $("unit").textContent = "π cm³";
+    }
+  }else{
+    Q.b = 6 + Math.floor(Math.random()*15);         /* 밑넓이 6~20 */
+    Q.a = 10 + Math.floor(Math.random()*20);        /* 밑면 둘레 10~29 */
+    Q.h = 3 + Math.floor(Math.random()*9);
+    Q.pi = false;
+    if(k === "priS"){
+      Q.ans = 2*Q.b + Q.a*Q.h;
+      $("ask").innerHTML = '밑넓이가 <b>' + Q.b + ' cm²</b>, 밑면의 둘레가 <b>' + Q.a +
+        ' cm</b>, 높이가 <b>' + Q.h + ' cm</b> 인 각기둥의 <b>겉넓이</b> 를 구하세요.';
+      $("unit").textContent = "cm²";
+    }else{
+      Q.ans = Q.b*Q.h;
+      $("ask").innerHTML = '밑넓이가 <b>' + Q.b + ' cm²</b>, 높이가 <b>' + Q.h +
+        ' cm</b> 인 각기둥의 <b>부피</b> 를 구하세요.';
+      $("unit").textContent = "cm³";
+    }
+  }
+  $("hintPi").style.display = Q.pi ? "" : "none";
+  const inp = $("ansIn"); inp.value = ""; inp.className = "";
+  $("quizFb").innerHTML = "";
+  draw();
+}
+$("btnCheck").addEventListener("click", function(){
+  if(Q.done) return;
+  const inp = $("ansIn");
+  if(inp.value === ""){ $("quizFb").innerHTML = '<div class="fb warn">답을 적어 주세요.</div>'; return; }
+  const ok = Math.abs(+inp.value - Q.ans) < 1e-6;
+  Q.done = true; Q.tries++;
+  if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
+  inp.className = ok ? "good" : "bad";
+  let how;
+  if(Q.kind === "cylS")
+    how = '(밑넓이)×2 + (옆넓이) = π×' + Q.r + '²×2 + (2π×' + Q.r + ')×' + Q.h +
+          ' = ' + (2*Q.r*Q.r) + 'π + ' + (2*Q.r*Q.h) + 'π = <b>' + Q.ans + 'π cm²</b>';
+  else if(Q.kind === "cylV")
+    how = '(밑넓이)×(높이) = π×' + Q.r + '²×' + Q.h + ' = <b>' + Q.ans + 'π cm³</b>';
+  else if(Q.kind === "priS")
+    how = '(밑넓이)×2 + (밑면의 둘레)×(높이) = ' + Q.b + '×2 + ' + Q.a + '×' + Q.h +
+          ' = <b>' + Q.ans + ' cm²</b>';
+  else
+    how = '(밑넓이)×(높이) = ' + Q.b + '×' + Q.h + ' = <b>' + Q.ans + ' cm³</b>';
+  $("quizFb").innerHTML =
+    '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+    (ok ? "🎉 정답! " : '아쉬워요. 답은 <b>' + Q.ans + '</b>. ') + how + '</div>';
+  $("qTry").textContent = Q.tries; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
+  if(window.MKSCORE) MKSCORE.quiz(ok, "기둥 겉넓이·부피");
+});
+$("btnNext").addEventListener("click", newQuestion);
+$("ansIn").addEventListener("keydown", function(e){ if(e.key === "Enter") $("btnCheck").click(); });
+
+/* ============================================================
+   그리기 / 탭
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);
+  if(tab === "net") drawNet();
+  else if(tab === "vol") drawVol();
+  else drawQuiz();
+  ctx.restore();
+}
+document.querySelectorAll("header nav button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    stopOpen(); stopStack();
+    $("pNet") .classList.toggle("hidden", tab !== "net");
+    $("pVol") .classList.toggle("hidden", tab !== "vol");
+    $("pQuiz").classList.toggle("hidden", tab !== "quiz");
+    draw();
+  });
+});
+function boot(){
+  paintNet();
+  paintVol();
+  newQuestion();
+  tab = "net";
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
