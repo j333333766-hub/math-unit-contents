@@ -36,6 +36,46 @@ header.page-header p {
   opacity: 0.9;
 }
 
+/* ---------- 단원 전환 버튼 ---------- */
+.unit-nav {
+  margin: 20px auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.unit-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 118px;
+  padding: 9px 18px;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font: inherit;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.unit-btn strong { font-size: 1rem; }
+.unit-btn span   { font-size: 0.78rem; opacity: 0.85; }
+
+.unit-btn:hover { background: rgba(255, 255, 255, 0.26); }
+
+.unit-btn.on {
+  background: #fff;
+  border-color: #fff;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.unit-btn.on span { opacity: 0.75; }
+
 main {
   max-width: 960px;
   margin: 0 auto;

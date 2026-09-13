@@ -11,7 +11,16 @@
 
   var me   = document.currentScript ||
              document.querySelector('script[src*="common.js"]');
-  var HOME = (me && me.dataset.home) || "../index.html";
+
+  /* 목차는 단원별로 나뉘어 있다. 파일 이름 앞에 ch5- 처럼 단원 표시가 있으면
+     그 단원 목차(?unit=5)로 돌아간다. 표시가 없는 옛 파일은 4단원이다.
+     (홈 단원은 index.html 이 알아서 고르므로 여기서는 항상 unit 을 붙인다.) */
+  function unitOfThisPage(){
+    var file = location.pathname.split("/").pop() || "";
+    var m = file.match(/^ch(\d+)-/);
+    return m ? Number(m[1]) : 4;
+  }
+  var HOME = (me && me.dataset.home) || ("../index.html?unit=" + unitOfThisPage());
   var KEY  = "ch4.visited";
 
   /* ---------- 1. 목차로 돌아가기 버튼 ---------- */
@@ -27,7 +36,7 @@
     a.className = "home-btn float";
     a.href = HOME;
     a.textContent = "← 목차";
-    a.title = "4단원 목차로 돌아가기";
+    a.title = "목차로 돌아가기";
     document.body.appendChild(a);
   }
 

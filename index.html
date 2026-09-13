@@ -11,14 +11,14 @@
 
 <header class="page-header">
   <h1>수학 단원 콘텐츠 체험관</h1>
-  <p>아래 카드를 눌러 이 단원의 다양한 콘텐츠를 체험해 보세요.</p>
+  <p id="unit-desc">아래 카드를 눌러 이 단원의 다양한 콘텐츠를 체험해 보세요.</p>
+  <nav id="unit-nav" class="unit-nav" aria-label="단원 선택"></nav>
 </header>
 
 <main>
   <div id="card-grid" class="card-grid"></div>
   <div id="empty-notice" class="empty-notice" style="display:none;">
-    아직 등록된 콘텐츠가 없습니다. <code>contents</code> 폴더에 html 파일을 추가하고,
-    아래 <code>contentsList</code> 배열에 항목을 추가해 주세요.
+    이 단원에는 아직 등록된 콘텐츠가 없습니다. 곧 올라옵니다.
   </div>
 </main>
 
@@ -29,98 +29,114 @@
     2) 아래 contentsList 배열에 한 줄을 추가한다.
        title: 카드에 보일 제목
        desc : 카드에 보일 한 줄 설명
-       badge: 콘텐츠 유형 (예: "개념", "예제", "연습문제", "탐구활동")
+       badge: 콘텐츠 유형 (예: "중1 Ⅴ단원 · 다각형")
        href : contents 폴더 안 파일 경로
+       unit : 단원 번호 (4, 5 …) — 상단 단원 버튼으로 걸러 내는 기준이라 반드시 적는다
   */
   /* 카드가 보이는 순서 = 이 배열의 순서. 교과서 쪽수 차례로 둔다. */
   const contentsList = [
     {
       title: "픽셀 돋보기",
       desc: "사진을 끝까지 확대해서 화면이 작은 점(화소)으로 이루어져 있다는 걸 눈으로 확인해요. (교과서 137쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 점, 선, 면",
       href: "contents/01-pixel-zoom.html"
     },
     {
       title: "점·선·면 탐구실",
       desc: "입체도형을 돌려 보며 교점·교선을 세고, 직선·반직선·선분을 구별하고, 중점을 직접 찾아요. (교과서 137~139쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 점, 선, 면",
       href: "contents/02-point-line-plane.html"
     },
     {
       title: "각도 실험실",
       desc: "화면 각도기로 각을 직접 만들어 재고, 평각에서 각의 크기를 구하고, 맞꼭지각이 왜 같은지 따져 봐요. (교과서 141~143쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 각",
       href: "contents/03-angle-lab.html"
     },
     {
       title: "수선의 발과 거리",
       desc: "점을 직선 위에서 움직이며 길이가 가장 짧아지는 자리를 찾고, 모눈종이에서 거리를 재고, 수직이등분선을 만들어요. (교과서 144쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 각",
       href: "contents/04-perp-foot.html"
     },
     {
       title: "평면 위의 위치 관계",
       desc: "테니스 공을 끌어 점과 직선의 위치 관계를 확인하고, 두 직선을 움직여 만남·일치·평행을 모두 만들어 보고, 도형에서 평행한 변을 찾아요. (교과서 146~147쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 위치 관계",
       href: "contents/05-plane-position.html"
     },
     {
       title: "공간에서의 위치 관계 (3D)",
       desc: "두 직선을 3D로 움직여 만남·일치·평행·꼬인 위치를 직접 만들어 보고, 직선과 평면의 수직·수선의 발까지 확인해요. 그다음 입체도형에서 모서리와 면을 찾아요. (교과서 148~151쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 위치 관계",
       href: "contents/05-space-3d.html"
     },
     {
       title: "두더지 잡기 — 동위각과 엇각",
       desc: "두더지가 나온 자리의 동위각·엇각을 제한 시간 안에 찾아 두드리는 게임이에요. (교과서 152쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 평행선의 성질",
       href: "contents/06-mole-game.html"
     },
     {
       title: "평행선 각 탐구실",
       desc: "직선을 기울여 보며 평행할 때만 동위각·엇각의 크기가 같아지는 것을 확인하고, 각의 크기를 구해요. (교과서 153~155쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 평행선의 성질",
       href: "contents/07-parallel-angles.html"
     },
     {
       title: "보조선 도전",
       desc: "평행선 사이에서 꺾인 각을 보조선 하나로 푸는 과정을 단계별로 보고, 직접 풀어 봐요. (교과서 154~155쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 평행선의 성질",
       href: "contents/08-aux-line.html"
     },
     {
       title: "착시 실험실",
       desc: "폰조·뮐러리어·헤링·쵤너 착시를 직접 조작하고, 헤링 착시가 정말 평행한지 동위각으로 확인해요. (교과서 156쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 평행선의 성질",
       href: "contents/09-illusion.html"
     },
     {
       title: "가상 작도판",
       desc: "눈금 없는 자와 컴퍼스만으로 선분·각·삼각형을 직접 작도해요. 교과서 순서를 따라가는 모드와 스스로 하는 자유 모드. (교과서 157~162쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 삼각형의 작도",
       href: "contents/10-construction.html"
     },
     {
       title: "삼각형 결정 조건",
       desc: "세 변으로 삼각형이 되는 조건을 두 원의 만남으로 확인하고, 끼인각이 아닐 때 삼각형이 두 개 생기는 장면을 직접 봐요. (교과서 159·163쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 삼각형의 작도",
       href: "contents/11-triangle-condition.html"
     },
     {
       title: "합동 포개기",
       desc: "삼각형을 옮기고 돌리고 뒤집어 포개 보며 대응 관계를 찾고, SSS·SAS·ASA 합동 조건을 판별해요. (교과서 165~167쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 삼각형의 합동",
       href: "contents/12-congruence.html"
     },
     {
       title: "에그 퍼즐",
       desc: "교과서 순서대로 달걀 모양을 작도해 보고, 9조각 중 합동인 짝을 찾고, 조각을 끌고 돌리고 뒤집어 나만의 모양을 만들어요. (교과서 174쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 창의 프로젝트",
       href: "contents/13-egg-puzzle.html"
     },
     {
       title: "흔들리지 않는 삼각형",
       desc: "사각형 틀과 삼각형 틀을 옆에서 밀어 보고, 다각형을 대각선으로 고정해 보고, 3층 건물을 보강해 지진을 견디게 만들어요. (교과서 175쪽)",
+      unit: 4,
       badge: "중1 Ⅳ단원 · 수학 STORY",
       href: "contents/14-truss.html"
     }
@@ -131,13 +147,67 @@
     // { title: "...", desc: "...", badge: "...", href: "contents/....html" },
   ];
 
-  const grid = document.getElementById("card-grid");
-  const emptyNotice = document.getElementById("empty-notice");
+  /* ---------- 단원 목록 ----------
+     맨 앞이 홈 화면(처음 열었을 때 보이는 단원)이다.
+     단원을 새로 시작하면 여기 맨 앞에 한 줄 추가하고,
+     contentsList 항목에는 unit 값을 꼭 적는다. */
+  const unitList = [
+    {
+      unit: 5,
+      btn: "5단원",
+      name: "Ⅴ. 도형의 성질",
+      desc: "아래 카드를 눌러 다각형·원과 부채꼴·입체도형을 직접 움직여 보세요."
+    },
+    {
+      unit: 4,
+      btn: "4단원",
+      name: "Ⅳ. 도형의 기초",
+      desc: "아래 카드를 눌러 점·선·면, 위치 관계, 작도와 합동을 체험해 보세요."
+    }
+  ];
 
-  if (contentsList.length === 0) {
-    emptyNotice.style.display = "block";
-  } else {
-    contentsList.forEach(item => {
+  const grid        = document.getElementById("card-grid");
+  const emptyNotice = document.getElementById("empty-notice");
+  const nav         = document.getElementById("unit-nav");
+  const unitDesc    = document.getElementById("unit-desc");
+
+  /* 주소에 ?unit=4 가 붙어 있으면 그 단원을, 없으면 홈 단원(맨 앞)을 연다.
+     콘텐츠의 '목차' 버튼이 자기 단원으로 되돌아오기 위해 이 값을 쓴다. */
+  const asked   = Number(new URLSearchParams(location.search).get("unit"));
+  const initial = unitList.some(u => u.unit === asked) ? asked : unitList[0].unit;
+
+  unitList.forEach(u => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "unit-btn";
+    b.dataset.unit = u.unit;
+    b.innerHTML = `<strong>${u.btn}</strong><span>${u.name}</span>`;
+    b.addEventListener("click", () => show(u.unit));
+    nav.appendChild(b);
+  });
+
+  function show(unit) {
+    const info = unitList.find(u => u.unit === unit) || unitList[0];
+    unitDesc.textContent = info.desc;
+    document.title = `${info.name} — 수학 단원 콘텐츠 체험관`;
+
+    nav.querySelectorAll(".unit-btn").forEach(b => {
+      const on = Number(b.dataset.unit) === info.unit;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-current", on ? "true" : "false");
+    });
+
+    /* 홈 단원은 주소를 깨끗하게 두고, 다른 단원만 ?unit= 을 남긴다 */
+    const url = info.unit === unitList[0].unit
+      ? location.pathname
+      : `${location.pathname}?unit=${info.unit}`;
+    history.replaceState(null, "", url);
+
+    const items = contentsList.filter(it => it.unit === info.unit);
+    grid.innerHTML = "";
+    emptyNotice.style.display = items.length ? "none" : "block";
+
+    items.forEach(item => {
       const a = document.createElement("a");
       a.className = "card";
       a.href = item.href;
@@ -149,6 +219,8 @@
       grid.appendChild(a);
     });
   }
+
+  show(initial);
 </script>
 
 </body>
