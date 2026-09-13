@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>회전체 만들기 — 돌려서 만들고 잘라서 보기</title>
+<link rel="stylesheet" href="../assets/common.css?v=4">
+<script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
+<script src="../assets/vendor/three.min.js"></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 356px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  .stage{position:absolute; inset:0;}
+  #gl{position:absolute; left:0; top:0; display:block; touch-action:none; cursor:grab;}
+  #gl:active{cursor:grabbing;}
+  #caption{
+    position:absolute; left:0; right:0; top:14px; text-align:center; pointer-events:none;
+    font-size:20px; font-weight:800; color:var(--ink); text-shadow:0 0 6px #fff,0 0 6px #fff;
+  }
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+
+  .shapes{display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px;}
+
+  .slider{margin-top:11px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .choices{display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px;}
+  .choices button{
+    font:700 13.5px/1.4 var(--font); padding:11px 6px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer;
+  }
+  .choices button:hover{background:var(--accent-soft); border-color:var(--accent);}
+  .choices button.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .choices button.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:52vh; min-height:330px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🌀 회전체 만들기</h1>
+  <nav>
+    <button class="on" data-tab="spin">① 돌려서 만들기</button>
+    <button data-tab="cut">② 잘라서 보기</button>
+    <button data-tab="quiz">③ 무엇을 돌렸을까</button>
+  </nav>
+  <a class="home-btn" href="../index.html?unit=5">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <div class="stage">
+      <canvas id="gl"></canvas>
+      <div id="caption"></div>
+    </div>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ① 돌려서 만들기 -->
+    <section id="pSpin">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 평면도형을 축 둘레로 돌려 보세요</h2>
+        <p>평면도형을 한 직선(<b>회전축</b>)을 축으로 1회전 시킬 때 생기는 입체도형을
+           <b>회전체</b>라고 해요. 슬라이더로 <b>돌린 각</b>을 바꿔 보세요. (교과서 201쪽)</p>
+        <div class="shapes" id="shapeBtns">
+          <button class="btn sm on" data-s="rect">직사각형</button>
+          <button class="btn sm" data-s="tri">직각삼각형</button>
+          <button class="btn sm" data-s="semi">반원</button>
+          <button class="btn sm" data-s="trap">사다리꼴</button>
+        </div>
+        <div class="slider">
+          <label><span>돌린 각</span><span class="v" id="vA">0°</span></label>
+          <input type="range" id="rA" min="0" max="360" step="5" value="0">
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary sm" id="btnSpin">▶ 한 바퀴 돌리기</button>
+          <button class="btn sm" id="btnReset">↺ 되돌리기</button>
+        </div>
+        <div id="spinFb"></div>
+      </div>
+      <div class="blk">
+        <h2>알게 된 것</h2>
+        <p>직사각형 → <b>원기둥</b>, 직각삼각형 → <b>원뿔</b>, 반원 → <b>구</b>,
+           사다리꼴 → <b>원뿔대</b> 가 돼요. 밑면이 있는 회전체에서 옆면을 만드는 선분을
+           <b>모선</b>이라고 해요.</p>
+      </div>
+    </section>
+
+    <!-- ② 잘라서 보기 -->
+    <section id="pCut" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 평면으로 잘라 보세요</h2>
+        <p>회전체를 <b>회전축에 수직인 평면</b>으로 자르면 단면은 <b>항상 원</b>이에요.
+           <b>회전축을 포함하는 평면</b>으로 자르면 어떤 모양일까요? (교과서 203쪽)</p>
+        <div class="shapes" id="cutShapes">
+          <button class="btn sm on" data-s="rect">원기둥</button>
+          <button class="btn sm" data-s="tri">원뿔</button>
+          <button class="btn sm" data-s="semi">구</button>
+          <button class="btn sm" data-s="trap">원뿔대</button>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm on" data-cut="perp">회전축에 수직</button>
+          <button class="btn sm" data-cut="axis">회전축을 포함</button>
+        </div>
+        <div class="slider">
+          <label><span>자르는 자리</span><span class="v" id="vH">가운데</span></label>
+          <input type="range" id="rH" min="-90" max="90" step="5" value="0">
+        </div>
+        <div id="cutFb"></div>
+      </div>
+      <div class="blk">
+        <h2>단면의 모양</h2>
+        <p>회전축을 포함하는 평면으로 자른 단면은 <b>모두 합동</b>이고,
+           회전축을 대칭축으로 하는 <b>선대칭도형</b>이에요.</p>
+        <div id="cutName"></div>
+      </div>
+    </section>
+
+    <!-- ③ 퀴즈 -->
+    <section id="pQuiz" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 무엇을 돌려 만들었을까요?</h2>
+        <p>왼쪽 회전체는 어떤 평면도형을 <b>회전축 둘레로 1회전</b> 시켜 만든 것일까요?</p>
+        <div class="choices" id="qChoices"></div>
+        <div id="quizFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   Three.js 무대
+   ============================================================ */
+const canvas = $("gl");
+const renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
+let group = new THREE.Group();
+scene.add(group);
+
+const COL = {body:0x8fb8ef, plane:0xe5484d, axis:0x1d2433, flat:0xf5820b, cut:0xe5484d};
+
+let rot = {th:0.62, ph:0.3}, distCam = 11;
+function placeCamera(){
+  camera.position.set(
+    distCam*Math.cos(rot.ph)*Math.sin(rot.th),
+    distCam*Math.sin(rot.ph),
+    distCam*Math.cos(rot.ph)*Math.cos(rot.th)
+  );
+  camera.lookAt(0, 0, 0);
+}
+let drag = null;
+canvas.addEventListener("pointerdown", function(e){ drag = {x:e.clientX, y:e.clientY}; });
+window.addEventListener("pointerup", function(){ drag = null; });
+window.addEventListener("pointermove", function(e){
+  if(!drag) return;
+  rot.th -= (e.clientX - drag.x)*0.008;
+  rot.ph += (e.clientY - drag.y)*0.008;
+  rot.ph = Math.max(-1.35, Math.min(1.35, rot.ph));
+  drag = {x:e.clientX, y:e.clientY};
+});
+canvas.addEventListener("wheel", function(e){
+  e.preventDefault();
+  distCam = Math.max(6, Math.min(20, distCam + (e.deltaY > 0 ? 0.7 : -0.7)));
+}, {passive:false});
+
+const stage = document.querySelector(".stage");
+let VW = 0, VH = 0;
+function resize(){
+  const r = stage.getBoundingClientRect();
+  const w = Math.round(r.width), h = Math.round(r.height);
+  if(!w || !h || (w === VW && h === VH)) return;
+  VW = w; VH = h;
+  renderer.setSize(w, h);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+if(window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+window.addEventListener("resize", resize);
+
+function clearGroup(){
+  while(group.children.length){
+    const c = group.children.pop();
+    if(c.geometry) c.geometry.dispose();
+    if(c.material) c.material.dispose();
+  }
+}
+function addMesh(geo, color, opacity, side){
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    color:color, transparent:true, opacity:opacity,
+    side:side || THREE.DoubleSide, depthWrite:false
+  }));
+  group.add(m);
+  return m;
+}
+/* 회전축 */
+function addAxis(len){
+  const g = new THREE.CylinderGeometry(0.035, 0.035, len, 8);
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({color:COL.axis}));
+  group.add(m);
+  return m;
+}
+
+/* ============================================================
+   회전시킬 평면도형 — 회전축(y축)에서 바깥쪽 x 좌표와 높이 y 로 준다
+   ============================================================ */
+const SHAPE = {
+  rect: {name:"직사각형", solid:"원기둥",
+         pts:[[0, -1.7], [1.7, -1.7], [1.7, 1.7], [0, 1.7]],
+         cut:"직사각형"},
+  tri:  {name:"직각삼각형", solid:"원뿔",
+         pts:[[0, -1.8], [1.9, -1.8], [0, 1.9]],
+         cut:"이등변삼각형"},
+  semi: {name:"반원", solid:"구",
+         pts:(function(){
+           const a = [];
+           for(let i = 0; i <= 24; i++){
+             const t = -Math.PI/2 + Math.PI*i/24;
+             a.push([Math.cos(t)*1.9, Math.sin(t)*1.9]);
+           }
+           return a;
+         })(),
+         cut:"원"},
+  trap: {name:"사다리꼴", solid:"원뿔대",
+         pts:[[0, -1.7], [1.9, -1.7], [1.05, 1.4], [0, 1.4]],
+         cut:"사다리꼴"}
+};
+
+/* 평면도형(회전 전) 을 얇은 면으로 */
+function flatShape(key){
+  const s = SHAPE[key];
+  const sh = new THREE.Shape();
+  s.pts.forEach(function(p, i){ i ? sh.lineTo(p[0], p[1]) : sh.moveTo(p[0], p[1]); });
+  sh.closePath();
+  return new THREE.ShapeGeometry(sh);
+}
+/* 회전체(부분 회전 포함) */
+function laheGeo(key, angDeg){
+  const s = SHAPE[key];
+  const pts = s.pts.map(function(p){ return new THREE.Vector2(Math.max(0.0001, p[0]), p[1]); });
+  const seg = Math.max(4, Math.round(Math.max(6, angDeg)/6));
+  return new THREE.LatheGeometry(pts, seg, 0, Math.max(0.001, angDeg*Math.PI/180));
+}
+
+/* ============================================================
+   상태
+   ============================================================ */
+let tab = "spin";
+let sKey = "rect", spinA = 0, spinAnim = null;
+let cKey = "rect", cutKind = "perp", cutPos = 0;
+let Q = {key:"rect", done:false, tries:0, ok:0, streak:0};
+
+/* ============================================================
+   ① 돌려서 만들기
+   ============================================================ */
+function buildSpin(){
+  clearGroup();
+  addAxis(6.4);
+  /* 원래 평면도형은 늘 보여 준다 */
+  const f = addMesh(flatShape(sKey), COL.flat, 0.55);
+  f.rotation.y = 0;
+  if(spinA > 0.5){
+    addMesh(laheGeo(sKey, spinA), COL.body, spinA >= 359 ? 0.42 : 0.33);
+    /* 돌아간 자리의 평면도형 */
+    const f2 = addMesh(flatShape(sKey), COL.plane, 0.5);
+    f2.rotation.y = -spinA*Math.PI/180;
+  }
+  const s = SHAPE[sKey];
+  $("caption").textContent = spinA >= 359 ? s.solid : s.name + " · " + Math.round(spinA) + "°";
+  $("tip").textContent = "끌어서 돌려 보세요 · 휠로 확대";
+  scene.updateMatrixWorld(true);
+}
+function paintSpin(){
+  $("vA").textContent = Math.round(spinA) + "°";
+  const s = SHAPE[sKey];
+  $("spinFb").innerHTML = spinA >= 359
+    ? '<div class="fb ok">🎉 <b>' + s.name + '</b> 을 1회전 시켰더니 <b>' + s.solid + '</b> 이 되었어요.</div>'
+    : '<div class="fb info">지금은 <b>' + Math.round(spinA) + '°</b> 만큼 돌렸어요.' +
+      ' 360° 까지 돌리면 무엇이 될까요?</div>';
+  if(spinA >= 359 && window.MKSCORE) MKSCORE.once("spin" + sKey, 5, s.name + " 1회전");
+}
+function stopSpin(){ if(spinAnim){ cancelAnimationFrame(spinAnim); spinAnim = null; } }
+document.querySelectorAll("#shapeBtns button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("#shapeBtns button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    stopSpin(); sKey = b.dataset.s; spinA = 0; $("rA").value = 0;
+    paintSpin(); buildSpin();
+  });
+});
+$("rA").addEventListener("input", function(e){ stopSpin(); spinA = +e.target.value; paintSpin(); buildSpin(); });
+$("btnSpin").addEventListener("click", function(){
+  stopSpin();
+  const from = spinA, t0 = performance.now(), DUR = 2400;
+  (function step(now){
+    const u = Math.min(1, (now - t0)/DUR);
+    spinA = from + (360 - from)*u;
+    $("rA").value = Math.round(spinA);
+    paintSpin(); buildSpin();
+    if(u < 1) spinAnim = requestAnimationFrame(step);
+    else spinAnim = null;
+  })(performance.now());
+});
+$("btnReset").addEventListener("click", function(){
+  stopSpin(); spinA = 0; $("rA").value = 0; paintSpin(); buildSpin();
+});
+
+/* ============================================================
+   ② 잘라서 보기
+   ============================================================ */
+function topRadiusAt(key, y){
+  /* 그 높이에서 회전체의 반지름 — 단면 원의 크기 */
+  const pts = SHAPE[key].pts;
+  let r = 0;
+  for(let i = 0; i + 1 < pts.length; i++){
+    const a = pts[i], b = pts[i+1];
+    if((y >= Math.min(a[1], b[1]) - 1e-6) && (y <= Math.max(a[1], b[1]) + 1e-6)){
+      const t = Math.abs(b[1] - a[1]) < 1e-9 ? 0 : (y - a[1])/(b[1] - a[1]);
+      r = Math.max(r, a[0] + (b[0] - a[0])*t);
+    }
+  }
+  return r;
+}
+function yRange(key){
+  const pts = SHAPE[key].pts;
+  let lo = 1e9, hi = -1e9;
+  pts.forEach(function(p){ lo = Math.min(lo, p[1]); hi = Math.max(hi, p[1]); });
+  return [lo, hi];
+}
+function buildCut(){
+  clearGroup();
+  addAxis(6.4);
+  addMesh(laheGeo(cKey, 360), COL.body, 0.26);
+
+  const yr = yRange(cKey);
+  const y = yr[0] + (yr[1] - yr[0])*(cutPos + 100)/200;
+
+  if(cutKind === "perp"){
+    const r = topRadiusAt(cKey, y);
+    if(r > 0.02){
+      const g = new THREE.CircleGeometry(r, 48);
+      const m = addMesh(g, COL.cut, 0.55);
+      m.rotation.x = -Math.PI/2;
+      m.position.y = y;
+    }
+    /* 자르는 평면 */
+    const pg = new THREE.PlaneGeometry(5.4, 5.4);
+    const pm = addMesh(pg, 0x9aa7bd, 0.14);
+    pm.rotation.x = -Math.PI/2;
+    pm.position.y = y;
+    $("caption").textContent = "단면은 원";
+  }else{
+    /* 회전축을 포함하는 평면 — 좌우 대칭인 단면 */
+    const s = SHAPE[cKey];
+    const sh = new THREE.Shape();
+    const right = s.pts;
+    right.forEach(function(p, i){ i ? sh.lineTo(p[0], p[1]) : sh.moveTo(p[0], p[1]); });
+    for(let i = right.length - 1; i >= 0; i--) sh.lineTo(-right[i][0], right[i][1]);
+    sh.closePath();
+    addMesh(new THREE.ShapeGeometry(sh), COL.cut, 0.5);
+    const pg = new THREE.PlaneGeometry(5.4, 5.4);
+    addMesh(pg, 0x9aa7bd, 0.12);
+    $("caption").textContent = "단면은 " + s.cut;
+  }
+  $("tip").textContent = "끌어서 돌려 보세요";
+  scene.updateMatrixWorld(true);
+}
+function paintCut(){
+  const s = SHAPE[cKey];
+  $("vH").textContent = cutPos === 0 ? "가운데" : (cutPos > 0 ? "위쪽" : "아래쪽");
+  $("rH").disabled = (cutKind !== "perp");
+  $("cutFb").innerHTML = cutKind === "perp"
+    ? '<div class="fb ok">회전축에 <b>수직</b>으로 자르면 어디서 잘라도 단면은 <b>원</b> 이에요.' +
+      ' (자르는 자리를 바꿔 보세요)</div>'
+    : '<div class="fb info">회전축을 <b>포함</b>하는 평면으로 자르면 단면은 <b>' + s.cut + '</b> 이에요.</div>';
+  $("cutName").innerHTML =
+    '<div class="fb warn">원기둥 → 직사각형 · 원뿔 → 이등변삼각형 · 원뿔대 → 사다리꼴 · 구 → 원</div>';
+}
+document.querySelectorAll("#cutShapes button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("#cutShapes button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    cKey = b.dataset.s; paintCut(); buildCut();
+  });
+});
+document.querySelectorAll("[data-cut]").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("[data-cut]").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    cutKind = b.dataset.cut; paintCut(); buildCut();
+  });
+});
+$("rH").addEventListener("input", function(e){ cutPos = +e.target.value; paintCut(); buildCut(); });
+
+/* ============================================================
+   ③ 무엇을 돌렸을까
+   ============================================================ */
+function buildQuiz(){
+  clearGroup();
+  addAxis(6.4);
+  addMesh(laheGeo(Q.key, 360), COL.body, 0.4);
+  if(Q.done){
+    const f = addMesh(flatShape(Q.key), COL.flat, 0.72);
+    f.rotation.y = 0;
+  }
+  $("caption").textContent = Q.done ? SHAPE[Q.key].solid : "이 회전체는?";
+  $("tip").textContent = "끌어서 돌려 보세요";
+  scene.updateMatrixWorld(true);
+}
+const KEYS = ["rect", "tri", "semi", "trap"];
+function newQuestion(){
+  let k, guard = 0;
+  do{ k = KEYS[Math.floor(Math.random()*KEYS.length)]; guard++; }while(guard < 12 && k === Q.key);
+  Q.key = k; Q.done = false;
+  const box = $("qChoices");
+  box.innerHTML = "";
+  KEYS.forEach(function(key){
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = SHAPE[key].name; b.dataset.k = key;
+    b.addEventListener("click", function(){ answer(key, b); });
+    box.appendChild(b);
+  });
+  $("quizFb").innerHTML = "";
+  buildQuiz();
+}
+function answer(key, btn){
+  if(Q.done) return;
+  Q.done = true; Q.tries++;
+  const ok = key === Q.key;
+  if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
+  btn.className = ok ? "good" : "bad";
+  if(!ok) $("qChoices").querySelector('button[data-k="' + Q.key + '"]').className = "good";
+  const s = SHAPE[Q.key];
+  $("quizFb").innerHTML =
+    '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+    (ok ? "🎉 정답! " : '아쉬워요. 답은 <b>' + s.name + '</b>. ') +
+    '<b>' + s.name + '</b> 을 회전축 둘레로 1회전 시키면 <b>' + s.solid + '</b> 이 돼요.' +
+    ' 주황색으로 원래 평면도형을 보여 줄게요.</div>';
+  $("qTry").textContent = Q.tries; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
+  if(window.MKSCORE) MKSCORE.quiz(ok, "회전체 알아맞히기");
+  buildQuiz();
+}
+$("btnNext").addEventListener("click", newQuestion);
+
+/* ============================================================
+   탭 / 시작
+   ============================================================ */
+function rebuild(){
+  if(tab === "spin") buildSpin();
+  else if(tab === "cut") buildCut();
+  else buildQuiz();
+}
+document.querySelectorAll("header nav button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    stopSpin();
+    $("pSpin").classList.toggle("hidden", tab !== "spin");
+    $("pCut") .classList.toggle("hidden", tab !== "cut");
+    $("pQuiz").classList.toggle("hidden", tab !== "quiz");
+    rebuild();
+  });
+});
+
+function render(){
+  placeCamera();
+  renderer.render(scene, camera);
+  requestAnimationFrame(render);
+}
+function boot(){
+  resize();
+  paintSpin();
+  paintCut();
+  newQuestion();                 /* 데이터 먼저 (pitfalls #16) */
+  tab = "spin";
+  rebuild();
+  render();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
