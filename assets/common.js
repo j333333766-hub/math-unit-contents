@@ -40,6 +40,128 @@
     document.body.appendChild(a);
   }
 
+  /* ---------- 1-2. 글자 크기 조절 (교실 TV 대응) ----------
+     · 머리글과 오른쪽 패널은 css 의 zoom 으로 통째로 키운다.
+       (각 콘텐츠가 <style> 에 박아 둔 px 값을 하나하나 고치지 않아도 된다)
+     · 오른쪽 패널의 폭도 같은 비율로 넓힌다. 폭은 콘텐츠마다 336~360px 로 다르므로
+       **처음 한 번 읽어 둔 값**을 기준으로 곱한다.
+     · 캔버스 글자는 css 가 닿지 않으므로 ctx.font 의 px 값을 가로채 곱한다.
+     · 고른 값은 localStorage 에 남겨 다른 콘텐츠로 넘어가도 유지된다.
+     ---------------------------------------------------------- */
+  var FS_KEY  = "mk.fs";
+  var FS_STEP = [1, 1.15, 1.3, 1.5, 1.75, 2];
+  var fsBaseAside = null;                       /* zoom 을 걸기 전 패널 폭 */
+
+  function fsRead(){
+    try{
+      var v = parseFloat(localStorage.getItem(FS_KEY));
+      return FS_STEP.indexOf(v) >= 0 ? v : 1;
+    }catch(e){ return 1; }
+  }
+  function fsSave(v){ try{ localStorage.setItem(FS_KEY, String(v)); }catch(e){} }
+
+  /* 콘텐츠가 처음 그리기 전에 배수를 세워 둔다 (아래 boot 에서 폭까지 맞춘다) */
+  window.MKFS = fsRead();
+  document.documentElement.style.setProperty("--fs", window.MKFS);
+  document.documentElement.classList.toggle("mk-fs-big", window.MKFS > 1);
+
+  /* 캔버스 글자 — ctx.font 에 들어오는 px 값을 배수만큼 키운다 */
+  (function patchCanvasFont(){
+    if(!window.CanvasRenderingContext2D) return;
+    var proto = CanvasRenderingContext2D.prototype;
+    var d = Object.getOwnPropertyDescriptor(proto, "font");
+    if(!d || !d.set || proto.__mkFontPatched) return;
+    Object.defineProperty(proto, "font", {
+      configurable: true,
+      enumerable: d.enumerable,
+      get: function(){ return d.get.call(this); },
+      set: function(v){
+        var f = window.MKFS || 1;
+        if(f !== 1 && typeof v === "string"){
+          v = v.replace(/(\d*\.?\d+)px/, function(_, num){
+            return (Math.round(parseFloat(num)*f*100)/100) + "px";
+          });
+        }
+        d.set.call(this, v);
+      }
+    });
+    proto.__mkFontPatched = true;
+  })();
+
+  function fsApply(v, redraw){
+    window.MKFS = v;
+    document.documentElement.style.setProperty("--fs", v);
+    document.documentElement.classList.toggle("mk-fs-big", v > 1);
+
+    /* 오른쪽 패널 폭도 같이 넓힌다 (좁은 화면 1열 배치일 때는 그대로 둔다) */
+    var mainEl = document.querySelector("#app main");
+    if(mainEl){
+      var narrow = window.matchMedia("(max-width:900px)").matches;
+      if(narrow){
+        mainEl.style.gridTemplateColumns = "";
+      }else{
+        if(fsBaseAside === null){
+          var cols = getComputedStyle(mainEl).gridTemplateColumns.split(/\s+/);
+          var last = parseFloat(cols[cols.length - 1]);
+          fsBaseAside = (last > 120 && last < 600) ? last : 350;
+        }
+        mainEl.style.gridTemplateColumns = "1fr " + Math.round(fsBaseAside*v) + "px";
+      }
+    }
+
+    var val = document.querySelector(".mk-fs .mk-fs-val");
+    if(val) val.textContent = Math.round(v*100) + "%";
+    var minus = document.querySelector(".mk-fs [data-fs='-']");
+    var plus  = document.querySelector(".mk-fs [data-fs='+']");
+    if(minus) minus.disabled = (v === FS_STEP[0]);
+    if(plus)  plus.disabled  = (v === FS_STEP[FS_STEP.length - 1]);
+
+    /* 캔버스는 스스로 다시 그려야 한다 — MK.fit 이 resize 를 듣고 있다 */
+    if(redraw) window.dispatchEvent(new Event("resize"));
+  }
+
+  function fsStepBy(dir){
+    var cur = window.MKFS || 1;
+    var i = FS_STEP.indexOf(cur);
+    if(i < 0) i = 0;
+    i = Math.max(0, Math.min(FS_STEP.length - 1, i + dir));
+    fsSave(FS_STEP[i]);
+    fsApply(FS_STEP[i], true);
+  }
+
+  function addFontSizer(){
+    if(document.querySelector(".mk-fs")) return;
+    var box = document.createElement("div");
+    box.className = "mk-fs";
+    box.title = "글자 크기 (교실 TV 로 띄울 때 키우세요)";
+    box.innerHTML =
+      '<button type="button" data-fs="-" aria-label="글자 작게">가－</button>' +
+      '<button type="button" data-fs="0" class="mk-fs-val" aria-label="글자 크기 원래대로">100%</button>' +
+      '<button type="button" data-fs="+" aria-label="글자 크게">가＋</button>';
+
+    var home = document.querySelector("#app > header .home-btn");
+    if(home){
+      home.parentNode.insertBefore(box, home);       /* 머리글의 '목차' 단추 왼쪽에 */
+    }else{
+      box.className = "mk-fs float";
+      document.body.appendChild(box);
+    }
+
+    box.addEventListener("click", function(ev){
+      var b = ev.target.closest("button");
+      if(!b) return;
+      var k = b.dataset.fs;
+      if(k === "+") fsStepBy(1);
+      else if(k === "-") fsStepBy(-1);
+      else { fsSave(1); fsApply(1, true); }          /* 가운데를 누르면 원래대로 */
+    });
+
+    window.addEventListener("resize", function(){
+      /* 좁은 화면 ↔ 넓은 화면을 오갈 때 패널 폭 처리를 다시 맞춘다 */
+      fsApply(window.MKFS || 1, false);
+    });
+  }
+
   /* ---------- 2. 학습 기록(목차의 '학습함' 표시용) ---------- */
   function markVisited(){
     try{
@@ -167,7 +289,14 @@
   window.MKSCORE = MKSCORE;
 
   /* ---------- 실행 ---------- */
-  function boot(){ addHomeButton(); markVisited(); }
+  function boot(){
+    var onHub = /(^|\/)index\.html?$/.test(location.pathname) || /\/$/.test(location.pathname);
+    if(onHub) document.body.classList.add("mk-zoom");   /* 허브는 통째로 확대 */
+    else addHomeButton();
+    markVisited();
+    addFontSizer();
+    fsApply(window.MKFS || 1, true);                    /* 패널 폭까지 맞추고 다시 그리기 */
+  }
   if(document.readyState === "loading"){
     document.addEventListener("DOMContentLoaded", boot);
   }else{

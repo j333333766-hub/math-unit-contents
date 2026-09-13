@@ -88,3 +88,56 @@
 
 /* 태블릿 터치에서 파란 하이라이트 방지 */
 button,a{ -webkit-tap-highlight-color:transparent; }
+
+/* -----------------------------------------------------------
+   글자 크기 조절 (교실 TV 로 띄울 때)
+   common.js 가 --fs 값을 바꾸고, 오른쪽 패널 폭은 js 가 같이 늘린다.
+   zoom 을 쓰면 각 콘텐츠가 <style> 에 적어 둔 px 값을 건드리지 않고도
+   머리글·패널이 통째로 커진다.
+   ----------------------------------------------------------- */
+:root{ --fs:1; }
+
+#app > header{ zoom:var(--fs); }
+/* 크게 키우면 탭이 많은 콘텐츠는 머리글이 한 줄에 안 들어간다 → 줄바꿈 허용
+   (필요할 때만 줄이 바뀌므로 100% 일 때 보이는 모습은 그대로다) */
+html.mk-fs-big #app > header{
+  flex-wrap:wrap; height:auto !important; min-height:52px;
+  padding-top:6px; padding-bottom:6px; row-gap:6px;
+}
+html.mk-fs-big #app > header nav{ flex-wrap:wrap; }
+
+/* 캔버스 위에 얹힌 글자들 — 캔버스 안 글자는 js 가 ctx.font 로 키우지만
+   화면에 겹쳐 둔 HTML 글자는 여기서 키운다. 자리(위치)는 그대로 두고 크기만 바꾼다.
+   기준값은 공용 뼈대의 값 : #tip 12.5px, 3차원 도형 이름표 .vlab 19px */
+html.mk-fs-big #tip,
+html.mk-fs-big #hintbar,
+html.mk-fs-big #rotateHint{ font-size:calc(12.5px * var(--fs)); }
+html.mk-fs-big .vlab{ font-size:calc(19px * var(--fs)); }
+/* 작도판의 도구 막대는 캔버스 위가 아니라 제 자리를 차지하므로 통째로 키워도 안전하다 */
+html.mk-fs-big #app .tools{ zoom:var(--fs); }
+#app main > aside{ zoom:var(--fs); }
+body.mk-zoom{ zoom:var(--fs); }          /* 목차(허브)처럼 캔버스가 없는 쪽은 통째로 */
+
+.mk-fs{
+  flex:none; display:inline-flex; align-items:center; gap:1px;
+  margin-left:auto;                       /* 머리글 오른쪽으로 밀어 둔다 */
+  border:1px solid var(--line); border-radius:999px; background:var(--panel);
+  padding:2px; white-space:nowrap;
+}
+.mk-fs + .home-btn{ margin-left:6px; }    /* 이미 auto 를 먹었으므로 간격만 준다 */
+.mk-fs button{
+  font:800 14px/1 var(--font); color:var(--sub);
+  background:none; border:0; padding:6px 10px; border-radius:999px; cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.mk-fs button:hover{ background:var(--accent-soft); color:var(--accent); }
+.mk-fs button:disabled{ opacity:.35; cursor:default; }
+.mk-fs button:disabled:hover{ background:none; color:var(--sub); }
+.mk-fs .mk-fs-val{
+  min-width:46px; text-align:center; font-size:12px; font-weight:800; color:var(--ink);
+  padding:6px 2px;
+}
+.mk-fs.float{
+  position:fixed; top:10px; right:12px; z-index:99998;
+  box-shadow:0 2px 12px rgba(29,36,51,.16);
+}
