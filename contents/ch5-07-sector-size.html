@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>부채꼴 호·넓이 계산기 — 피자 한 조각에서 공식까지</title>
+<link rel="stylesheet" href="../assets/common.css?v=4">
+<script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 356px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none;}
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn:disabled{opacity:.45; cursor:default;}
+  .btn:disabled:hover{background:var(--panel); border-color:var(--line); color:var(--ink);}
+
+  .slider{margin-top:11px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .calc{
+    margin-top:10px; background:#f7f9fd; border:1px solid var(--line); border-radius:10px;
+    padding:11px 12px; font-size:14px; font-weight:700; line-height:2; color:var(--ink);
+  }
+  .calc .step{color:var(--sub); font-size:13px; font-weight:600;}
+  .calc .res{color:var(--accent); font-size:17px;}
+  .it{font-family:'Times New Roman',serif; font-style:italic; font-weight:700;}
+  .frac{display:inline-block; vertical-align:middle; text-align:center; margin:0 2px;}
+  .frac .top{display:block; border-bottom:2px solid currentColor; padding:0 5px;}
+  .frac .bot{display:block; padding:0 5px;}
+
+  .ansrow{display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .ansrow input{
+    width:104px; font:700 17px var(--font); padding:9px 10px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+  .ansrow .unit{font-size:14px; font-weight:700; color:var(--sub);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🍕 부채꼴 호·넓이 계산기</h1>
+  <nav>
+    <button class="on" data-tab="pizza">① 피자 한 조각</button>
+    <button data-tab="calc">② 호와 넓이 구하기</button>
+    <button data-tab="half">③ S = ½rl 확인</button>
+    <button data-tab="quiz">④ 스스로 풀기</button>
+  </nav>
+  <a class="home-btn" href="../index.html?unit=5">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ① 피자 -->
+    <section id="pPizza">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 피자를 똑같이 나눠 보세요</h2>
+        <p>원 모양 피자를 부채꼴로 똑같이 나눴어요. <b>한 조각이 전체에서 차지하는 비율</b>과
+           <b>한 조각의 중심각 ÷ 360°</b> 를 견줘 보세요. (교과서 195쪽)</p>
+        <div class="slider">
+          <label><span>몇 조각으로 나눌까</span><span class="v" id="vN">6조각</span></label>
+          <input type="range" id="rN" min="2" max="12" step="1" value="6">
+        </div>
+        <div class="calc" id="pizzaCalc"></div>
+        <div id="pizzaFb"></div>
+      </div>
+      <div class="blk">
+        <h2>알게 된 것</h2>
+        <p>한 조각이 차지하는 비율은 <b>중심각 ÷ 360°</b> 와 같아요.
+           그래서 부채꼴의 호와 넓이는 <b>원 전체</b>에 그 비율을 곱하면 돼요.</p>
+      </div>
+    </section>
+
+    <!-- ② 계산기 -->
+    <section id="pCalc" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 반지름과 중심각을 바꿔 보세요</h2>
+        <p>부채꼴의 <b>호의 길이 <span class="it">l</span></b> 과 <b>넓이 <span class="it">S</span></b> 를
+           구하는 과정을 그대로 보여 줘요. (교과서 195~196쪽)</p>
+        <div class="slider">
+          <label><span>반지름 <span class="it">r</span></span><span class="v" id="vR">6 cm</span></label>
+          <input type="range" id="rR" min="1" max="12" step="1" value="6">
+        </div>
+        <div class="slider">
+          <label><span>중심각 <span class="it">x</span></span><span class="v" id="vX">120°</span></label>
+          <input type="range" id="rX" min="15" max="360" step="15" value="120">
+        </div>
+        <div class="calc" id="calcBox"></div>
+        <div id="calcFb"></div>
+      </div>
+    </section>
+
+    <!-- ③ S = 1/2 rl -->
+    <section id="pHalf" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 잘라서 펴 보면?</h2>
+        <p>부채꼴을 잘게 잘라 <b>엇갈리게 붙이면</b> 직사각형에 가까워져요.
+           가로는 호의 절반 <b>½<span class="it">l</span></b>, 세로는 반지름 <b><span class="it">r</span></b> 이에요. (교과서 196쪽)</p>
+        <div class="slider">
+          <label><span>몇 조각으로 자를까</span><span class="v" id="vK">8조각</span></label>
+          <input type="range" id="rK" min="4" max="24" step="2" value="8">
+        </div>
+        <div class="slider">
+          <label><span>펴기</span><span class="v" id="vT">0 %</span></label>
+          <input type="range" id="rT" min="0" max="100" step="1" value="0">
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary sm" id="btnSpread">▶ 천천히 펴기</button>
+          <button class="btn sm" id="btnBack">↺ 되돌리기</button>
+        </div>
+        <div class="calc" id="halfCalc"></div>
+        <div id="halfFb"></div>
+      </div>
+    </section>
+
+    <!-- ④ 퀴즈 -->
+    <section id="pQuiz" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 4</span> 스스로 풀기</h2>
+        <p id="ask"></p>
+        <div class="ansrow">
+          <input type="number" id="ansIn" placeholder="?" inputmode="decimal" step="any">
+          <span class="unit" id="unit">π cm</span>
+        </div>
+        <p style="margin-top:7px;font-size:12.5px;">π 는 빼고 <b>숫자만</b> 적어 주세요. (예: 4π cm → <b>4</b>)</p>
+        <div id="quizFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnCheck">✅ 확인</button>
+          <button class="btn sm" id="btnNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+const DW = 900, DH = 600;
+const INK = "#1d2433", SUB = "#68738a";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b", PURPLE = "#8e4ec6";
+const rad = d => d*Math.PI/180;
+const clamp01 = v => Math.max(0, Math.min(1, v));
+const FILLS = ["#f3b04a", "#f5820b", "#e8963c", "#f0a530", "#eda13f", "#f7b05b",
+               "#e79a2e", "#f2ae4d", "#eda63a", "#f6b862", "#e99b35", "#f1a84a"];
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+function seg(a, b, color, w, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.restore();
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function ital(t, x, y, color, size){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "italic 700 " + size + "px 'Times New Roman', serif";
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function at(C, R, deg){ return {x:C.x + Math.cos(rad(deg))*R, y:C.y - Math.sin(rad(deg))*R}; }
+function arcPath(C, R, a, b){ ctx.arc(C.x, C.y, R, -rad(a), -rad(b), true); }
+function sectorPath(C, R, a, b){ ctx.beginPath(); ctx.moveTo(C.x, C.y); arcPath(C, R, a, b); ctx.closePath(); }
+function drawCircle(C, R, color, w){
+  ctx.beginPath(); ctx.arc(C.x, C.y, R, 0, 7);
+  ctx.strokeStyle = color || INK; ctx.lineWidth = w || 3.2; ctx.stroke();
+}
+function drawArc(C, R, a, b, color, w){
+  ctx.beginPath(); arcPath(C, R, a, b);
+  ctx.strokeStyle = color; ctx.lineWidth = w || 6; ctx.lineCap = "round"; ctx.stroke();
+  ctx.lineCap = "butt";
+}
+/* 약분한 분수 문자열 */
+function frac(n, d){
+  const g = (function gcd(a, b){ return b ? gcd(b, a % b) : a; })(Math.abs(n), Math.abs(d));
+  const p = n/g, q = d/g;
+  return q === 1 ? String(p)
+    : '<span class="frac"><span class="top">' + p + '</span><span class="bot">' + q + '</span></span>';
+}
+const r2 = v => Math.round(v*100)/100;
+
+/* ============================================================
+   상태
+   ============================================================ */
+let tab = "pizza";
+let slices = 6;                    /* ① */
+let rr = 6, xx = 120;              /* ② */
+let kCut = 8, tSpread = 0, spreadAnim = null;   /* ③ */
+let Q = {kind:"arc", r:0, x:0, ans:0, done:false, tries:0, ok:0, streak:0};
+
+/* ============================================================
+   ① 피자 한 조각
+   ============================================================ */
+const PC = {x:410, y:305}, PR = 200;
+function drawPizza(){
+  const step = 360/slices;
+  for(let i = 0; i < slices; i++){
+    const a = 90 - i*step, b = a - step;
+    sectorPath(PC, PR, b, a);
+    ctx.fillStyle = (i === 0 ? "#e5484d" : FILLS[i % FILLS.length]) + (i === 0 ? "55" : "44");
+    ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.stroke();
+  }
+  drawCircle(PC, PR, "#c2410c", 4);
+
+  /* 첫 조각 강조 */
+  const a0 = 90, b0 = 90 - step;
+  sectorPath(PC, PR, b0, a0);
+  ctx.strokeStyle = RED; ctx.lineWidth = 4; ctx.stroke();
+  const mid = 90 - step/2;
+  txt("한 조각", PC.x + Math.cos(rad(mid))*PR*0.58, PC.y - Math.sin(rad(mid))*PR*0.58, "#8a2b2f", 19, true);
+  txt(Math.round(step*10)/10 + "°", PC.x + Math.cos(rad(mid))*66, PC.y - Math.sin(rad(mid))*66, "#8a2b2f", 17, true);
+
+  txt(slices + "조각으로 똑같이 나눈 피자", PC.x, 48, SUB, 20, true);
+  $("tip").textContent = "한 조각은 전체의 얼마일까요?";
+}
+function paintPizza(){
+  const step = 360/slices;
+  $("vN").textContent = slices + "조각";
+  /* 중심각이 나누어떨어지지 않는 경우(7·11조각 등)에는 약분한 1/n 으로 보여 준다 */
+  $("pizzaCalc").innerHTML =
+    '<span class="step">한 조각이 차지하는 비율</span><br>' + frac(1, slices) +
+    '<br><span class="step">한 조각의 중심각 ÷ 360°</span><br>' +
+    (Number.isInteger(step) ? step : Math.round(step*10)/10) + '° ÷ 360° = ' +
+    (Number.isInteger(step) ? frac(step, 360) : frac(1, slices)) +
+    '<br><span class="res">= ' + frac(1, slices) + ' — 두 값이 같아요!</span>';
+  $("pizzaFb").innerHTML =
+    '<div class="fb ok">그래서 부채꼴의 호와 넓이는 <b>원 전체 × ' +
+    '<span class="frac"><span class="top">중심각</span><span class="bot">360</span></span></b> 로 구해요.</div>';
+  if(window.MKSCORE) MKSCORE.once("pizza" + slices, 3, slices + "조각 비율 보기");
+}
+$("rN").addEventListener("input", function(e){ slices = +e.target.value; paintPizza(); draw(); });
+
+/* ============================================================
+   ② 호와 넓이 구하기
+   ============================================================ */
+const CC = {x:400, y:310};
+function drawCalc(){
+  const R = 26 + rr*13;                       /* 반지름을 화면에서도 달라 보이게 */
+  const a0 = 90, b0 = 90 - xx;
+  drawCircle(CC, R, "#d7dfec", 2.4);
+  sectorPath(CC, R, b0, a0);
+  ctx.fillStyle = BLUE + "2e"; ctx.fill();
+  ctx.strokeStyle = BLUE; ctx.lineWidth = 3; ctx.stroke();
+  drawArc(CC, R, b0, a0, RED, 6.5);
+
+  const A = at(CC, R, a0), B = at(CC, R, b0);
+  seg(CC, A, INK, 3); seg(CC, B, INK, 3);
+  ctx.fillStyle = INK;
+  ctx.beginPath(); ctx.arc(CC.x, CC.y, 6, 0, 7); ctx.fill();
+
+  const mid = 90 - xx/2;
+  sectorPath(CC, Math.min(58, R*0.5), b0, a0);
+  ctx.strokeStyle = ORANGE; ctx.lineWidth = 2.6; ctx.stroke();
+  txt(xx + "°", CC.x + Math.cos(rad(mid))*Math.min(80, R*0.72), CC.y - Math.sin(rad(mid))*Math.min(80, R*0.72), ORANGE, 18, true);
+
+  /* 반지름 표시 */
+  const rm = {x:(CC.x + A.x)/2, y:(CC.y + A.y)/2};
+  txt(rr + " cm", rm.x - 34, rm.y, INK, 17, true);
+  txt("호 " + (xx === 360 ? "= 원 둘레" : "l"), CC.x + Math.cos(rad(mid))*(R + 40),
+      CC.y - Math.sin(rad(mid))*(R + 40), RED, 18, true);
+  txt("넓이 S", CC.x + Math.cos(rad(mid))*R*0.62, CC.y - Math.sin(rad(mid))*R*0.62, BLUE, 18, true);
+  $("tip").textContent = "슬라이더로 r 과 x 를 바꿔 보세요";
+}
+function paintCalc(){
+  $("vR").textContent = rr + " cm";
+  $("vX").textContent = xx + "°";
+  const lNum = 2*rr*xx/360, sNum = rr*rr*xx/360;
+  $("calcBox").innerHTML =
+    '<span class="step">호의 길이</span><br>' +
+    '<span class="it">l</span> = 2π<span class="it">r</span> × ' +
+    '<span class="frac"><span class="top"><span class="it">x</span></span><span class="bot">360</span></span>' +
+    ' = 2π×' + rr + ' × ' + frac(xx, 360) + ' = <span class="res">' + frac(2*rr*xx, 360) + 'π cm</span>' +
+    '<br><span class="step">넓이</span><br>' +
+    '<span class="it">S</span> = π<span class="it">r</span>² × ' +
+    '<span class="frac"><span class="top"><span class="it">x</span></span><span class="bot">360</span></span>' +
+    ' = π×' + rr + '² × ' + frac(xx, 360) + ' = <span class="res">' + frac(rr*rr*xx, 360) + 'π cm²</span>';
+  $("calcFb").innerHTML =
+    '<div class="fb info">π 를 3.14 로 보면 <span class="it">l</span> ≈ <b>' + r2(lNum*Math.PI) +
+    ' cm</b>, <span class="it">S</span> ≈ <b>' + r2(sNum*Math.PI) + ' cm²</b> 예요.</div>';
+}
+$("rR").addEventListener("input", function(e){ rr = +e.target.value; paintCalc(); draw(); });
+$("rX").addEventListener("input", function(e){ xx = +e.target.value; paintCalc(); draw(); });
+
+/* ============================================================
+   ③ 잘라서 펴 보기 — S = ½rl
+   부채꼴을 k 조각으로 자르고, 위·아래로 엇갈리게 붙여 직사각형에 가깝게 만든다.
+   ============================================================ */
+const HC = {x:300, y:250}, HR = 165, HANG = 200;      /* 중심각 200° 짜리 부채꼴로 보여 준다 */
+function drawHalf(){
+  const t = clamp01(tSpread);
+  const step = HANG/kCut;
+  const arcLen = 2*Math.PI*HR*HANG/360;
+  const w = arcLen/2;                                  /* 펼친 직사각형의 가로 = 호의 절반 */
+  const RX = 460 - w/2, RY = 330;                      /* 펼친 자리(왼쪽 위 기준) */
+
+  for(let i = 0; i < kCut; i++){
+    const a = 90 + HANG/2 - i*step, b = a - step;
+    const mid = (a + b)/2;
+    const up = (i % 2 === 0);                          /* 번갈아 뒤집어 붙인다 */
+
+    /* 제자리(부채꼴) 좌표계 */
+    const P0 = {x:HC.x, y:HC.y, rot:0};
+    /* 펼친 자리 : i 번째 조각을 가로로 나란히 */
+    const cellW = w/Math.ceil(kCut/2);
+    const idx = Math.floor(i/2);
+    const P1 = {
+      x:RX + cellW*idx + (up ? 0 : cellW),
+      y:up ? RY : RY - HR,
+      rot:up ? (90 - mid) : (90 - mid + 180)
+    };
+    const px = P0.x + (P1.x - P0.x)*t;
+    const py = P0.y + (P1.y - P0.y)*t;
+    const rot = P0.rot + (P1.rot - P0.rot)*t;
+
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(rad(-rot));
+    ctx.translate(-HC.x, -HC.y);
+    sectorPath(HC, HR, b, a);
+    ctx.fillStyle = FILLS[i % FILLS.length] + "77";
+    ctx.fill();
+    ctx.strokeStyle = "#c2410c"; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.restore();
+  }
+
+  if(t > 0.92){
+    /* 가로·세로 표시 */
+    const y0 = RY - HR, y1 = RY;
+    seg({x:RX, y:y1 + 26}, {x:RX + w, y:y1 + 26}, PURPLE, 3);
+    txt("½ l", RX + w/2, y1 + 48, PURPLE, 19, true);
+    seg({x:RX - 26, y:y0}, {x:RX - 26, y:y1}, OK, 3);
+    txt("r", RX - 48, (y0 + y1)/2, OK, 19, true);
+    txt("S = r × ½ l = ½ r l", 450, 60, OK, 23, true);
+  }else{
+    txt("부채꼴을 잘게 잘라 엇갈리게 붙여 보세요", 450, 60, SUB, 20, true);
+  }
+  $("tip").textContent = t > 0.92 ? "직사각형에 가까워졌어요" : "펴기 슬라이더를 밀어 보세요";
+}
+function paintHalf(){
+  $("vK").textContent = kCut + "조각";
+  $("vT").textContent = Math.round(tSpread*100) + " %";
+  $("halfCalc").innerHTML =
+    '<span class="step">직사각형으로 보면</span><br>' +
+    '<span class="it">S</span> = (가로) × (세로) = ' +
+    '<span class="frac"><span class="top">1</span><span class="bot">2</span></span><span class="it">l</span>' +
+    ' × <span class="it">r</span> = <span class="res">½<span class="it">rl</span></span>';
+  $("halfFb").innerHTML = tSpread > 0.92
+    ? '<div class="fb ok">🎉 조각을 잘게 자를수록 <b>직사각형</b>에 가까워져요.' +
+      ' 가로가 <b>½<span class="it">l</span></b>, 세로가 <b><span class="it">r</span></b> 이므로' +
+      ' <b><span class="it">S</span> = ½<span class="it">rl</span></b> 이에요. (교과서 196쪽)</div>'
+    : '<div class="fb info">조각 수를 늘리고 <b>펴기</b> 를 끝까지 밀어 보세요.</div>';
+}
+function stopSpread(){ if(spreadAnim){ cancelAnimationFrame(spreadAnim); spreadAnim = null; } }
+$("rK").addEventListener("input", function(e){ stopSpread(); kCut = +e.target.value; paintHalf(); draw(); });
+$("rT").addEventListener("input", function(e){ stopSpread(); tSpread = +e.target.value/100; paintHalf(); draw(); });
+$("btnSpread").addEventListener("click", function(){
+  stopSpread();
+  const from = tSpread, t0 = performance.now(), DUR = 2200;
+  (function step(now){
+    const u = Math.min(1, (now - t0)/DUR);
+    tSpread = from + (1 - from)*u;
+    $("rT").value = Math.round(tSpread*100);
+    paintHalf(); draw();
+    if(u < 1) spreadAnim = requestAnimationFrame(step);
+    else{ spreadAnim = null; if(window.MKSCORE) MKSCORE.once("halfrl", 10, "S = ½rl 펴 보기"); }
+  })(performance.now());
+});
+$("btnBack").addEventListener("click", function(){
+  stopSpread(); tSpread = 0; $("rT").value = 0; paintHalf(); draw();
+});
+
+/* ============================================================
+   ④ 스스로 풀기 (교과서 196쪽 문제5·6)
+   ============================================================ */
+const QC2 = {x:420, y:315};
+function drawQuiz(){
+  const R = 175;
+  const a0 = 90, b0 = 90 - Q.x;
+  drawCircle(QC2, R, "#e3e8f0", 2);
+  sectorPath(QC2, R, b0, a0);
+  ctx.fillStyle = OK + "2e"; ctx.fill();
+  ctx.strokeStyle = OK; ctx.lineWidth = 3.2; ctx.stroke();
+  const A = at(QC2, R, a0), B = at(QC2, R, b0);
+  ctx.fillStyle = INK;
+  ctx.beginPath(); ctx.arc(QC2.x, QC2.y, 6, 0, 7); ctx.fill();
+  const mid = 90 - Q.x/2;
+  sectorPath(QC2, 52, b0, a0);
+  ctx.strokeStyle = ORANGE; ctx.lineWidth = 2.6; ctx.stroke();
+  txt(Q.x + "°", QC2.x + Math.cos(rad(mid))*74, QC2.y - Math.sin(rad(mid))*74, ORANGE, 18, true);
+  const rm = {x:(QC2.x + A.x)/2, y:(QC2.y + A.y)/2};
+  txt(Q.r + " cm", rm.x - 38, rm.y, INK, 18, true);
+  txt(Q.kind === "arc" ? "호의 길이는?" : "넓이는?", QC2.x, 56, Q.kind === "arc" ? RED : BLUE, 21, true);
+  $("tip").textContent = "";
+}
+function newQuestion(){
+  const RS = [3, 4, 5, 6, 8, 9, 10, 12];
+  const XS = [30, 45, 60, 72, 90, 120, 135, 150, 180, 225, 240, 270, 300];
+  let r, x, guard = 0;
+  do{
+    r = RS[Math.floor(Math.random()*RS.length)];
+    x = XS[Math.floor(Math.random()*XS.length)];
+    guard++;
+  }while(guard < 40 && (r === Q.r && x === Q.x));
+
+  Q.kind = Math.random() < 0.5 ? "arc" : "area";
+  Q.r = r; Q.x = x;
+  Q.ans = Q.kind === "arc" ? 2*r*x/360 : r*r*x/360;
+  Q.done = false;
+  $("unit").textContent = Q.kind === "arc" ? "π cm" : "π cm²";
+  $("ask").innerHTML = '반지름이 <b>' + r + ' cm</b> 이고 중심각이 <b>' + x + '°</b> 인 부채꼴의 ' +
+    (Q.kind === "arc" ? '<b>호의 길이</b>' : '<b>넓이</b>') + ' 를 π 를 써서 나타내세요.';
+  const inp = $("ansIn"); inp.value = ""; inp.className = "";
+  $("quizFb").innerHTML = "";
+  draw();
+}
+$("btnCheck").addEventListener("click", function(){
+  if(Q.done) return;
+  const inp = $("ansIn");
+  if(inp.value === ""){ $("quizFb").innerHTML = '<div class="fb warn">답을 적어 주세요.</div>'; return; }
+  const ok = Math.abs(+inp.value - Q.ans) < 1e-6;
+  Q.done = true; Q.tries++;
+  if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
+  inp.className = ok ? "good" : "bad";
+  const u = Q.kind === "arc" ? "π cm" : "π cm²";
+  const how = Q.kind === "arc"
+    ? '<span class="it">l</span> = 2π×' + Q.r + ' × ' + frac(Q.x, 360) + ' = <b>' + frac(2*Q.r*Q.x, 360) + 'π cm</b>'
+    : '<span class="it">S</span> = π×' + Q.r + '² × ' + frac(Q.x, 360) + ' = <b>' + frac(Q.r*Q.r*Q.x, 360) + 'π cm²</b>';
+  $("quizFb").innerHTML =
+    '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+    (ok ? "🎉 정답! " : '아쉬워요. 답은 <b>' + frac(Q.kind === "arc" ? 2*Q.r*Q.x : Q.r*Q.r*Q.x, 360) + u + '</b>. ') +
+    how + '</div>';
+  $("qTry").textContent = Q.tries; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
+  if(window.MKSCORE) MKSCORE.quiz(ok, "부채꼴 호·넓이 구하기");
+});
+$("btnNext").addEventListener("click", newQuestion);
+$("ansIn").addEventListener("keydown", function(e){ if(e.key === "Enter") $("btnCheck").click(); });
+
+/* ============================================================
+   그리기 / 탭
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);    /* 화면 전체를 칠한다 */
+  if(tab === "pizza") drawPizza();
+  else if(tab === "calc") drawCalc();
+  else if(tab === "half") drawHalf();
+  else drawQuiz();
+  ctx.restore();
+}
+
+document.querySelectorAll("header nav button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    stopSpread();
+    $("pPizza").classList.toggle("hidden", tab !== "pizza");
+    $("pCalc") .classList.toggle("hidden", tab !== "calc");
+    $("pHalf") .classList.toggle("hidden", tab !== "half");
+    $("pQuiz") .classList.toggle("hidden", tab !== "quiz");
+    draw();
+  });
+});
+
+/* ============================================================
+   시작 — common.js 는 defer 이므로 반드시 DOMContentLoaded 이후에
+   ============================================================ */
+function boot(){
+  paintPizza();
+  paintCalc();
+  paintHalf();
+  newQuestion();                 /* 데이터 먼저 (pitfalls #16) */
+  tab = "pizza";
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
