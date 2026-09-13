@@ -303,7 +303,9 @@ let tab = "split";
 let n = 6;
 let splitDiags = new Set();   /* ① 그은 대각선 "i-j" (i<j) */
 let splitFirst = -1;          /* ① 먼저 누른 꼭짓점 */
-let innerOn = false;      /* ② 가운데 점에서 나눴나 */
+let innerT = -1;          /* ② 애니메이션 진행도 0~1, -1 이면 멈춤 */
+let innerDone = false;    /* ② 다 나눈 상태 */
+let innerAnim = null;
 let picked = -1;          /* ② 고른 보기 */
 let Q = {n:0, kind:"sum", ans:0, done:false, tries:0, ok:0, streak:0};
 
@@ -524,30 +526,104 @@ const NI = 6;
 const C2 = {x:430, y:300}, R2 = 210;
 const IN = {x:C2.x, y:C2.y};          /* 가운데 점 */
 
+/* ── 애니메이션 구간 나누기 ──
+   0.00~0.10  가운데 점이 나타난다
+   0.10~0.62  꼭짓점마다 선이 차례로 뻗고, 두 선이 다 닿으면 삼각형이 하나씩 칠해진다
+   0.62~0.72  "삼각형 6개 = 180°×6 = 1080°"
+   0.72~0.86  가운데 점 둘레 360° 가 한 바퀴 그려진다
+   0.86~1.00  진짜 내각(초록)이 드러난다                                    */
+const SPOKE_A = 0.10, SPOKE_SPAN = 0.52;
+const clamp01 = x => Math.max(0, Math.min(1, x));
+function spokeU(k, t){
+  if(t < 0) return 1;                                  /* 멈춘 상태(다 그린 그림) */
+  const st = SPOKE_A + (k/NI)*SPOKE_SPAN, du = (SPOKE_SPAN/NI)*1.7;
+  return clamp01((t - st)/du);
+}
+
 function drawInner(){
   const P = verts(NI, C2.x, C2.y, R2);
-  if(innerOn){
+  const t = innerT;                                    /* -1 이면 진행 중이 아님 */
+  const live = t >= 0;
+  const show = live || innerDone;                      /* 무언가 보여 줄 상태인가 */
+
+  if(show){
+    const u = [];
+    for(let k = 0; k < NI; k++) u.push(live ? spokeU(k, t) : 1);
+
+    /* 삼각형 : 양쪽 선이 모두 닿았을 때 칠한다 */
+    let made = 0;
     for(let k = 0; k < NI; k++){
+      if(u[k] < 1 || u[(k+1)%NI] < 1) continue;
+      made++;
       const a = IN, b = P[k], c = P[(k+1)%NI];
       tri(a, b, c, FILLS[k % FILLS.length]);
       const gx = (a.x + b.x + c.x)/3, gy = (a.y + b.y + c.y)/3;
       txt(String(k+1), gx, gy, FILLS[k % FILLS.length], 20, true);
     }
-    for(let k = 0; k < NI; k++) seg(IN, P[k], BLUE, 3);
-    /* 가운데 점 둘레 360° */
-    ctx.beginPath(); ctx.arc(IN.x, IN.y, 44, 0, 7);
-    ctx.strokeStyle = RED; ctx.lineWidth = 3.4; ctx.setLineDash([7,6]); ctx.stroke(); ctx.setLineDash([]);
-    txt("360°", IN.x, IN.y - 62, RED, 20, true);
+    /* 선 : 가운데에서 꼭짓점 쪽으로 자라난다 */
+    for(let k = 0; k < NI; k++){
+      if(u[k] <= 0) continue;
+      seg(IN, {x:IN.x + (P[k].x - IN.x)*u[k], y:IN.y + (P[k].y - IN.y)*u[k]}, BLUE, 3);
+    }
+
+    /* 가운데 점 둘레 360° — 한 바퀴 그려지는 모습으로 */
+    const cu = live ? clamp01((t - 0.72)/0.14) : 1;
+    if(cu > 0){
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(IN.x, IN.y, 44, -Math.PI/2, -Math.PI/2 + 2*Math.PI*cu);
+      ctx.strokeStyle = RED; ctx.lineWidth = 3.4; ctx.setLineDash([7,6]); ctx.stroke();
+      ctx.restore();
+      if(cu >= 1) txt("360°", IN.x, IN.y - 62, RED, 20, true);
+    }
+
+    /* 위쪽 설명 */
+    if(!live || t >= 0.62)
+      txt("삼각형 6개 = 180° × 6 = 1080°", C2.x, 56, SUB, 20, true);
+    else
+      txt("삼각형 " + made + "개", C2.x, 56, INK, 22, true);
   }
+
   for(let i = 0; i < NI; i++) seg(P[i], P[(i+1)%NI], INK, 4.6);
-  if(innerOn) for(let i = 0; i < NI; i++) markInner(P, i, OK, 30);
+
+  /* 진짜 내각(초록)은 마지막에 드러난다 */
+  const gu = live ? clamp01((t - 0.86)/0.14) : (innerDone ? 1 : 0);
+  if(gu > 0) for(let i = 0; i < NI; i++) markInner(P, i, OK, 30*gu);
+
   for(let i = 0; i < NI; i++) dot(P[i], INK, 7.5);
-  if(innerOn) dot(IN, RED, 8, true);
-  if(innerOn){
-    txt("삼각형 6개 = 180° × 6 = 1080°", C2.x, 56, SUB, 20, true);
-    txt("초록 각만 더해야 내각의 합", C2.x, C2.y + R2 + 66, OK, 20, true);
+
+  /* 가운데 점은 처음에 톡 나타난다 */
+  if(show){
+    const du = live ? clamp01(t/SPOKE_A) : 1;
+    if(du > 0) dot(IN, RED, 8*du, true);
   }
-  $("tip").textContent = innerOn ? "빨간 360° 는 다각형의 내각이 아니에요" : "버튼을 눌러 나눠 보세요";
+  if(gu >= 1) txt("초록 각만 더해야 내각의 합", C2.x, C2.y + R2 + 66, OK, 20, true);
+
+  $("tip").textContent = live ? "가운데 점에서 삼각형으로 나누는 중…"
+                       : innerDone ? "빨간 360° 는 다각형의 내각이 아니에요"
+                       : "버튼을 눌러 나눠 보세요";
+}
+
+function stopInnerAnim(){
+  if(innerAnim){ cancelAnimationFrame(innerAnim); innerAnim = null; }
+  innerT = -1;
+}
+function runInner(){
+  stopInnerAnim();
+  innerDone = false;
+  innerT = 0;
+  const t0 = performance.now(), DUR = 3600;
+  (function step(now){
+    innerT = Math.min(1, (now - t0)/DUR);
+    draw();
+    if(innerT < 1){
+      innerAnim = requestAnimationFrame(step);
+    }else{
+      innerAnim = null; innerT = -1; innerDone = true;
+      draw();
+      if(window.MKSCORE) MKSCORE.once("innerSplit", 5, "가운데 점에서 나누기 보기");
+    }
+  })(t0);
 }
 
 function paintInner(){
@@ -558,8 +634,10 @@ function paintInner(){
     '일반적으로 180°×<span class="it">n</span> − 360° = 180°(<span class="it">n</span>−2) 예요.</span>';
 }
 
-$("btnInner").addEventListener("click", function(){ innerOn = true; draw(); });
-$("btnInnerClear").addEventListener("click", function(){ innerOn = false; draw(); });
+$("btnInner").addEventListener("click", runInner);
+$("btnInnerClear").addEventListener("click", function(){
+  stopInnerAnim(); innerDone = false; draw();
+});
 
 document.querySelectorAll("#choiceBox button").forEach(function(b){
   b.addEventListener("click", function(){
@@ -569,7 +647,7 @@ document.querySelectorAll("#choiceBox button").forEach(function(b){
     const ok = c === 1;
     b.className = ok ? "good" : "bad";
     if(!ok) document.querySelector('#choiceBox button[data-c="1"]').className = "good";
-    innerOn = true;
+    if(!innerDone && innerT < 0) runInner();        /* 아직 안 봤으면 장면을 돌려 준다 */
     $("innerFb").innerHTML = ok
       ? '<div class="fb ok">🎉 맞아요! 가운데 점에 모인 각 <b>360°</b> 는 다각형의 내각이 아니에요.' +
         ' 그래서 <b>180°×6 − 360° = 720°</b> 가 육각형의 내각의 합이에요.</div>'
@@ -676,6 +754,7 @@ document.querySelectorAll("header nav button").forEach(function(b){
     document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
     b.classList.add("on");
     tab = b.dataset.tab;
+    if(tab !== "inner" && innerAnim) stopInnerAnim();
     $("pSplit").classList.toggle("hidden", tab !== "split");
     $("pInner").classList.toggle("hidden", tab !== "inner");
     $("pQuiz") .classList.toggle("hidden", tab !== "quiz");
