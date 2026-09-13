@@ -317,24 +317,38 @@ function drawnMap(){
    ① 탐구 그리기
    ============================================================ */
 const EX_C = {x:430, y:300}, EX_R = 218;
-const OFFSET = 4.2;          /* 같은 대각선의 두 선이 겹치지 않게 옆으로 밀어 두는 거리 */
+const BOW = 11;   /* 같은 대각선을 두 번 그었을 때 두 선이 벌어지는 정도 */
+
+/* 두 점을 잇되 가운데를 옆으로 살짝 부풀린 선. off=0 이면 곧은 선. */
+function bow(A, B, off, color, w){
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(A.x, A.y);
+  if(off === 0){
+    ctx.lineTo(B.x, B.y);
+  }else{
+    const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1;
+    const nx = -dy/L*off*2, ny = dx/L*off*2;     /* 제어점은 두 배 띄워야 가운데가 off 만큼 벌어진다 */
+    ctx.quadraticCurveTo((A.x + B.x)/2 + nx, (A.y + B.y)/2 + ny, B.x, B.y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
 
 function drawExplore(){
   const P = verts(n, EX_C.x, EX_C.y, EX_R);
+  const m = drawnMap();
 
-  /* 그은 선을 하나씩 그린다. 출발점이 작은 쪽이면 한쪽으로,
-     큰 쪽이면 반대쪽으로 밀어 두 번 그은 대각선은 선이 두 개로 보이게 한다. */
+  /* 한 번만 그은 대각선은 곧은 선, 양쪽에서 그은 것은 서로 반대쪽으로 부풀려
+     선이 두 개라는 게 한눈에 보이게 한다. 끝점은 언제나 꼭짓점에 정확히 붙는다. */
   draws.forEach(function(s){
     const p = s.split(">").map(Number);
-    const A = P[p[0]], B = P[p[1]];
-    const dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1;
-    const k = (p[0] < p[1] ? 1 : -1) * OFFSET;
-    const nx = -dy/L*k, ny = dx/L*k;
-    seg({x:A.x + nx, y:A.y + ny}, {x:B.x + nx, y:B.y + ny}, BLUE, 3);
+    const k = Math.min(p[0], p[1]) + "-" + Math.max(p[0], p[1]);
+    const twice = (m.get(k) || 0) >= 2;
+    /* 부호를 뒤집으면 안 된다 — 진행 방향이 반대면 수직 방향도 이미 뒤집히므로
+       같은 값을 주어야 두 선이 서로 반대쪽으로 벌어진다. */
+    bow(P[p[0]], P[p[1]], twice ? BOW : 0, BLUE, 3);
   });
-
-  /* 먼저 고른 꼭짓점에서 손가락을 따라가듯 안내선 */
-  if(first >= 0) dot(P[first], BLUE, 11, true);
 
   /* 변 */
   for(let i = 0; i < n; i++) seg(P[i], P[(i+1)%n], INK, 4.6);
@@ -478,13 +492,56 @@ cv.addEventListener("pointerdown", function(ev){
   }
   if(best < 0) return;
   if(n === 3){
-    $("exploreFb").innerHTML = '<div class="fb warn">삼각형은 대각선을 그을 수 없어요.</div>';
+    $("exploreFb").innerHTML =
+      '<div class="fb warn">삼각형은 이웃하지 않는 꼭짓점이 없어서 대각선을 <b>하나도</b> 그을 수 없어요.</div>';
+    first = -1; draw();
     return;
   }
-  if(sel.has(best)) sel.delete(best); else sel.add(best);
-  $("exploreFb").innerHTML =
-    '<div class="fb info">꼭짓점 <b>' + LETTERS[best] + '</b> 에서는 자기 자신과 이웃한 두 꼭짓점을 뺀 <b>' +
-    n + ' − 3 = ' + (n-3) + '개</b>에 그을 수 있어요.</div>';
+
+  /* 첫 번째 꼭짓점 고르기 */
+  if(first < 0){
+    first = best;
+    $("exploreFb").innerHTML =
+      '<div class="fb info">꼭짓점 <b>' + LETTERS[best] + '</b> 를 골랐어요. 이을 꼭짓점을 하나 더 누르세요.</div>';
+    draw();
+    return;
+  }
+
+  /* 두 번째 꼭짓점 — 대각선이 되는지 따진다 */
+  const a = first, b = best;
+  if(a === b){
+    $("exploreFb").innerHTML =
+      '<div class="fb no">같은 꼭짓점 <b>' + LETTERS[a] + '</b> 를 두 번 눌렀어요.' +
+      ' <b>자기 자신</b>과는 선을 그을 수 없으니 대각선이 되지 않아요.</div>';
+    first = -1; draw();
+    return;
+  }
+  if(isAdj(a, b, n)){
+    $("exploreFb").innerHTML =
+      '<div class="fb no"><b>' + LETTERS[a] + LETTERS[b] + '</b> 는 <b>이웃한</b> 두 꼭짓점이에요.' +
+      ' 이으면 다각형의 <b>변</b>이 되므로 대각선이 아니에요.</div>';
+    first = -1; draw();
+    return;
+  }
+
+  const key = a + ">" + b, back = b + ">" + a;
+  if(draws.has(key)){
+    $("exploreFb").innerHTML =
+      '<div class="fb warn">' + LETTERS[a] + ' 에서 ' + LETTERS[b] + ' 로는 이미 그었어요.' +
+      (draws.has(back) ? ' 양쪽에서 다 그어서 선이 두 개예요.'
+                       : ' 이번엔 <b>' + LETTERS[b] + ' 에서 ' + LETTERS[a] + ' 로</b> 그어 보세요.') + '</div>';
+    first = -1; draw();
+    return;
+  }
+
+  draws.add(key);
+  $("exploreFb").innerHTML = draws.has(back)
+    ? '<div class="fb ok">대각선 <b>' + LETTERS[Math.min(a,b)] + LETTERS[Math.max(a,b)] + '</b> 를' +
+      ' <b>양쪽 끝에서</b> 한 번씩 그었어요. 선은 두 개지만 대각선은 <b>하나</b> 예요.</div>'
+    : '<div class="fb info">대각선 <b>' + LETTERS[a] + LETTERS[b] + '</b> 를 그었어요.' +
+      ' 꼭짓점 <b>' + LETTERS[a] + '</b> 에서는 자기 자신과 이웃한 두 꼭짓점을 뺀 <b>' +
+      n + ' − 3 = ' + (n-3) + '개</b>에 그을 수 있어요.</div>';
+  first = -1;
   updateCounts(); draw();
 });
 
