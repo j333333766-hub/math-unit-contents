@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>뿔 실험실 — 겉넓이와 3분의 1 부피</title>
+<link rel="stylesheet" href="../assets/common.css?v=4">
+<script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 356px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none;}
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn:disabled{opacity:.45; cursor:default;}
+  .btn:disabled:hover{background:var(--panel); border-color:var(--line); color:var(--ink);}
+
+  .slider{margin-top:11px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .calc{
+    margin-top:10px; background:#f7f9fd; border:1px solid var(--line); border-radius:10px;
+    padding:11px 12px; font-size:13.5px; font-weight:700; line-height:1.95; color:var(--ink);
+  }
+  .calc .step{color:var(--sub); font-size:12.5px; font-weight:600;}
+  .calc .res{color:var(--accent); font-size:16px;}
+  .it{font-family:'Times New Roman',serif; font-style:italic; font-weight:700;}
+  .frac{display:inline-block; vertical-align:middle; text-align:center; margin:0 2px;}
+  .frac .top{display:block; border-bottom:2px solid currentColor; padding:0 5px;}
+  .frac .bot{display:block; padding:0 5px;}
+
+  .ansrow{display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .ansrow input{
+    width:104px; font:700 17px var(--font); padding:9px 10px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+  .ansrow .unit{font-size:14px; font-weight:700; color:var(--sub);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>⛺ 뿔 실험실</h1>
+  <nav>
+    <button class="on" data-tab="net">① 원뿔 펼치기</button>
+    <button data-tab="pour">② 세 번 부으면</button>
+    <button data-tab="quiz">③ 스스로 풀기</button>
+  </nav>
+  <a class="home-btn" href="../index.html?unit=5">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ① 전개도 -->
+    <section id="pNet">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 원뿔을 펼치면 부채꼴이 돼요</h2>
+        <p>원뿔의 옆면을 펼치면 <b>반지름이 모선 <span class="it">l</span></b>,
+           <b>호의 길이가 밑면의 둘레 2π<span class="it">r</span></b> 인 부채꼴이에요. (교과서 211~212쪽)</p>
+        <div class="slider">
+          <label><span>밑면 반지름 <span class="it">r</span></span><span class="v" id="vR">3 cm</span></label>
+          <input type="range" id="rR" min="1" max="6" step="1" value="3">
+        </div>
+        <div class="slider">
+          <label><span>모선 <span class="it">l</span></span><span class="v" id="vL">9 cm</span></label>
+          <input type="range" id="rL" min="2" max="14" step="1" value="9">
+        </div>
+        <div class="slider">
+          <label><span>펼치기</span><span class="v" id="vT">0 %</span></label>
+          <input type="range" id="rT" min="0" max="100" step="1" value="0">
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary sm" id="btnOpen">▶ 천천히 펼치기</button>
+          <button class="btn sm" id="btnClose">↺ 접기</button>
+        </div>
+        <div class="calc" id="netCalc"></div>
+        <div id="netFb"></div>
+      </div>
+    </section>
+
+    <!-- ② 세 번 붓기 -->
+    <section id="pPour" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 뿔에 담아 기둥에 부어 보세요</h2>
+        <p>밑면이 합동이고 높이가 같은 <b>뿔</b>과 <b>기둥</b>이에요.
+           뿔에 모래를 가득 담아 기둥에 부으면 <b>몇 번</b>에 가득 찰까요? (교과서 213쪽)</p>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm on" data-shape="cone">원뿔 ↔ 원기둥</button>
+          <button class="btn sm" data-shape="pyr">사각뿔 ↔ 사각기둥</button>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary sm" id="btnPour">▶ 한 번 붓기</button>
+          <button class="btn sm" id="btnReset">↺ 처음부터</button>
+        </div>
+        <div class="calc" id="pourCalc"></div>
+        <div id="pourFb"></div>
+      </div>
+      <div class="blk">
+        <h2>알게 된 것</h2>
+        <p>뿔의 부피는 밑면이 합동이고 높이가 같은 기둥의 부피의
+           <b><span class="frac"><span class="top">1</span><span class="bot">3</span></span></b> 이에요.<br>
+           (뿔의 부피) = <span class="frac"><span class="top">1</span><span class="bot">3</span></span> × (밑넓이) × (높이)</p>
+      </div>
+    </section>
+
+    <!-- ③ 퀴즈 -->
+    <section id="pQuiz" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 스스로 풀기</h2>
+        <p id="ask"></p>
+        <div class="ansrow">
+          <input type="number" id="ansIn" placeholder="?" inputmode="decimal" step="any">
+          <span class="unit" id="unit">cm³</span>
+        </div>
+        <p style="margin-top:7px;font-size:12.5px;" id="hintPi">π 가 있는 답은 π 를 빼고 <b>숫자만</b> 적어 주세요.</p>
+        <div id="quizFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnCheck">✅ 확인</button>
+          <button class="btn sm" id="btnNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+const DW = 900, DH = 600;
+const INK = "#1d2433", SUB = "#68738a";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b", PURPLE = "#8e4ec6";
+const SAND = "#f0b429";
+const rad = d => d*Math.PI/180;
+const clamp01 = v => Math.max(0, Math.min(1, v));
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+function seg(a, b, color, w, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.restore();
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function ellipse(cx, cy, rx, ry, fill, stroke, lw){
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, 7);
+  if(fill){ ctx.fillStyle = fill; ctx.fill(); }
+  if(stroke){ ctx.strokeStyle = stroke; ctx.lineWidth = lw || 2.4; ctx.stroke(); }
+}
+function poly(pts, fill, stroke, lw){
+  ctx.beginPath();
+  pts.forEach(function(p, i){ i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); });
+  ctx.closePath();
+  if(fill){ ctx.fillStyle = fill; ctx.fill(); }
+  if(stroke){ ctx.strokeStyle = stroke; ctx.lineWidth = lw || 2.4; ctx.stroke(); }
+}
+function frac(n, d){
+  const g = (function gcd(a, b){ return b ? gcd(b, a % b) : a; })(Math.abs(n), Math.abs(d));
+  return (d/g === 1) ? String(n/g) : (n/g) + "/" + (d/g);
+}
+const r2 = v => Math.round(v*100)/100;
+
+/* ============================================================
+   상태
+   ============================================================ */
+let tab = "net";
+let rr = 3, ll = 9, tOpen = 0, openAnim = null;          /* ① */
+let shape = "cone", poured = 0, pourAnim = null, pourT = 0;   /* ② */
+let Q = {kind:"coneV", r:0, h:0, l:0, b:0, ans:0, pi:false, done:false, tries:0, ok:0, streak:0};
+
+/* ============================================================
+   ① 원뿔 펼치기
+   ============================================================ */
+const SC = 16;
+function drawNet(){
+  const t = clamp01(tOpen);
+  const R = rr*SC, L = ll*SC;
+  const cx = 330, cy = 330;
+
+  /* 부채꼴 중심각 = 360 × r/l */
+  const ang = 360*rr/ll;
+
+  if(t < 0.98){
+    /* 원뿔 그림 (접힌 쪽) */
+    const h = Math.sqrt(Math.max(1, L*L - R*R));
+    const apex = {x:cx, y:cy - h/2};
+    const bl = {x:cx - R, y:cy + h/2}, br = {x:cx + R, y:cy + h/2};
+    poly([apex, bl, br], BLUE + ("" + Math.round((1 - t)*60).toString(16)).padStart(2, "0") + "", BLUE, 2.6);
+    ellipse(cx, cy + h/2, R, R*0.3, ORANGE + "44", ORANGE, 2.4);
+    seg(apex, br, RED, 2.4);
+    txt(ll + " cm", (apex.x + br.x)/2 + 26, (apex.y + br.y)/2, RED, 16, true);
+    txt(rr + " cm", cx + R/2, cy + h/2 + 22, ORANGE, 16, true);
+  }
+  if(t > 0.02){
+    /* 펼친 부채꼴 */
+    const ox = 620, oy = 300;
+    const a0 = 90 + ang/2, a1 = 90 - ang/2;
+    ctx.globalAlpha = t;
+    ctx.beginPath();
+    ctx.moveTo(ox, oy);
+    /* 캔버스는 y 가 아래로 가므로 수학 각이 줄어드는 방향(a0 → a1)은 시계 방향이다.
+       anticlockwise 를 true 로 두면 남은 쪽(우각)이 칠해진다. */
+    ctx.arc(ox, oy, L, -rad(a0), -rad(a1), false);
+    ctx.closePath();
+    ctx.fillStyle = BLUE + "33"; ctx.fill();
+    ctx.strokeStyle = BLUE; ctx.lineWidth = 2.6; ctx.stroke();
+    const A = {x:ox + Math.cos(rad(a0))*L, y:oy - Math.sin(rad(a0))*L};
+    txt(ll + " cm", (ox + A.x)/2 - 16, (oy + A.y)/2, RED, 16, true);
+    txt("호 = 2π×" + rr + " = " + (2*rr) + "π cm",
+        ox + Math.cos(rad(90))*(L + 30), oy - Math.sin(rad(90))*(L + 30), BLUE, 17, true);
+    txt(Math.round(ang) + "°", ox, oy - 30, BLUE, 16, true);
+    /* 밑면 원 */
+    ellipse(ox + L + R + 34, oy + 60, R, R, ORANGE + "44", ORANGE, 2.4);
+    txt(rr + " cm", ox + L + R + 34, oy + 60 + R + 18, ORANGE, 16, true);
+    ctx.globalAlpha = 1;
+  }
+  txt(t > 0.9 ? "전개도 — 옆면은 부채꼴!" : (t < 0.1 ? "원뿔" : "펼치는 중…"),
+      450, 52, t > 0.9 ? OK : INK, 21, true);
+  $("tip").textContent = "펼치기 슬라이더를 밀어 보세요";
+}
+function paintNet(){
+  $("vR").textContent = rr + " cm";
+  $("vL").textContent = ll + " cm";
+  $("vT").textContent = Math.round(tOpen*100) + " %";
+  if(ll <= rr){ $("rL").value = rr + 1; ll = rr + 1; $("vL").textContent = ll + " cm"; }
+  const side = rr*ll;                 /* πrl 의 계수 */
+  const bas = rr*rr;
+  $("netCalc").innerHTML =
+    '<span class="step">밑넓이</span><br>π×' + rr + '² = ' + bas + 'π cm²' +
+    '<br><span class="step">옆넓이 (부채꼴)</span><br>' +
+    '<span class="frac"><span class="top">1</span><span class="bot">2</span></span>×' + ll +
+    '×(2π×' + rr + ') = ' + side + 'π cm²' +
+    '<br><span class="step">겉넓이 = 밑넓이 + 옆넓이</span><br>' +
+    '<span class="res">' + (bas + side) + 'π cm²</span>' +
+    '<br><span class="step">부채꼴의 중심각 = 360° × r / l</span><br>' +
+    '360° × ' + frac(rr, ll) + ' = ' + r2(360*rr/ll) + '°';
+  $("netFb").innerHTML = tOpen > 0.9
+    ? '<div class="fb ok">🎉 옆면을 펼치니 <b>부채꼴</b> 이에요. 반지름은 <b>모선 ' + ll +
+      ' cm</b>, 호의 길이는 <b>밑면의 둘레 ' + (2*rr) + 'π cm</b> 예요.</div>'
+    : '<div class="fb info"><b>펼치기</b> 를 끝까지 밀어 보세요.</div>';
+  if(tOpen > 0.9 && window.MKSCORE) MKSCORE.once("coneNet", 5, "원뿔 전개도 펼치기");
+}
+function stopOpen(){ if(openAnim){ cancelAnimationFrame(openAnim); openAnim = null; } }
+$("rR").addEventListener("input", function(e){ rr = +e.target.value; paintNet(); draw(); });
+$("rL").addEventListener("input", function(e){ ll = +e.target.value; paintNet(); draw(); });
+$("rT").addEventListener("input", function(e){ stopOpen(); tOpen = +e.target.value/100; paintNet(); draw(); });
+$("btnOpen").addEventListener("click", function(){
+  stopOpen();
+  const from = tOpen, t0 = performance.now(), DUR = 2000;
+  (function step(now){
+    const u = Math.min(1, (now - t0)/DUR);
+    tOpen = from + (1 - from)*u;
+    $("rT").value = Math.round(tOpen*100);
+    paintNet(); draw();
+    if(u < 1) openAnim = requestAnimationFrame(step); else openAnim = null;
+  })(performance.now());
+});
+$("btnClose").addEventListener("click", function(){ stopOpen(); tOpen = 0; $("rT").value = 0; paintNet(); draw(); });
+
+/* ============================================================
+   ② 세 번 부으면 — 뿔 → 기둥
+   ============================================================ */
+const PCX = 250, PPX = 620, PBY = 470, PH = 230, PR = 82;
+function drawVessel(cx, isCone, fillRatio){
+  const top = PBY - PH;
+  if(isCone){
+    poly([{x:cx, y:top}, {x:cx - PR, y:PBY}, {x:cx + PR, y:PBY}], "#eef2f9", "#7b8aa5", 2.6);
+    ellipse(cx, PBY, PR, PR*0.28, "#eef2f9", "#7b8aa5", 2.4);
+    /* 모래 : 아래에서 차오른다(원뿔은 위가 넓은 그릇이 아니라 뒤집힌 모양으로 그린다) */
+    if(fillRatio > 0){
+      const yh = PH*fillRatio;
+      const yTop = PBY - yh;
+      const wAt = PR*(1 - yh/PH);       /* 꼭짓점이 위이므로 위로 갈수록 좁아진다 */
+      poly([{x:cx - PR, y:PBY}, {x:cx + PR, y:PBY}, {x:cx + wAt, y:yTop}, {x:cx - wAt, y:yTop}],
+           SAND + "cc", "#c9871a", 1.6);
+      ellipse(cx, yTop, wAt, wAt*0.28, SAND, "#c9871a", 1.6);
+    }
+  }else{
+    ctx.beginPath(); ctx.rect(cx - PR, top, 2*PR, PH);
+    ctx.fillStyle = "#eef2f9"; ctx.fill();
+    ctx.strokeStyle = "#7b8aa5"; ctx.lineWidth = 2.6; ctx.stroke();
+    ellipse(cx, PBY, PR, PR*0.28, "#eef2f9", "#7b8aa5", 2.4);
+    if(fillRatio > 0){
+      const yh = PH*fillRatio, yTop = PBY - yh;
+      ctx.beginPath(); ctx.rect(cx - PR, yTop, 2*PR, yh);
+      ctx.fillStyle = SAND + "cc"; ctx.fill();
+      ctx.strokeStyle = "#c9871a"; ctx.lineWidth = 1.6; ctx.stroke();
+      ellipse(cx, yTop, PR, PR*0.28, SAND, "#c9871a", 1.6);
+    }
+    ellipse(cx, top, PR, PR*0.28, "#ffffffcc", "#7b8aa5", 2.4);
+  }
+}
+function drawPour(){
+  const isCone = (shape === "cone");
+  /* 왼쪽 : 뿔 (붓는 동안 비워진다) */
+  const coneFill = pourAnim ? (1 - pourT) : (poured >= 3 ? 0 : 1);
+  drawVessel(PCX, true, coneFill);
+  txt(isCone ? "원뿔" : "사각뿔", PCX, PBY + 46, INK, 19, true);
+
+  /* 오른쪽 : 기둥 */
+  const cylFill = Math.min(1, poured/3 + (pourAnim ? pourT/3 : 0));
+  drawVessel(PPX, false, cylFill);
+  txt(isCone ? "원기둥" : "사각기둥", PPX, PBY + 46, INK, 19, true);
+
+  /* 붓는 줄기 */
+  if(pourAnim && pourT > 0.05 && pourT < 0.95){
+    seg({x:PCX + 40, y:PBY - PH*0.8}, {x:PPX - 70, y:PBY - PH*cylFill - 6}, SAND, 7);
+  }
+
+  txt(poured >= 3 ? "세 번 부으니 가득! 뿔의 부피는 기둥의 1/3"
+                  : "부은 횟수 " + poured + "번 — 기둥의 " + Math.round(cylFill*100) + "%",
+      450, 52, poured >= 3 ? OK : INK, 21, true);
+  txt("밑면이 합동이고 높이가 같아요", 450, 86, SUB, 16, true);
+  $("tip").textContent = "‘한 번 붓기’ 를 눌러 보세요";
+}
+function paintPour(){
+  $("pourCalc").innerHTML =
+    '<span class="step">부은 횟수</span><br><span class="res">' + poured + ' / 3</span>' +
+    '<br><span class="step">뿔의 부피</span><br>' +
+    '<span class="frac"><span class="top">1</span><span class="bot">3</span></span>' +
+    ' × (밑넓이) × (높이)';
+  $("pourFb").innerHTML = poured >= 3
+    ? '<div class="fb ok">🎉 <b>세 번</b> 만에 가득 찼어요. 그래서 뿔의 부피는 기둥의' +
+      ' <b>1/3</b> 이에요. (교과서 213쪽)</div>'
+    : '<div class="fb info">뿔에 모래를 가득 담아 기둥에 부어 보세요. 몇 번에 찰까요?</div>';
+  $("btnPour").disabled = (poured >= 3);
+  if(poured >= 3 && window.MKSCORE) MKSCORE.once("pour" + shape, 10, "뿔 → 기둥 세 번 붓기");
+}
+function stopPour(){ if(pourAnim){ cancelAnimationFrame(pourAnim); pourAnim = null; } pourT = 0; }
+document.querySelectorAll("[data-shape]").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("[data-shape]").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    stopPour(); shape = b.dataset.shape; poured = 0; paintPour(); draw();
+  });
+});
+$("btnPour").addEventListener("click", function(){
+  if(poured >= 3 || pourAnim) return;
+  const t0 = performance.now(), DUR = 1400;
+  (function step(now){
+    pourT = Math.min(1, (now - t0)/DUR);
+    draw();
+    if(pourT < 1) pourAnim = requestAnimationFrame(step);
+    else{ pourAnim = null; pourT = 0; poured++; paintPour(); draw(); }
+  })(performance.now());
+});
+$("btnReset").addEventListener("click", function(){ stopPour(); poured = 0; paintPour(); draw(); });
+
+/* ============================================================
+   ③ 스스로 풀기
+   ============================================================ */
+function drawQuiz(){
+  const cx = 430, by = 430, H = 200, R = 78;
+  if(Q.kind.indexOf("cone") === 0){
+    poly([{x:cx, y:by - H}, {x:cx - R, y:by}, {x:cx + R, y:by}], BLUE + "26", BLUE, 2.6);
+    ellipse(cx, by, R, R*0.28, BLUE + "26", BLUE, 2.4);
+    seg({x:cx, y:by - H}, {x:cx, y:by}, INK, 2, [6, 5]);
+    txt(Q.h + " cm", cx - 30, by - H/2, INK, 17, true);
+    seg({x:cx, y:by}, {x:cx + R, y:by}, ORANGE, 2.4);
+    txt(Q.r + " cm", cx + R/2, by + 24, ORANGE, 17, true);
+    if(Q.kind === "coneS"){
+      seg({x:cx, y:by - H}, {x:cx + R, y:by}, RED, 2.4);
+      txt(Q.l + " cm", cx + R/2 + 40, by - H/2, RED, 17, true);
+    }
+  }else{
+    const w = 150, d = 50;
+    poly([{x:cx - w/2, y:by}, {x:cx + w/2, y:by}, {x:cx + w/2 + d, y:by - d*0.55}, {x:cx - w/2 + d, y:by - d*0.55}],
+         ORANGE + "40", ORANGE, 2.4);
+    const apex = {x:cx + d/2, y:by - H};
+    poly([apex, {x:cx - w/2, y:by}, {x:cx + w/2, y:by}], BLUE + "26", BLUE, 2.4);
+    poly([apex, {x:cx + w/2, y:by}, {x:cx + w/2 + d, y:by - d*0.55}], BLUE + "1e", BLUE, 2);
+    seg(apex, {x:cx + d/2, y:by - d*0.28}, INK, 2, [6, 5]);
+    txt(Q.h + " cm", cx + d/2 + 42, by - H/2, INK, 17, true);
+    txt("밑넓이 " + Q.b + " cm²", cx + d/2, by + 30, ORANGE, 18, true);
+  }
+  txt(Q.kind.slice(-1) === "S" ? "겉넓이는?" : "부피는?", 450, 52,
+      Q.kind.slice(-1) === "S" ? BLUE : OK, 21, true);
+  $("tip").textContent = "";
+}
+const QKINDS = ["coneV", "coneS", "pyrV", "pyrV"];
+function newQuestion(){
+  let k, guard = 0;
+  do{ k = QKINDS[Math.floor(Math.random()*QKINDS.length)]; guard++; }while(guard < 12 && k === Q.kind);
+  Q.kind = k; Q.done = false;
+  if(k.indexOf("cone") === 0){
+    Q.r = 2 + Math.floor(Math.random()*5);
+    Q.h = 3*(1 + Math.floor(Math.random()*4));           /* 3·6·9·12 — 답이 깔끔하게 */
+    Q.l = Q.r + 2 + Math.floor(Math.random()*6);
+    Q.pi = true;
+    if(k === "coneV"){
+      Q.ans = Q.r*Q.r*Q.h/3;
+      $("ask").innerHTML = '밑면 반지름이 <b>' + Q.r + ' cm</b>, 높이가 <b>' + Q.h +
+        ' cm</b> 인 원뿔의 <b>부피</b> 를 π 를 써서 구하세요.';
+      $("unit").textContent = "π cm³";
+    }else{
+      Q.ans = Q.r*Q.r + Q.r*Q.l;
+      $("ask").innerHTML = '밑면 반지름이 <b>' + Q.r + ' cm</b>, 모선이 <b>' + Q.l +
+        ' cm</b> 인 원뿔의 <b>겉넓이</b> 를 π 를 써서 구하세요.';
+      $("unit").textContent = "π cm²";
+    }
+  }else{
+    Q.b = 6 + Math.floor(Math.random()*15);
+    Q.h = 3*(1 + Math.floor(Math.random()*4));
+    Q.pi = false;
+    Q.ans = Q.b*Q.h/3;
+    $("ask").innerHTML = '밑넓이가 <b>' + Q.b + ' cm²</b>, 높이가 <b>' + Q.h +
+      ' cm</b> 인 각뿔의 <b>부피</b> 를 구하세요.';
+    $("unit").textContent = "cm³";
+  }
+  $("hintPi").style.display = Q.pi ? "" : "none";
+  const inp = $("ansIn"); inp.value = ""; inp.className = "";
+  $("quizFb").innerHTML = "";
+  draw();
+}
+$("btnCheck").addEventListener("click", function(){
+  if(Q.done) return;
+  const inp = $("ansIn");
+  if(inp.value === ""){ $("quizFb").innerHTML = '<div class="fb warn">답을 적어 주세요.</div>'; return; }
+  const ok = Math.abs(+inp.value - Q.ans) < 1e-6;
+  Q.done = true; Q.tries++;
+  if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
+  inp.className = ok ? "good" : "bad";
+  let how;
+  if(Q.kind === "coneV")
+    how = '⅓ × (밑넓이) × (높이) = ⅓ × π×' + Q.r + '² × ' + Q.h + ' = <b>' + Q.ans + 'π cm³</b>';
+  else if(Q.kind === "coneS")
+    how = '(밑넓이) + (옆넓이) = π×' + Q.r + '² + π×' + Q.r + '×' + Q.l +
+          ' = ' + (Q.r*Q.r) + 'π + ' + (Q.r*Q.l) + 'π = <b>' + Q.ans + 'π cm²</b>';
+  else
+    how = '⅓ × (밑넓이) × (높이) = ⅓ × ' + Q.b + ' × ' + Q.h + ' = <b>' + Q.ans + ' cm³</b>';
+  $("quizFb").innerHTML =
+    '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+    (ok ? "🎉 정답! " : '아쉬워요. 답은 <b>' + Q.ans + '</b>. ') + how + '</div>';
+  $("qTry").textContent = Q.tries; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
+  if(window.MKSCORE) MKSCORE.quiz(ok, "뿔 겉넓이·부피");
+});
+$("btnNext").addEventListener("click", newQuestion);
+$("ansIn").addEventListener("keydown", function(e){ if(e.key === "Enter") $("btnCheck").click(); });
+
+/* ============================================================
+   그리기 / 탭
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);
+  if(tab === "net") drawNet();
+  else if(tab === "pour") drawPour();
+  else drawQuiz();
+  ctx.restore();
+}
+document.querySelectorAll("header nav button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    stopOpen(); stopPour();
+    $("pNet") .classList.toggle("hidden", tab !== "net");
+    $("pPour").classList.toggle("hidden", tab !== "pour");
+    $("pQuiz").classList.toggle("hidden", tab !== "quiz");
+    draw();
+  });
+});
+function boot(){
+  paintNet();
+  paintPour();
+  newQuestion();
+  tab = "net";
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
