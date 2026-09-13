@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>다면체 탐구실 — 면·모서리·꼭짓점과 정다면체</title>
+<link rel="stylesheet" href="../assets/common.css?v=4">
+<script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
+<script src="../assets/vendor/three.min.js"></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 356px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  .stage{position:absolute; inset:0;}
+  #gl{position:absolute; left:0; top:0; display:block; touch-action:none; cursor:grab;}
+  #gl:active{cursor:grabbing;}
+  #caption{
+    position:absolute; left:0; right:0; top:14px; text-align:center; pointer-events:none;
+    font-size:20px; font-weight:800; color:var(--ink); text-shadow:0 0 6px #fff,0 0 6px #fff;
+  }
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+
+  .kinds{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px;}
+  .plat{display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px;}
+
+  .slider{margin-top:11px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  table.meas{width:100%; border-collapse:collapse; margin-top:10px; font-size:13px;}
+  table.meas th, table.meas td{border:1px solid var(--line); padding:7px 5px; text-align:center;}
+  table.meas th{background:#f7f9fd; font-weight:700; font-size:12px; color:var(--sub);}
+  table.meas td b{font-size:15px; color:var(--accent);}
+
+  .choices{display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px;}
+  .choices button{
+    font:700 13.5px/1.4 var(--font); padding:11px 6px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer;
+  }
+  .choices button:hover{background:var(--accent-soft); border-color:var(--accent);}
+  .choices button.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .choices button.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:52vh; min-height:330px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🧊 다면체 탐구실</h1>
+  <nav>
+    <button class="on" data-tab="find">① 다면체 찾기</button>
+    <button data-tab="count">② 면·모서리·꼭짓점</button>
+    <button data-tab="plato">③ 정다면체 다섯</button>
+  </nav>
+  <a class="home-btn" href="../index.html?unit=5">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <div class="stage">
+      <canvas id="gl"></canvas>
+      <div id="caption"></div>
+    </div>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ① 다면체 찾기 -->
+    <section id="pFind">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 이 입체도형은 다면체일까요?</h2>
+        <p><b>다각형 모양의 면으로만</b> 둘러싸인 입체도형을 <b>다면체</b>라고 해요.
+           도형을 끌어서 돌려 보고 답해 보세요. (교과서 198쪽)</p>
+        <div class="choices" id="findChoice">
+          <button data-c="1">다면체예요</button>
+          <button data-c="0">다면체가 아니에요</button>
+        </div>
+        <div id="findFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnFindNext">다음 도형 ▶</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="fTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="fOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="fStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ② 세기 -->
+    <section id="pCount" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 면·모서리·꼭짓점을 세어 보세요</h2>
+        <p>밑면의 변의 개수를 바꾸면서 <b>면</b>, <b>모서리</b>, <b>꼭짓점</b> 이 몇 개인지 세어 보세요.
+           (교과서 198~199쪽)</p>
+        <div class="kinds" id="kindBtns">
+          <button class="btn sm on" data-k="prism">각기둥</button>
+          <button class="btn sm" data-k="pyramid">각뿔</button>
+          <button class="btn sm" data-k="frustum">각뿔대</button>
+        </div>
+        <div class="slider">
+          <label><span>밑면의 변의 개수 <span style="font-family:'Times New Roman',serif;font-style:italic">n</span></span><span class="v" id="vN">오각형 (n = 5)</span></label>
+          <input type="range" id="rN" min="3" max="10" step="1" value="5">
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnFace">면 보기</button>
+          <button class="btn sm on" id="btnEdge">모서리 보기</button>
+          <button class="btn sm" id="btnVert">꼭짓점 보기</button>
+        </div>
+        <table class="meas">
+          <tr><th>이름</th><th>면</th><th>모서리</th><th>꼭짓점</th></tr>
+          <tr><td id="cName">–</td><td id="cF">–</td><td id="cE">–</td><td id="cV">–</td></tr>
+        </table>
+        <div id="countFb"></div>
+      </div>
+      <div class="blk">
+        <h2>알게 된 것</h2>
+        <p><span style="font-family:'Times New Roman',serif;font-style:italic">n</span>각기둥은
+           <b>(<span style="font-family:'Times New Roman',serif;font-style:italic">n</span>+2)면체</b>,
+           <span style="font-family:'Times New Roman',serif;font-style:italic">n</span>각뿔은
+           <b>(<span style="font-family:'Times New Roman',serif;font-style:italic">n</span>+1)면체</b>,
+           <span style="font-family:'Times New Roman',serif;font-style:italic">n</span>각뿔대는
+           <b>(<span style="font-family:'Times New Roman',serif;font-style:italic">n</span>+2)면체</b> 예요.</p>
+      </div>
+    </section>
+
+    <!-- ③ 정다면체 -->
+    <section id="pPlato" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 정다면체는 다섯 가지뿐</h2>
+        <p>각 면이 모두 <b>합동인 정다각형</b>이고, 각 꼭짓점에 모인 면의 개수가 모두 <b>같은</b>
+           다면체를 정다면체라고 해요. (교과서 200쪽)</p>
+        <div class="plat" id="platBtns">
+          <button class="btn sm on" data-p="4">정사면체</button>
+          <button class="btn sm" data-p="6">정육면체</button>
+          <button class="btn sm" data-p="8">정팔면체</button>
+          <button class="btn sm" data-p="12">정십이면체</button>
+          <button class="btn sm" data-p="20">정이십면체</button>
+        </div>
+        <table class="meas">
+          <tr><th>면의 모양</th><th>한 꼭짓점에<br>모인 면</th><th>면</th><th>모서리</th><th>꼭짓점</th></tr>
+          <tr><td id="pShape">–</td><td id="pMeet">–</td><td id="pF">–</td><td id="pE">–</td><td id="pV">–</td></tr>
+        </table>
+        <div id="platoFb"></div>
+      </div>
+      <div class="blk">
+        <h2>왜 다섯 가지뿐일까?</h2>
+        <p>한 꼭짓점에 <b>세 개 이상</b>의 면이 모여야 하고, 모인 각의 합이 <b>360°보다 작아야</b>
+           입체가 돼요. 정육각형은 한 각이 120° 라서 세 개만 모아도 <b>360°</b> — 평평해져 버려요.</p>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnHex">정육각형 세 개 모아 보기</button>
+        </div>
+        <div id="hexFb"></div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   Three.js 무대
+   ============================================================ */
+const canvas = $("gl");
+const renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
+let group = new THREE.Group();
+scene.add(group);
+
+const COL = {
+  face:0x9fc4f0, faceHi:0xf5820b, edge:0x2b3550, vert:0xe5484d,
+  curve:0xb388e0, plat:0x7cc7a4
+};
+
+/* 카메라 회전 */
+let rot = {th:0.7, ph:0.42}, distCam = 9;
+function placeCamera(){
+  camera.position.set(
+    distCam*Math.cos(rot.ph)*Math.sin(rot.th),
+    distCam*Math.sin(rot.ph),
+    distCam*Math.cos(rot.ph)*Math.cos(rot.th)
+  );
+  camera.lookAt(0, 0, 0);
+}
+let drag = null;
+canvas.addEventListener("pointerdown", function(e){ drag = {x:e.clientX, y:e.clientY}; });
+window.addEventListener("pointerup", function(){ drag = null; });
+window.addEventListener("pointermove", function(e){
+  if(!drag) return;
+  rot.th -= (e.clientX - drag.x)*0.008;
+  rot.ph += (e.clientY - drag.y)*0.008;
+  rot.ph = Math.max(-1.35, Math.min(1.35, rot.ph));
+  drag = {x:e.clientX, y:e.clientY};
+});
+canvas.addEventListener("wheel", function(e){
+  e.preventDefault();
+  distCam = Math.max(5, Math.min(16, distCam + (e.deltaY > 0 ? 0.6 : -0.6)));
+}, {passive:false});
+
+/* 캔버스가 아니라 바깥 상자를 잰다 (pitfalls #5) */
+const stage = document.querySelector(".stage");
+let VW = 0, VH = 0;
+function resize(){
+  const r = stage.getBoundingClientRect();
+  const w = Math.round(r.width), h = Math.round(r.height);
+  if(!w || !h || (w === VW && h === VH)) return;
+  VW = w; VH = h;
+  renderer.setSize(w, h);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+if(window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+window.addEventListener("resize", resize);
+
+function clearGroup(){
+  while(group.children.length){
+    const c = group.children.pop();
+    if(c.geometry) c.geometry.dispose();
+    if(c.material) c.material.dispose();
+  }
+}
+/* 겉면 + 모서리선 + (원하면) 꼭짓점 구슬 */
+function addSolid(geo, opt){
+  const o = opt || {};
+  const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    color:o.color || COL.face, transparent:true, opacity:o.opacity == null ? 0.34 : o.opacity,
+    side:THREE.DoubleSide, depthWrite:false
+  }));
+  group.add(mesh);
+  if(o.edges !== false){
+    const eg = new THREE.EdgesGeometry(geo, o.edgeAngle == null ? 18 : o.edgeAngle);
+    group.add(new THREE.LineSegments(eg, new THREE.LineBasicMaterial({
+      color:o.edgeColor || COL.edge, linewidth:2
+    })));
+  }
+  if(o.verts){
+    const pos = new THREE.EdgesGeometry(geo, o.edgeAngle == null ? 18 : o.edgeAngle).attributes.position;
+    const seen = {};
+    for(let i = 0; i < pos.count; i++){
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      const k = x.toFixed(3) + "," + y.toFixed(3) + "," + z.toFixed(3);
+      if(seen[k]) continue;
+      seen[k] = 1;
+      const s = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10),
+                               new THREE.MeshBasicMaterial({color:COL.vert}));
+      s.position.set(x, y, z);
+      group.add(s);
+    }
+  }
+  return mesh;
+}
+
+/* ============================================================
+   상태
+   ============================================================ */
+let tab = "find";
+
+/* ① */
+const FIND = [
+  {name:"오각뿔",   poly:true,  make:function(){ return new THREE.ConeGeometry(2.1, 3.2, 5); }},
+  {name:"직육면체", poly:true,  make:function(){ return new THREE.BoxGeometry(3.2, 2.2, 2.2); }},
+  {name:"원기둥",   poly:false, make:function(){ return new THREE.CylinderGeometry(1.7, 1.7, 3.2, 48); }},
+  {name:"팔각기둥", poly:true,  make:function(){ return new THREE.CylinderGeometry(1.9, 1.9, 2.6, 8); }},
+  {name:"원뿔",     poly:false, make:function(){ return new THREE.ConeGeometry(1.9, 3.2, 48); }},
+  {name:"삼각기둥", poly:true,  make:function(){ return new THREE.CylinderGeometry(2.0, 2.0, 2.8, 3); }},
+  {name:"구",       poly:false, make:function(){ return new THREE.SphereGeometry(2.0, 40, 26); }},
+  {name:"사각뿔대", poly:true,  make:function(){ return new THREE.CylinderGeometry(1.2, 2.2, 2.6, 4); }},
+  {name:"원뿔대",   poly:false, make:function(){ return new THREE.CylinderGeometry(1.1, 2.0, 2.6, 48); }},
+  {name:"육각뿔",   poly:true,  make:function(){ return new THREE.ConeGeometry(2.1, 3.2, 6); }}
+];
+let fIdx = -1, fDone = false, F = {tries:0, ok:0, streak:0};
+
+/* ② */
+let kind = "prism", nSide = 5, showFace = false, showEdge = true, showVert = false;
+
+/* ③ */
+let platN = 4;
+const PLAT = {
+  4:  {name:"정사면체",   shape:"정삼각형", meet:3, F:4,  E:6,  V:4},
+  6:  {name:"정육면체",   shape:"정사각형", meet:3, F:6,  E:12, V:8},
+  8:  {name:"정팔면체",   shape:"정삼각형", meet:4, F:8,  E:12, V:6},
+  12: {name:"정십이면체", shape:"정오각형", meet:3, F:12, E:30, V:20},
+  20: {name:"정이십면체", shape:"정삼각형", meet:5, F:20, E:30, V:12}
+};
+
+/* ============================================================
+   장면 만들기
+   ============================================================ */
+function buildFind(){
+  clearGroup();
+  const it = FIND[fIdx];
+  addSolid(it.make(), {color:it.poly ? COL.face : COL.curve, verts:false,
+                       edgeAngle:it.poly ? 18 : 40});
+  $("caption").textContent = fDone ? it.name : "이 도형은?";
+  $("tip").textContent = "끌어서 돌려 보세요 · 휠로 확대";
+}
+
+/* 3 → '삼', 5 → '오' 처럼 읽어 '오각기둥' 으로 쓴다 */
+const KNUM = {3:"삼",4:"사",5:"오",6:"육",7:"칠",8:"팔",9:"구",10:"십"};
+function countOf(){
+  const n = nSide, k = (KNUM[n] || n) + "각";
+  if(kind === "prism")   return {name:k + "기둥", F:n + 2, E:3*n, V:2*n};
+  if(kind === "pyramid") return {name:k + "뿔",   F:n + 1, E:2*n, V:n + 1};
+  return {name:k + "뿔대", F:n + 2, E:3*n, V:2*n};
+}
+function buildCount(){
+  clearGroup();
+  const n = nSide;
+  let geo;
+  if(kind === "prism")   geo = new THREE.CylinderGeometry(2.0, 2.0, 2.8, n);
+  else if(kind === "pyramid") geo = new THREE.ConeGeometry(2.1, 3.2, n);
+  else geo = new THREE.CylinderGeometry(1.15, 2.15, 2.8, n);
+  addSolid(geo, {opacity:showFace ? 0.55 : 0.22,
+                 color:showFace ? COL.faceHi : COL.face,
+                 edgeColor:showEdge ? COL.edge : 0xc8d2e4,
+                 verts:showVert});
+  const c = countOf();
+  $("caption").textContent = c.name;
+  $("tip").textContent = "끌어서 돌려 보며 세어 보세요";
+}
+
+function platoGeo(k){
+  if(k === 4)  return new THREE.TetrahedronGeometry(2.3);
+  if(k === 6)  return new THREE.BoxGeometry(2.9, 2.9, 2.9);
+  if(k === 8)  return new THREE.OctahedronGeometry(2.4);
+  if(k === 12) return new THREE.DodecahedronGeometry(2.2);
+  return new THREE.IcosahedronGeometry(2.3);
+}
+function buildPlato(){
+  clearGroup();
+  addSolid(platoGeo(platN), {color:COL.plat, opacity:0.34, verts:true, edgeAngle:6});
+  $("caption").textContent = PLAT[platN].name;
+  $("tip").textContent = "끌어서 돌려 보세요";
+}
+
+function rebuild(){
+  if(tab === "find") buildFind();
+  else if(tab === "count") buildCount();
+  else buildPlato();
+  scene.updateMatrixWorld(true);            /* 만든 직후 행렬 갱신 (pitfalls #6) */
+}
+
+/* ============================================================
+   ① 다면체 찾기
+   ============================================================ */
+function nextFind(){
+  let i, guard = 0;
+  do{ i = Math.floor(Math.random()*FIND.length); guard++; }while(guard < 12 && i === fIdx);
+  fIdx = i; fDone = false;
+  $("findFb").innerHTML = "";
+  document.querySelectorAll("#findChoice button").forEach(function(b){ b.className = ""; });
+  rebuild();
+}
+document.querySelectorAll("#findChoice button").forEach(function(b){
+  b.addEventListener("click", function(){
+    if(fDone) return;
+    const it = FIND[fIdx];
+    const pick = b.dataset.c === "1";
+    const ok = pick === it.poly;
+    fDone = true; F.tries++;
+    if(ok){ F.ok++; F.streak++; } else { F.streak = 0; }
+    b.className = ok ? "good" : "bad";
+    if(!ok) document.querySelector('#findChoice button[data-c="' + (it.poly ? 1 : 0) + '"]').className = "good";
+    $("findFb").innerHTML =
+      '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+      (ok ? "🎉 맞았어요! " : "아쉬워요. ") + '<b>' + it.name + '</b> 은 ' +
+      (it.poly ? '다각형 면으로만 둘러싸여 <b>다면체</b> 예요.'
+               : '<b>굽은 면(곡면)</b>이 있어서 다면체가 <b>아니에요</b>.') + '</div>';
+    $("fTry").textContent = F.tries; $("fOk").textContent = F.ok; $("fStreak").textContent = F.streak;
+    if(window.MKSCORE) MKSCORE.quiz(ok, "다면체 찾기");
+    rebuild();
+  });
+});
+$("btnFindNext").addEventListener("click", nextFind);
+
+/* ============================================================
+   ② 세기
+   ============================================================ */
+const NAMES = {3:"삼각형",4:"사각형",5:"오각형",6:"육각형",7:"칠각형",8:"팔각형",9:"구각형",10:"십각형"};
+function paintCount(){
+  $("vN").textContent = (NAMES[nSide] || nSide + "각형") + " (n = " + nSide + ")";
+  const c = countOf();
+  $("cName").innerHTML = "<b>" + c.name + "</b>";
+  $("cF").innerHTML = "<b>" + c.F + "</b>";
+  $("cE").innerHTML = "<b>" + c.E + "</b>";
+  $("cV").innerHTML = "<b>" + c.V + "</b>";
+  const rule = kind === "pyramid" ? "n + 1" : "n + 2";
+  $("countFb").innerHTML =
+    '<div class="fb info"><b>' + c.name + '</b> 은 면이 <b>' + c.F + '개</b> 라서 <b>' + c.F +
+    '면체</b> 예요. (' + rule + ' = ' + c.F + ')<br>' +
+    '면 + 꼭짓점 − 모서리 = ' + c.F + ' + ' + c.V + ' − ' + c.E + ' = <b>' + (c.F + c.V - c.E) +
+    '</b> — 어떤 다면체든 늘 2 가 나와요(오일러).</div>';
+}
+document.querySelectorAll("#kindBtns button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("#kindBtns button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    kind = b.dataset.k;
+    paintCount(); rebuild();
+  });
+});
+$("rN").addEventListener("input", function(e){ nSide = +e.target.value; paintCount(); rebuild(); });
+function toggleBtn(id, get, set){
+  $(id).addEventListener("click", function(){
+    set(!get());
+    $(id).classList.toggle("on", get());
+    rebuild();
+  });
+}
+toggleBtn("btnFace", function(){ return showFace; }, function(v){ showFace = v; });
+toggleBtn("btnEdge", function(){ return showEdge; }, function(v){ showEdge = v; });
+toggleBtn("btnVert", function(){ return showVert; }, function(v){ showVert = v; });
+
+/* ============================================================
+   ③ 정다면체
+   ============================================================ */
+function paintPlato(){
+  const p = PLAT[platN];
+  $("pShape").textContent = p.shape;
+  $("pMeet").innerHTML = "<b>" + p.meet + "</b>";
+  $("pF").innerHTML = "<b>" + p.F + "</b>";
+  $("pE").innerHTML = "<b>" + p.E + "</b>";
+  $("pV").innerHTML = "<b>" + p.V + "</b>";
+  const inner = p.shape === "정삼각형" ? 60 : p.shape === "정사각형" ? 90 : 108;
+  $("platoFb").innerHTML =
+    '<div class="fb info"><b>' + p.name + '</b> — 한 꼭짓점에 <b>' + p.shape + ' ' + p.meet +
+    '개</b> 가 모여요. 모인 각은 ' + inner + '° × ' + p.meet + ' = <b>' + (inner*p.meet) +
+    '°</b> 로 360° 보다 작아요.</div>';
+  if(window.MKSCORE) MKSCORE.once("plato" + platN, 3, p.name + " 보기");
+}
+document.querySelectorAll("#platBtns button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("#platBtns button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    platN = +b.dataset.p;
+    paintPlato(); rebuild();
+  });
+});
+$("btnHex").addEventListener("click", function(){
+  $("hexFb").innerHTML =
+    '<div class="fb warn">정육각형은 한 각이 <b>120°</b> — 세 개를 모으면 <b>120° × 3 = 360°</b> 라서' +
+    ' <b>평평하게</b> 펼쳐져요. 그래서 정육각형으로는 정다면체를 만들 수 없어요.' +
+    ' (교과서 200쪽 생각 KEY 우기)</div>';
+  if(window.MKSCORE) MKSCORE.once("hex", 10, "정육각형이 안 되는 이유");
+});
+
+/* ============================================================
+   탭 / 시작
+   ============================================================ */
+document.querySelectorAll("header nav button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    $("pFind") .classList.toggle("hidden", tab !== "find");
+    $("pCount").classList.toggle("hidden", tab !== "count");
+    $("pPlato").classList.toggle("hidden", tab !== "plato");
+    rebuild();
+  });
+});
+
+function render(){
+  placeCamera();
+  group.rotation.y += 0.0016;                 /* 천천히 도는 느낌 */
+  renderer.render(scene, camera);
+  requestAnimationFrame(render);
+}
+
+function boot(){
+  resize();
+  paintCount();
+  paintPlato();
+  nextFind();                                 /* 데이터 먼저 (pitfalls #16) */
+  tab = "find";
+  rebuild();
+  render();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>

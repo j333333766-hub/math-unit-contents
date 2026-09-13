@@ -39,7 +39,8 @@ math-unit-contents/
 │   ├── ch5-04-exterior-sum.html     # 외각 360° 모으기      (187~188·190쪽, 드론 시점 + 블록코딩)
 │   ├── ch5-05-circle-parts.html     # 원의 부분 이름 찾기    (191~192쪽)
 │   ├── ch5-06-central-angle.html    # 중심각과 호 실험실     (193~194·197쪽)
-│   └── ch5-07-sector-size.html      # 부채꼴 호·넓이 계산기  (195~196쪽)
+│   ├── ch5-07-sector-size.html      # 부채꼴 호·넓이 계산기  (195~196쪽)
+│   └── ch5-08-polyhedron.html       # 다면체 탐구실 (3D)     (198~200쪽)
 └── assets/
     ├── style.css                    # 허브 페이지와 간단한 콘텐츠가 쓰는 스타일시트
     ├── common.css                   # 색·글꼴 토큰, '목차로' 버튼, 기본 부품
