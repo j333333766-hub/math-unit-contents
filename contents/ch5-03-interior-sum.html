@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내각의 합 조립실 — 다각형의 내각의 크기의 합</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js?v=3" data-home="../index.html?unit=5" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 350px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none;}
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+
+  .slider{margin-top:11px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .formula{
+    margin-top:10px; text-align:center; font-size:15px; font-weight:700; color:var(--ink);
+    background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:11px 8px; line-height:1.95;
+  }
+  .it{font-family:'Times New Roman',serif; font-style:italic; font-weight:700;}
+  .formula .big{font-size:19px; color:var(--accent);}
+
+  .ansrow{display:flex; align-items:center; gap:8px; margin-top:10px;}
+  .ansrow input{
+    width:118px; font:700 17px var(--font); padding:9px 10px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .quote{
+    margin-top:9px; background:#fff7ed; border:1px solid #fadfbb; border-radius:10px;
+    padding:10px 12px; font-size:13.5px; line-height:1.6; color:#8a5300;
+  }
+  .quote b{color:#a75c00;}
+
+  .choices{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
+  .choices button{
+    text-align:left; font:600 13.5px/1.5 var(--font); padding:10px 12px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer;
+  }
+  .choices button:hover{background:var(--accent-soft); border-color:var(--accent);}
+  .choices button.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .choices button.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🧩 내각의 합 조립실</h1>
+  <nav>
+    <button class="on" data-tab="split">① 삼각형으로 쪼개기</button>
+    <button data-tab="inner">② 가운데 점으로 쪼개기</button>
+    <button data-tab="quiz">③ 내각의 합 구하기</button>
+  </nav>
+  <a class="home-btn" href="../index.html?unit=5">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ① 한 꼭짓점에서 쪼개기 -->
+    <section id="pSplit">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 한 꼭짓점에서 대각선을 그어 보세요</h2>
+        <p><b>한 꼭짓점</b>에서 대각선을 모두 그으면 다각형이 삼각형 여러 개로 나누어져요.
+           삼각형 하나의 내각의 합이 <b>180°</b> 인 것을 이용해요.</p>
+        <div class="slider">
+          <label><span>변의 개수 <span class="it">n</span></span><span class="v" id="vN">육각형 (n = 6)</span></label>
+          <input type="range" id="rN" min="3" max="12" step="1" value="6">
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary sm" id="btnSplit">대각선 긋고 나누기</button>
+          <button class="btn sm" id="btnSplitClear">↺ 지우기</button>
+        </div>
+        <div id="splitFb"></div>
+      </div>
+      <div class="blk">
+        <h2>알게 된 것</h2>
+        <div class="formula" id="fSplit"></div>
+        <p style="margin-top:9px;">한 꼭짓점에서 그은 대각선은 <b>(<span class="it">n</span>−3)개</b>,
+           그래서 삼각형은 <b>(<span class="it">n</span>−2)개</b> 가 생겨요. (교과서 185쪽)</p>
+      </div>
+    </section>
+
+    <!-- ② 가운데 점 -->
+    <section id="pInner" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 연우의 생각, 어디가 틀렸을까?</h2>
+        <div class="quote">
+          “육각형은 6개의 삼각형으로 나누어지니까 내각의 크기의 합은
+          <b>180° × 6 = 1080°</b> 가 돼.” — 연우
+        </div>
+        <p style="margin-top:9px;">다각형 <b>안쪽에 점을 하나 찍고</b> 꼭짓점마다 선을 그으면 삼각형이
+           <b><span class="it">n</span>개</b> 생겨요. 그런데 정말 1080° 일까요? (교과서 186쪽)</p>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary sm" id="btnInner">가운데 점에서 나누기</button>
+          <button class="btn sm" id="btnInnerClear">↺ 지우기</button>
+        </div>
+        <div class="choices" id="choiceBox">
+          <button data-c="0">삼각형을 6개가 아니라 4개로 세어야 한다</button>
+          <button data-c="1">가운데 점 둘레의 360° 는 내각이 아니므로 빼야 한다</button>
+          <button data-c="2">삼각형 하나의 내각의 합이 180° 가 아니다</button>
+        </div>
+        <div id="innerFb"></div>
+      </div>
+      <div class="blk">
+        <h2>두 방법을 견줘 보기</h2>
+        <div class="formula" id="fInner"></div>
+      </div>
+    </section>
+
+    <!-- ③ 퀴즈 -->
+    <section id="pQuiz" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 내각의 크기의 합 구하기</h2>
+        <p id="ask"></p>
+        <div class="ansrow">
+          <input type="number" id="ansIn" placeholder="?" inputmode="numeric">
+          <span style="font-size:15px;font-weight:700;color:var(--sub);" id="unit">°</span>
+        </div>
+        <div id="quizFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnCheck">✅ 확인</button>
+          <button class="btn sm" id="btnNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+const DW = 900, DH = 600;
+const INK = "#1d2433", SUB = "#68738a";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b", PURPLE = "#8e4ec6";
+const rad = d => d*Math.PI/180;
+
+const NAMES = {3:"삼각형",4:"사각형",5:"오각형",6:"육각형",7:"칠각형",8:"팔각형",
+               9:"구각형",10:"십각형",11:"십일각형",12:"십이각형",13:"십삼각형",
+               14:"십사각형",15:"십오각형",18:"십팔각형",20:"이십각형"};
+const nameOf = n => NAMES[n] || (n + "각형");
+const LETTERS = "ABCDEFGHIJKL";
+/* 삼각형을 번갈아 칠하는 색 */
+const FILLS = ["#3e63dd", "#f5820b", "#2f9e63", "#8e4ec6", "#e5484d",
+               "#0e9bb5", "#c2410c", "#6d28d9", "#0f766e", "#b91c1c"];
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+
+function seg(a, b, color, w, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.restore();
+}
+function dot(P, color, r, filled){
+  ctx.fillStyle = filled ? color : "#fff";
+  ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(P.x, P.y, r || 7, 0, 7); ctx.fill(); ctx.stroke();
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function ital(t, x, y, color, size){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "italic 700 " + size + "px 'Times New Roman', serif";
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function tri(a, b, c, color, alpha){
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.closePath();
+  ctx.fillStyle = color + (alpha || "26"); ctx.fill();
+}
+/* 다각형 각 꼭짓점의 내각 호를 작게 표시 */
+function markInner(P, i, color, r){
+  const n = P.length;
+  const prev = P[(i - 1 + n) % n], next = P[(i + 1) % n], cur = P[i];
+  const a1 = Math.atan2(-(prev.y - cur.y), prev.x - cur.x);
+  const a2 = Math.atan2(-(next.y - cur.y), next.x - cur.x);
+  let d = a2 - a1;
+  while(d <= -Math.PI) d += 2*Math.PI;
+  while(d > Math.PI) d -= 2*Math.PI;
+  ctx.beginPath(); ctx.moveTo(cur.x, cur.y);
+  ctx.arc(cur.x, cur.y, r || 26, -a1, -(a1 + d), d > 0);
+  ctx.closePath();
+  ctx.fillStyle = color + "44"; ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 2.2; ctx.stroke();
+}
+
+/* ============================================================
+   상태
+   ============================================================ */
+let tab = "split";
+let n = 6;
+let splitOn = false;      /* ① 대각선 그었나 */
+let innerOn = false;      /* ② 가운데 점에서 나눴나 */
+let picked = -1;          /* ② 고른 보기 */
+let Q = {n:0, kind:"sum", ans:0, done:false, tries:0, ok:0, streak:0};
+
+function verts(cnt, cx, cy, R){
+  const P = [];
+  for(let i = 0; i < cnt; i++){
+    const a = -90 + 360*i/cnt;
+    P.push({x:cx + Math.cos(rad(a))*R, y:cy + Math.sin(rad(a))*R});
+  }
+  return P;
+}
+
+/* ============================================================
+   ① 한 꼭짓점에서 쪼개기
+   ============================================================ */
+const C1 = {x:430, y:300}, R1 = 215;
+function drawSplit(){
+  const P = verts(n, C1.x, C1.y, R1);
+
+  if(splitOn && n >= 4){
+    /* 삼각형 (n-2)개를 번갈아 칠하고 번호를 붙인다 */
+    for(let k = 1; k <= n - 2; k++){
+      const a = P[0], b = P[k], c = P[k+1];
+      tri(a, b, c, FILLS[(k-1) % FILLS.length]);
+      const gx = (a.x + b.x + c.x)/3, gy = (a.y + b.y + c.y)/3;
+      txt(String(k), gx, gy, FILLS[(k-1) % FILLS.length], 21, true);
+    }
+    for(let k = 2; k <= n - 2; k++) seg(P[0], P[k], BLUE, 3);
+  }
+  for(let i = 0; i < n; i++) seg(P[i], P[(i+1)%n], INK, 4.6);
+  for(let i = 0; i < n; i++){
+    dot(P[i], i === 0 && splitOn ? RED : INK, i === 0 && splitOn ? 9.5 : 7.5, i === 0 && splitOn);
+    const a = -90 + 360*i/n;
+    ital(LETTERS[i], C1.x + Math.cos(rad(a))*(R1 + 30), C1.y + Math.sin(rad(a))*(R1 + 30), SUB, 20);
+  }
+  if(splitOn && n >= 4)
+    txt("삼각형 " + (n-2) + "개", C1.x, C1.y + R1 + 72, INK, 22, true);
+  else if(n === 3)
+    txt("삼각형은 그 자체로 180°", C1.x, C1.y + R1 + 72, ORANGE, 21, true);
+  $("tip").textContent = splitOn ? "삼각형 " + (n-2) + "개 × 180°" : "버튼을 눌러 대각선을 그어 보세요";
+}
+
+function paintSplit(){
+  $("vN").textContent = nameOf(n) + " (n = " + n + ")";
+  const t = n - 2, sum = 180*t;
+  $("fSplit").innerHTML =
+    '<span class="it">n</span>각형의 내각의 크기의 합 = <span class="big">180° × (<span class="it">n</span> − 2)</span>' +
+    '<br><span style="color:var(--sub);font-size:13.5px;">지금은 ' + nameOf(n) + ' → 180° × (' + n + ' − 2) = 180° × ' + t +
+    ' = <b>' + sum + '°</b></span>';
+  if(!splitOn){ $("splitFb").innerHTML = ""; return; }
+  $("splitFb").innerHTML = n === 3
+    ? '<div class="fb warn">삼각형은 대각선을 그을 수 없어요. 내각의 합은 그대로 <b>180°</b> 예요.</div>'
+    : '<div class="fb ok">대각선 <b>' + (n-3) + '개</b>를 그었더니 삼각형이 <b>' + (n-2) + '개</b> 생겼어요.' +
+      ' 그래서 내각의 합은 <b>180° × ' + (n-2) + ' = ' + (180*(n-2)) + '°</b> 예요.</div>';
+}
+
+$("rN").addEventListener("input", function(e){
+  n = +e.target.value; splitOn = false;
+  paintSplit(); paintInner(); draw();
+});
+$("btnSplit").addEventListener("click", function(){
+  splitOn = true; paintSplit(); draw();
+  if(n >= 4 && window.MKSCORE) MKSCORE.once("split" + n, 5, nameOf(n) + " 삼각형으로 나누기");
+});
+$("btnSplitClear").addEventListener("click", function(){ splitOn = false; paintSplit(); draw(); });
+
+/* ============================================================
+   ② 가운데 점에서 쪼개기 — 항상 육각형(교과서 그림과 같게)
+   ============================================================ */
+const NI = 6;
+const C2 = {x:430, y:300}, R2 = 210;
+const IN = {x:C2.x, y:C2.y};          /* 가운데 점 */
+
+function drawInner(){
+  const P = verts(NI, C2.x, C2.y, R2);
+  if(innerOn){
+    for(let k = 0; k < NI; k++){
+      const a = IN, b = P[k], c = P[(k+1)%NI];
+      tri(a, b, c, FILLS[k % FILLS.length]);
+      const gx = (a.x + b.x + c.x)/3, gy = (a.y + b.y + c.y)/3;
+      txt(String(k+1), gx, gy, FILLS[k % FILLS.length], 20, true);
+    }
+    for(let k = 0; k < NI; k++) seg(IN, P[k], BLUE, 3);
+    /* 가운데 점 둘레 360° */
+    ctx.beginPath(); ctx.arc(IN.x, IN.y, 44, 0, 7);
+    ctx.strokeStyle = RED; ctx.lineWidth = 3.4; ctx.setLineDash([7,6]); ctx.stroke(); ctx.setLineDash([]);
+    txt("360°", IN.x, IN.y - 62, RED, 20, true);
+  }
+  for(let i = 0; i < NI; i++) seg(P[i], P[(i+1)%NI], INK, 4.6);
+  if(innerOn) for(let i = 0; i < NI; i++) markInner(P, i, OK, 30);
+  for(let i = 0; i < NI; i++) dot(P[i], INK, 7.5);
+  if(innerOn) dot(IN, RED, 8, true);
+  if(innerOn){
+    txt("삼각형 6개 = 180° × 6 = 1080°", C2.x, 56, SUB, 20, true);
+    txt("초록 각만 더해야 내각의 합", C2.x, C2.y + R2 + 66, OK, 20, true);
+  }
+  $("tip").textContent = innerOn ? "빨간 360° 는 다각형의 내각이 아니에요" : "버튼을 눌러 나눠 보세요";
+}
+
+function paintInner(){
+  $("fInner").innerHTML =
+    '<span style="font-size:13.5px;">한 꼭짓점에서 : 180° × (6 − 2) = <b>720°</b></span>' +
+    '<br><span style="font-size:13.5px;">가운데 점에서 : 180° × 6 − 360° = 1080° − 360° = <b>720°</b></span>' +
+    '<br><span style="color:var(--sub);font-size:12.5px;font-weight:600;">두 방법의 답이 같아요. ' +
+    '일반적으로 180°×<span class="it">n</span> − 360° = 180°(<span class="it">n</span>−2) 예요.</span>';
+}
+
+$("btnInner").addEventListener("click", function(){ innerOn = true; draw(); });
+$("btnInnerClear").addEventListener("click", function(){ innerOn = false; draw(); });
+
+document.querySelectorAll("#choiceBox button").forEach(function(b){
+  b.addEventListener("click", function(){
+    const c = +b.dataset.c;
+    if(picked >= 0) return;                       /* 한 번만 채점 */
+    picked = c;
+    const ok = c === 1;
+    b.className = ok ? "good" : "bad";
+    if(!ok) document.querySelector('#choiceBox button[data-c="1"]').className = "good";
+    innerOn = true;
+    $("innerFb").innerHTML = ok
+      ? '<div class="fb ok">🎉 맞아요! 가운데 점에 모인 각 <b>360°</b> 는 다각형의 내각이 아니에요.' +
+        ' 그래서 <b>180°×6 − 360° = 720°</b> 가 육각형의 내각의 합이에요.</div>'
+      : '<div class="fb no">삼각형은 정말 6개 맞고, 삼각형의 내각의 합도 180° 가 맞아요.' +
+        ' 문제는 <b>가운데 점 둘레에 모인 360°</b> 까지 함께 더해졌다는 점이에요. 빼 주면 <b>720°</b> 가 돼요.</div>';
+    if(window.MKSCORE) MKSCORE.quiz(ok, "연우의 오류 찾기");
+    draw();
+  });
+});
+
+/* ============================================================
+   ③ 퀴즈
+   ============================================================ */
+const QC = {x:450, y:310}, QR = 195;
+function drawQuiz(){
+  const cnt = Q.n || 6;
+  const P = verts(cnt, QC.x, QC.y, QR);
+  for(let i = 0; i < cnt; i++) seg(P[i], P[(i+1)%cnt], INK, 4.6);
+  for(let i = 0; i < cnt; i++) markInner(P, i, BLUE, 28);
+  for(let i = 0; i < cnt; i++) dot(P[i], INK, 7);
+  txt(Q.kind === "regular" ? "정" + nameOf(cnt) : nameOf(cnt), QC.x, 58, INK, 24);
+  $("tip").textContent = "";
+}
+
+const KINDS = ["sum", "sum", "regular", "findN"];
+const POOL = [5, 6, 7, 8, 9, 10, 12, 15, 18, 20];
+function newQuestion(){
+  let kind, nn, guard = 0;
+  do{
+    kind = KINDS[Math.floor(Math.random()*KINDS.length)];
+    nn   = POOL[Math.floor(Math.random()*POOL.length)];
+    guard++;
+    /* 정다각형 한 내각은 나누어떨어지는 것만 낸다 */
+  }while(guard < 40 && ((kind === "regular" && (180*(nn-2)) % nn !== 0) ||
+                        (kind === Q.kind && nn === Q.n)));
+
+  Q.kind = kind; Q.n = nn; Q.done = false;
+  const sum = 180*(nn-2);
+  if(kind === "sum"){
+    Q.ans = sum;
+    $("ask").innerHTML = '<b>' + nameOf(nn) + '</b>의 내각의 크기의 합을 구하세요.';
+    $("unit").textContent = "°";
+  }else if(kind === "regular"){
+    Q.ans = sum/nn;
+    $("ask").innerHTML = '<b>정' + nameOf(nn) + '</b>의 <b>한 내각</b>의 크기를 구하세요.';
+    $("unit").textContent = "°";
+  }else{
+    Q.ans = nn;
+    $("ask").innerHTML = '내각의 크기의 합이 <b>' + sum + '°</b> 인 다각형은 몇 각형일까요?';
+    $("unit").textContent = "각형";
+  }
+  const inp = $("ansIn"); inp.value = ""; inp.className = "";
+  $("quizFb").innerHTML = "";
+  draw();
+}
+$("btnCheck").addEventListener("click", function(){
+  if(Q.done) return;
+  const inp = $("ansIn");
+  if(inp.value === ""){ $("quizFb").innerHTML = '<div class="fb warn">답을 적어 주세요.</div>'; return; }
+  const ok = +inp.value === Q.ans;
+  Q.done = true; Q.tries++;
+  if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
+  inp.className = ok ? "good" : "bad";
+
+  const nn = Q.n, sum = 180*(nn-2);
+  let why;
+  if(Q.kind === "sum")
+    why = '180° × (' + nn + ' − 2) = 180° × ' + (nn-2) + ' = <b>' + sum + '°</b> 예요.';
+  else if(Q.kind === "regular")
+    why = '정다각형은 내각이 모두 같으므로 ' + sum + '° ÷ ' + nn + ' = <b>' + (sum/nn) + '°</b> 예요.';
+  else
+    why = '180° × (<span class="it">n</span> − 2) = ' + sum + '° 에서 <span class="it">n</span> − 2 = ' +
+          (sum/180) + ', 즉 <b>' + nameOf(nn) + '</b> 이에요.';
+
+  $("quizFb").innerHTML =
+    '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+    (ok ? "🎉 정답! " : '아쉬워요. 답은 <b>' + Q.ans + (Q.kind === "findN" ? "각형" : "°") + '</b>. ') + why + '</div>';
+  $("qTry").textContent = Q.tries; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
+  if(window.MKSCORE) MKSCORE.quiz(ok, "내각의 합 구하기");
+});
+$("btnNext").addEventListener("click", newQuestion);
+$("ansIn").addEventListener("keydown", function(e){ if(e.key === "Enter") $("btnCheck").click(); });
+
+/* ============================================================
+   그리기 / 탭
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);    /* 화면 전체를 칠한다 */
+  if(tab === "split") drawSplit();
+  else if(tab === "inner") drawInner();
+  else drawQuiz();
+  ctx.restore();
+}
+
+document.querySelectorAll("header nav button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    $("pSplit").classList.toggle("hidden", tab !== "split");
+    $("pInner").classList.toggle("hidden", tab !== "inner");
+    $("pQuiz") .classList.toggle("hidden", tab !== "quiz");
+    draw();
+  });
+});
+
+/* ============================================================
+   시작 — common.js 는 defer 이므로 반드시 DOMContentLoaded 이후에
+   ============================================================ */
+function boot(){
+  paintSplit();
+  paintInner();
+  newQuestion();                 /* 데이터 먼저 (pitfalls #16) */
+  tab = "split";
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
