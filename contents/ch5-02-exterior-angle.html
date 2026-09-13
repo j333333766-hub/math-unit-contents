@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>삼각형 외각 실험실 — 내각과 외각 사이의 관계</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js?v=3" data-home="../index.html?unit=5" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 350px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none;}
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn:disabled{opacity:.45; cursor:default;}
+  .btn:disabled:hover{background:var(--panel); border-color:var(--line); color:var(--ink);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  /* 각 읽기판 */
+  .angles{display:grid; grid-template-columns:repeat(2,1fr); gap:7px; margin-top:4px;}
+  .ag{border:1px solid var(--line); border-radius:10px; padding:8px 6px; text-align:center; background:#f7f9fd;}
+  .ag .v{font-size:19px; font-weight:800; line-height:1.1;}
+  .ag .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .ag.a  .v{color:#f5820b;}
+  .ag.b  .v{color:#2f9e63;}
+  .ag.c  .v{color:#3e63dd;}
+  .ag.ex .v{color:#e5484d;}
+
+  .compare{
+    margin-top:10px; background:#f7f9fd; border:1px solid var(--line); border-radius:10px;
+    padding:11px 10px; font-size:14px; font-weight:700; text-align:center; line-height:2;
+  }
+  .compare .eq{color:var(--ok); font-size:15px;}
+  .compare .oa{color:#f5820b;} .compare .ob{color:#2f9e63;}
+  .compare .oc{color:#3e63dd;} .compare .oe{color:#e5484d;}
+
+  .steps{counter-reset:st; margin-top:4px;}
+  .steps li{
+    list-style:none; font-size:13.5px; line-height:1.6; color:var(--sub);
+    padding:7px 9px 7px 30px; position:relative; border-radius:8px; margin-bottom:3px;
+  }
+  .steps li::before{
+    counter-increment:st; content:counter(st);
+    position:absolute; left:8px; top:8px; width:17px; height:17px; border-radius:50%;
+    background:var(--line); color:#fff; font-size:11px; font-weight:800; text-align:center; line-height:17px;
+  }
+  .steps li.on{background:var(--accent-soft); color:var(--ink); font-weight:600;}
+  .steps li.on::before{background:var(--accent);}
+  .steps li.done::before{background:var(--ok);}
+
+  .ansrow{display:flex; align-items:center; gap:8px; margin-top:10px;}
+  .ansrow input{
+    width:104px; font:700 17px var(--font); padding:9px 10px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>📐 삼각형 외각 실험실</h1>
+  <nav>
+    <button class="on" data-tab="drag">① 끌어 보기</button>
+    <button data-tab="proof">② 왜 그럴까</button>
+    <button data-tab="quiz">③ ∠x 구하기</button>
+  </nav>
+  <a class="home-btn" href="../index.html?unit=5">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ① 끌어 보기 -->
+    <section id="pDrag">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 꼭짓점을 끌어 보세요</h2>
+        <p>점 <b>A</b> 와 <b>B</b> 를 끌어 삼각형을 마음대로 바꿔 보세요.
+           변 BC 를 늘인 반직선 위의 점이 <b>D</b>, 빨간 각 <b>∠ACD</b> 가 ∠C 의 <b>외각</b>이에요.</p>
+        <div class="angles">
+          <div class="ag a"><div class="v" id="vA">–</div><div class="l">∠A</div></div>
+          <div class="ag b"><div class="v" id="vB">–</div><div class="l">∠B</div></div>
+          <div class="ag c"><div class="v" id="vC">–</div><div class="l">∠C (내각)</div></div>
+          <div class="ag ex"><div class="v" id="vE">–</div><div class="l">∠ACD (외각)</div></div>
+        </div>
+        <div class="compare" id="cmpBox"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnReset">↺ 처음 모양으로</button>
+        </div>
+        <div id="dragFb"></div>
+      </div>
+      <div class="blk">
+        <h2>알게 된 것</h2>
+        <p>삼각형을 아무리 바꿔도 <b>한 외각의 크기는 그와 이웃하지 않은 두 내각의 크기의 합</b>과 같아요.
+           또 한 꼭짓점에서 <b>내각 + 외각 = 180°</b> 예요. (교과서 181쪽)</p>
+      </div>
+    </section>
+
+    <!-- ② 왜 그럴까 -->
+    <section id="pProof" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 평행선으로 설명하기</h2>
+        <p>점 C 를 지나 <b>변 AB 에 평행한</b> 반직선 CE 를 그으면, 4단원에서 배운
+           <b>엇각·동위각</b> 으로 설명할 수 있어요. (교과서 182쪽)</p>
+        <ol class="steps" id="stepList">
+          <li id="s0">삼각형 ABC 와 ∠C 의 외각 ∠ACD</li>
+          <li id="s1">점 C 를 지나 AB 에 평행한 반직선 CE 긋기</li>
+          <li id="s2"><b style="color:#f5820b">엇각</b> : ∠ACE = ∠A</li>
+          <li id="s3"><b style="color:#2f9e63">동위각</b> : ∠ECD = ∠B</li>
+          <li id="s4">∠ACD = ∠ACE + ∠ECD = ∠A + ∠B</li>
+        </ol>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnNextStep">다음 단계 ▶</button>
+          <button class="btn sm" id="btnResetStep">↺ 처음부터</button>
+        </div>
+        <div id="proofFb"></div>
+      </div>
+    </section>
+
+    <!-- ③ 퀴즈 -->
+    <section id="pQuiz" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> ∠x 의 크기 구하기</h2>
+        <p id="ask"></p>
+        <div class="ansrow">
+          <span style="font:italic 700 19px 'Times New Roman',serif;">x =</span>
+          <input type="number" id="ansIn" placeholder="?" inputmode="numeric">
+          <span style="font-size:15px;font-weight:700;color:var(--sub);">°</span>
+        </div>
+        <div id="quizFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnCheck">✅ 확인</button>
+          <button class="btn sm" id="btnNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+const DW = 900, DH = 600;
+const INK = "#1d2433", SUB = "#68738a";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b";
+const rad = d => d*Math.PI/180;
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+function toDesign(px, py){ const v = view(); return {x:(px - v.ox)/v.s, y:(py - v.oy)/v.s}; }
+
+/* ---------- 그리기 도우미 ---------- */
+function seg(a, b, color, w, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.restore();
+}
+function dot(P, color, r, filled){
+  ctx.fillStyle = filled ? color : "#fff";
+  ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(P.x, P.y, r || 7, 0, 7); ctx.fill(); ctx.stroke();
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function ital(t, x, y, color, size){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "italic 700 " + size + "px 'Times New Roman', serif";
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+/* ∠QPR 을 짧은 쪽으로 칠한다 */
+function arcAt(P, Q, R, radius, color, label, labelGap){
+  const a1 = Math.atan2(-(Q.y - P.y), Q.x - P.x);
+  const a2 = Math.atan2(-(R.y - P.y), R.x - P.x);
+  let d = a2 - a1;
+  while(d <= -Math.PI) d += 2*Math.PI;
+  while(d > Math.PI) d -= 2*Math.PI;
+  ctx.beginPath(); ctx.moveTo(P.x, P.y);
+  ctx.arc(P.x, P.y, radius, -a1, -(a1 + d), d > 0);
+  ctx.closePath();
+  ctx.fillStyle = color + "30"; ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 2.8; ctx.stroke();
+  if(label){
+    const m = a1 + d/2, g = radius + (labelGap || 30);
+    txt(label, P.x + Math.cos(m)*g, P.y - Math.sin(m)*g, color, 19, true);
+  }
+}
+/* 각을 테두리만 그린다(안을 칠하면 아래 각들을 덮어 버린다) */
+function arcOutline(P, Q, R, radius, color, width){
+  const a1 = Math.atan2(-(Q.y - P.y), Q.x - P.x);
+  const a2 = Math.atan2(-(R.y - P.y), R.x - P.x);
+  let d = a2 - a1;
+  while(d <= -Math.PI) d += 2*Math.PI;
+  while(d > Math.PI) d -= 2*Math.PI;
+  ctx.beginPath();
+  ctx.arc(P.x, P.y, radius, -a1, -(a1 + d), d > 0);
+  ctx.strokeStyle = color; ctx.lineWidth = width || 3.4; ctx.stroke();
+}
+/* 평행 표시(화살표 눈금) — 선분 위 t(0~1) 자리에 k 개 */
+function parMark(a, b, k, color, t){
+  const tt = (t === undefined) ? 0.5 : t;
+  const mx = a.x + (b.x-a.x)*tt, my = a.y + (b.y-a.y)*tt;
+  const ux = (b.x-a.x), uy = (b.y-a.y), L = Math.hypot(ux, uy);
+  const dx = ux/L, dy = uy/L, nx = -dy, ny = dx;
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 2.6; ctx.lineCap = "round";
+  for(let i = 0; i < k; i++){
+    const off = (i - (k-1)/2)*9;
+    const cx = mx + dx*off, cy = my + dy*off;
+    ctx.beginPath();
+    ctx.moveTo(cx - dx*5 + nx*7, cy - dy*5 + ny*7);
+    ctx.lineTo(cx + dx*5, cy + dy*5);
+    ctx.lineTo(cx - dx*5 - nx*7, cy - dy*5 - ny*7);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+const sub  = (a, b) => ({x:a.x-b.x, y:a.y-b.y});
+const len  = v => Math.hypot(v.x, v.y);
+const unit = v => { const L = len(v) || 1; return {x:v.x/L, y:v.y/L}; };
+const addv = (a, v, t) => ({x:a.x + v.x*t, y:a.y + v.y*t});
+function angleAt(P, Q, R){                     /* ∠QPR (도) */
+  const u = unit(sub(Q, P)), v = unit(sub(R, P));
+  return Math.acos(Math.max(-1, Math.min(1, u.x*v.x + u.y*v.y)))*180/Math.PI;
+}
+
+/* ============================================================
+   상태
+   ============================================================ */
+let tab = "drag";
+
+/* ① 끌어 보기 — C 는 고정, A·B 를 끈다 */
+const C0 = {x:560, y:430};
+const HOME_A = {x:300, y:110}, HOME_B = {x:170, y:430};
+let A = {x:HOME_A.x, y:HOME_A.y}, B = {x:HOME_B.x, y:HOME_B.y};
+let drag = null;
+
+/* ② 증명 — 위 좌표와 같은 삼각형을 쓴다(검증 완료) */
+let step = 0;
+
+/* ③ 퀴즈 */
+let Q = {kind:"ext", a:0, b:0, ans:0, done:false, tries:0, ok:0, streak:0, pts:null};
+
+/* ============================================================
+   ① 끌어 보기
+   ============================================================ */
+function pointD(bb, cc, L){ return addv(cc, unit(sub(cc, bb)), L || 160); }
+
+function drawDrag(){
+  const D = pointD(B, C0, 165);
+  /* 변 BC 의 연장선 */
+  seg(C0, D, SUB, 3.4, [9, 7]);
+  /* 삼각형 */
+  seg(A, B, INK, 4.6); seg(B, C0, INK, 4.6); seg(C0, A, INK, 4.6);
+
+  /* 각 — 반지름을 서로 다르게 (pitfalls #12) */
+  arcAt(A, B, C0, 52, ORANGE, Math.round(angleAt(A, B, C0)) + "°");
+  arcAt(B, C0, A, 60, OK,     Math.round(angleAt(B, C0, A)) + "°");
+  arcAt(C0, A, B, 44, BLUE,   Math.round(angleAt(C0, A, B)) + "°", 26);
+  arcAt(C0, A, D, 76, RED,    Math.round(angleAt(C0, A, D)) + "°", 32);
+
+  dot(A, ORANGE, 11, true); dot(B, OK, 11, true); dot(C0, BLUE, 8);
+  dot(D, SUB, 6);
+  ital("A", A.x, A.y - 34, INK, 23);
+  ital("B", B.x - 30, B.y + 18, INK, 23);
+  ital("C", C0.x - 4, C0.y + 32, INK, 23);
+  ital("D", D.x + 22, D.y + 6, SUB, 23);
+  $("tip").textContent = "점 A, B 를 끌어 보세요";
+}
+
+function readAngles(){
+  const D = pointD(B, C0, 165);
+  const a = angleAt(A, B, C0), b = angleAt(B, C0, A), c = angleAt(C0, A, B);
+  const e = angleAt(C0, A, D);
+  const r = Math.round;
+  $("vA").textContent = r(a) + "°";
+  $("vB").textContent = r(b) + "°";
+  $("vC").textContent = r(c) + "°";
+  $("vE").textContent = r(e) + "°";
+  $("cmpBox").innerHTML =
+    '<span class="oa">∠A</span> + <span class="ob">∠B</span> = ' + r(a) + '° + ' + r(b) + '° = <b>' + r(a+b) + '°</b>' +
+    '<br><span class="eq">‖ 같아요 ‖</span>' +
+    '<br><span class="oe">∠ACD</span> = <b>' + r(e) + '°</b>' +
+    '<br><span style="font-size:12.5px;color:var(--sub);font-weight:600;">' +
+    '<span class="oc">∠C</span> + <span class="oe">∠ACD</span> = ' + r(c) + '° + ' + r(e) + '° = ' + r(c+e) + '°</span>';
+}
+
+/* 삼각형이 너무 납작해지지 않게 */
+function okTriangle(a, b, c){
+  const cross = (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x);
+  if(Math.abs(cross) < 9000) return false;                 /* 넓이가 너무 작음 */
+  const mn = Math.min(angleAt(a,b,c), angleAt(b,c,a), angleAt(c,a,b));
+  return mn >= 14;
+}
+
+cv.addEventListener("pointerdown", function(ev){
+  if(tab !== "drag") return;
+  const p = (window.MK && MK.pos) ? MK.pos(cv, ev) : {x:ev.offsetX, y:ev.offsetY};
+  const d = toDesign(p.x, p.y);
+  let best = null, bd = 40;                                /* 가장 가까운 점 (pitfalls #8) */
+  [["A", A], ["B", B]].forEach(function(it){
+    const dd = Math.hypot(it[1].x - d.x, it[1].y - d.y);
+    if(dd < bd){ bd = dd; best = it[0]; }
+  });
+  if(!best) return;
+  drag = best;
+  cv.setPointerCapture(ev.pointerId);
+});
+cv.addEventListener("pointermove", function(ev){
+  if(tab !== "drag" || !drag) return;
+  const p = (window.MK && MK.pos) ? MK.pos(cv, ev) : {x:ev.offsetX, y:ev.offsetY};
+  const d = toDesign(p.x, p.y);
+  const nx = Math.max(70, Math.min(830, d.x));
+  const ny = Math.max(60, Math.min(540, d.y));
+  const cand = {x:nx, y:ny};
+  const nA = drag === "A" ? cand : A;
+  const nB = drag === "B" ? cand : B;
+  if(!okTriangle(nA, nB, C0)) return;                      /* 납작해지면 무시 */
+  if(drag === "A"){ A = cand; } else { B = cand; }
+  readAngles(); draw();
+});
+["pointerup", "pointercancel", "pointerleave"].forEach(function(t){
+  cv.addEventListener(t, function(){ drag = null; });
+});
+$("btnReset").addEventListener("click", function(){
+  A = {x:HOME_A.x, y:HOME_A.y}; B = {x:HOME_B.x, y:HOME_B.y};
+  $("dragFb").innerHTML = "";
+  readAngles(); draw();
+});
+
+/* ============================================================
+   ② 평행선으로 설명하기 — 좌표는 파이썬으로 검증했다
+      ∠A=61.20  ∠B=67.89  ∠C=50.91 / 외각=129.09 = ∠A+∠B
+      ∠ACE=∠A(엇각), ∠ECD=∠B(동위각)
+   ============================================================ */
+const PA = {x:300, y:110}, PB = {x:170, y:430}, PC = {x:560, y:430};
+const PD = addv(PC, unit(sub(PC, PB)), 160);
+const PE = addv(PC, unit(sub(PA, PB)), 250);   /* 각 호를 피해 넉넉히 길게 */
+
+function drawProof(){
+  seg(PC, PD, SUB, 3.4, [9, 7]);
+  seg(PA, PB, INK, 4.6); seg(PB, PC, INK, 4.6); seg(PC, PA, INK, 4.6);
+
+  if(step >= 1){
+    seg(PC, PE, RED, 3.6, [7, 6]);
+    parMark(PA, PB, 2, RED, 0.5);
+    parMark(PC, PE, 2, RED, 0.82);          /* C 쪽은 각 호로 붐비므로 E 쪽에 찍는다 */
+    ital("E", PE.x + 22, PE.y - 12, RED, 23);
+  }
+  /* 외각은 0단계에서 통째로, 2~3단계에서 두 조각으로, 4단계에서 다시 합쳐 보여 준다 */
+  if(step === 0) arcAt(PC, PA, PD, 76, RED, Math.round(angleAt(PC, PA, PD)) + "°", 32);
+  if(step >= 2){
+    arcAt(PA, PB, PC, 52, ORANGE, Math.round(angleAt(PA, PB, PC)) + "°");
+    arcAt(PC, PA, PE, 58, ORANGE, null);
+  }
+  if(step >= 3){
+    arcAt(PB, PC, PA, 60, OK, Math.round(angleAt(PB, PC, PA)) + "°");
+    arcAt(PC, PE, PD, 92, OK, null);
+  }
+  if(step >= 4){
+    /* 안을 칠하면 주황·초록 조각이 가려지므로 테두리만 그린다 */
+    arcOutline(PC, PA, PD, 126, RED, 3.8);
+    txt(Math.round(angleAt(PC, PA, PD)) + "°", PC.x + 172, PC.y - 74, RED, 21, true);
+  }
+
+  dot(PA, INK, 8); dot(PB, INK, 8); dot(PC, INK, 8); dot(PD, SUB, 6);
+  if(step >= 1) dot(PE, RED, 7, true);
+  ital("A", PA.x, PA.y - 32, INK, 23);
+  ital("B", PB.x - 30, PB.y + 18, INK, 23);
+  ital("C", PC.x - 6, PC.y + 32, INK, 23);
+  ital("D", PD.x + 22, PD.y + 6, SUB, 23);
+
+  const TIPS = ["빨간 각이 ∠C 의 외각이에요",
+                "AB 와 CE 가 평행해요",
+                "엇각이라 두 주황 각이 같아요",
+                "동위각이라 두 초록 각이 같아요",
+                "주황 + 초록 = 외각!"];
+  $("tip").textContent = TIPS[step];
+}
+
+function paintSteps(){
+  for(let i = 0; i <= 4; i++){
+    const el = $("s" + i);
+    el.classList.toggle("on", i === step);
+    el.classList.toggle("done", i < step);
+  }
+  const MSG = [
+    '',
+    '<div class="fb info">AB 와 CE 가 <b>평행</b>하므로, 4단원에서 배운 평행선의 성질을 쓸 수 있어요.</div>',
+    '<div class="fb warn">평행한 두 직선 AB, CE 를 직선 AC 가 자르므로 <b>∠ACE = ∠A</b> (엇각).</div>',
+    '<div class="fb ok">평행한 두 직선 AB, CE 를 직선 BD 가 자르므로 <b>∠ECD = ∠B</b> (동위각).</div>',
+    '<div class="fb ok">🎉 ∠ACD = ∠ACE + ∠ECD = <b>∠A + ∠B</b>. ' +
+      Math.round(angleAt(PA, PB, PC)) + '° + ' + Math.round(angleAt(PB, PC, PA)) + '° = <b>' +
+      Math.round(angleAt(PC, PA, PD)) + '°</b> 로 확인돼요.</div>'
+  ];
+  $("proofFb").innerHTML = MSG[step];
+  $("btnNextStep").disabled = step >= 4;
+  $("btnNextStep").textContent = step >= 4 ? "설명 끝!" : "다음 단계 ▶";
+}
+$("btnNextStep").addEventListener("click", function(){
+  if(step >= 4) return;
+  step++;
+  paintSteps(); draw();
+  if(step === 4 && window.MKSCORE) MKSCORE.once("proof", 15, "외각 정리 평행선 설명 끝까지 보기");
+});
+$("btnResetStep").addEventListener("click", function(){ step = 0; paintSteps(); draw(); });
+
+/* ============================================================
+   ③ ∠x 구하기 — 주어진 각으로 삼각형을 실제로 작도해 그린다
+   ============================================================ */
+function buildTriangle(aDeg, bDeg){
+  /* B=(0,0), C=(1,0) 로 두고 A 를 구한 뒤 화면에 맞춰 확대·이동 */
+  const cDeg = 180 - aDeg - bDeg;
+  const r = Math.sin(rad(cDeg))/Math.sin(rad(aDeg));       /* BA 의 길이 (BC=1) */
+  const a0 = {x:Math.cos(rad(bDeg))*r, y:-Math.sin(rad(bDeg))*r};
+  const b0 = {x:0, y:0}, c0 = {x:1, y:0}, d0 = {x:1.42, y:0};
+  const xs = [a0.x, b0.x, c0.x, d0.x], ys = [a0.y, b0.y, c0.y, d0.y];
+  const x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
+  const y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+  const s = Math.min(620/(x1-x0), 340/(y1-y0));
+  const ox = 450 - (x0 + x1)/2*s, oy = 310 - (y0 + y1)/2*s;
+  const put = p => ({x:ox + p.x*s, y:oy + p.y*s});
+  return {A:put(a0), B:put(b0), C:put(c0), D:put(d0), aDeg:aDeg, bDeg:bDeg, cDeg:cDeg};
+}
+
+function drawQuiz(){
+  const P = Q.pts;
+  if(!P) return;
+  seg(P.C, P.D, SUB, 3.4, [9, 7]);
+  seg(P.A, P.B, INK, 4.6); seg(P.B, P.C, INK, 4.6); seg(P.C, P.A, INK, 4.6);
+
+  const ext = 180 - P.cDeg;
+  if(Q.kind === "ext"){
+    arcAt(P.A, P.B, P.C, 50, ORANGE, P.aDeg + "°");
+    arcAt(P.B, P.C, P.A, 58, OK,     P.bDeg + "°");
+    arcAt(P.C, P.A, P.D, 74, RED,    "x", 32);
+  }else if(Q.kind === "inner"){
+    arcAt(P.A, P.B, P.C, 50, ORANGE, P.aDeg + "°");
+    arcAt(P.B, P.C, P.A, 58, OK,     "x");
+    arcAt(P.C, P.A, P.D, 74, RED,    ext + "°", 32);
+  }else{                                   /* adj : 외각을 주고 이웃한 내각을 묻는다 */
+    arcAt(P.C, P.A, P.B, 44, BLUE, "x", 26);
+    arcAt(P.C, P.A, P.D, 76, RED,  ext + "°", 32);
+  }
+
+  dot(P.A, INK, 8); dot(P.B, INK, 8); dot(P.C, INK, 8); dot(P.D, SUB, 6);
+  ital("A", P.A.x, P.A.y - 32, INK, 22);
+  ital("B", P.B.x - 28, P.B.y + 18, INK, 22);
+  ital("C", P.C.x - 6, P.C.y + 32, INK, 22);
+  ital("D", P.D.x + 22, P.D.y + 6, SUB, 22);
+  $("tip").textContent = "";
+}
+
+const KINDS = ["ext", "ext", "inner", "adj"];
+function newQuestion(){
+  let kind, a, b, guard = 0;
+  do{
+    kind = KINDS[Math.floor(Math.random()*KINDS.length)];
+    a = 25 + Math.floor(Math.random()*13)*5;               /* 25 ~ 85 */
+    b = 25 + Math.floor(Math.random()*13)*5;
+    guard++;
+  }while(guard < 40 && (a + b > 150 || a + b < 60 || (kind === Q.kind && a === Q.a && b === Q.b)));
+
+  Q.kind = kind; Q.a = a; Q.b = b; Q.done = false;
+  Q.pts = buildTriangle(a, b);
+  const ext = a + b;                                       /* ∠C 의 외각 */
+  if(kind === "ext"){
+    Q.ans = ext;
+    $("ask").innerHTML = '두 내각의 크기가 주어졌어요. ∠C 의 <b>외각</b> <b>∠x</b> 의 크기를 구하세요.';
+  }else if(kind === "inner"){
+    Q.ans = b;
+    $("ask").innerHTML = '∠C 의 외각과 ∠A 가 주어졌어요. <b>∠B = ∠x</b> 의 크기를 구하세요.';
+  }else{
+    Q.ans = 180 - ext;
+    $("ask").innerHTML = '∠C 의 외각이 주어졌어요. ∠C 의 <b>내각</b> <b>∠x</b> 의 크기를 구하세요.';
+  }
+  const inp = $("ansIn"); inp.value = ""; inp.className = "";
+  $("quizFb").innerHTML = "";
+  draw();
+}
+$("btnCheck").addEventListener("click", function(){
+  if(Q.done) return;
+  const inp = $("ansIn");
+  if(inp.value === ""){ $("quizFb").innerHTML = '<div class="fb warn">답을 적어 주세요.</div>'; return; }
+  const ok = +inp.value === Q.ans;
+  Q.done = true; Q.tries++;
+  if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
+  inp.className = ok ? "good" : "bad";
+
+  const a = Q.a, b = Q.b, ext = a + b;
+  let why;
+  if(Q.kind === "ext")
+    why = '외각은 이웃하지 않은 두 내각의 합이므로 <b>' + a + '° + ' + b + '° = ' + ext + '°</b> 예요.';
+  else if(Q.kind === "inner")
+    why = '외각 ' + ext + '° 는 ∠A 와 ∠B 의 합이므로 <b>' + ext + '° − ' + a + '° = ' + b + '°</b> 예요.';
+  else
+    why = '한 꼭짓점에서 내각과 외각의 합은 180° 이므로 <b>180° − ' + ext + '° = ' + (180-ext) + '°</b> 예요.';
+
+  $("quizFb").innerHTML =
+    '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+    (ok ? "🎉 정답! " : '아쉬워요. 답은 <b>' + Q.ans + '°</b>. ') + why + '</div>';
+  $("qTry").textContent = Q.tries; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
+  if(window.MKSCORE) MKSCORE.quiz(ok, "외각 ∠x 구하기");
+});
+$("btnNext").addEventListener("click", newQuestion);
+$("ansIn").addEventListener("keydown", function(e){ if(e.key === "Enter") $("btnCheck").click(); });
+
+/* ============================================================
+   그리기 / 탭
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);    /* 화면 전체를 칠한다 */
+  if(tab === "drag") drawDrag();
+  else if(tab === "proof") drawProof();
+  else drawQuiz();
+  ctx.restore();
+}
+
+document.querySelectorAll("header nav button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    drag = null;
+    $("pDrag") .classList.toggle("hidden", tab !== "drag");
+    $("pProof").classList.toggle("hidden", tab !== "proof");
+    $("pQuiz") .classList.toggle("hidden", tab !== "quiz");
+    draw();
+  });
+});
+
+/* ============================================================
+   시작 — common.js 는 defer 이므로 반드시 DOMContentLoaded 이후에
+   ============================================================ */
+function boot(){
+  readAngles();
+  paintSteps();
+  newQuestion();                 /* 데이터 먼저 (pitfalls #16) */
+  tab = "drag";
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
