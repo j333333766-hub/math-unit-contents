@@ -155,6 +155,7 @@
         </div>
         <div class="row" style="margin-top:10px;">
           <button class="btn primary sm" id="btnAll">모든 꼭짓점에서 긋기</button>
+          <button class="btn sm" id="btnHalf">➗ 2로 나눠 보기</button>
           <button class="btn sm" id="btnClear">↺ 지우기</button>
         </div>
         <div id="exploreFb"></div>
@@ -240,7 +241,7 @@ const $ = id => document.getElementById(id);
 
 const DW = 900, DH = 600;
 const INK = "#1d2433", SUB = "#68738a";
-const BLUE = "#3e63dd", RED = "#e5484d", ORANGE = "#f5820b";
+const BLUE = "#3e63dd", RED = "#e5484d", ORANGE = "#f5820b", OK = "#2f9e63";
 const rad = d => d*Math.PI/180;
 
 const NAMES = {3:"삼각형",4:"사각형",5:"오각형",6:"육각형",7:"칠각형",8:"팔각형",
@@ -290,6 +291,8 @@ let first = -1;            // 먼저 누른 꼭짓점 (-1 이면 고른 것 없�
    같은 대각선이라도 A→C 와 C→A 는 서로 다른 '한 번'이라서
    양쪽에서 그으면 화면에 선이 두 개로 보인다. */
 let draws = new Set();
+/* ÷2 장면 : mergeT 가 0~1 이면 애니메이션 진행 중, halved 는 끝난 상태 */
+let mergeT = -1, halved = false, mergeAnim = null;
 let Q = {n:0, kind:"forward", ans:0, done:false, showAll:false, tries:0, ok:0, streak:0};
 
 /* 꼭짓점 좌표 : 맨 위에서 시작해 시계 방향 */
@@ -326,24 +329,54 @@ function drawExplore(){
   /* 먼저 그은 선은 **실제 대각선 자리 그대로**(파랑),
      같은 대각선을 반대쪽 끝에서 또 그으면 그 옆에 나란히 붙여 그린다(빨강).
      `draws` 는 Set 이라 넣은 차례가 그대로 유지되므로 먼저/나중을 그것으로 가른다. */
-  const seen = new Set();
+  const seen = new Set(), blues = [], reds = [];
   draws.forEach(function(s){
     const p = s.split(">").map(Number);
     const lo = Math.min(p[0], p[1]), hi = Math.max(p[0], p[1]);
     const k = lo + "-" + hi;
-    const A = P[p[0]], B = P[p[1]];
-
-    if(!seen.has(k)){
-      seen.add(k);
-      seg(A, B, BLUE, 3);                        /* 첫 번째 — 실제 대각선과 정확히 일치 */
-      return;
-    }
-    /* 두 번째 — 옆으로 민 방향은 그은 방향과 상관없이 늘 같은 쪽이어야 하므로
-       번호가 작은 꼭짓점 → 큰 꼭짓점 방향을 기준으로 잡는다. */
-    const dx = P[hi].x - P[lo].x, dy = P[hi].y - P[lo].y, L = Math.hypot(dx, dy) || 1;
-    const nx = -dy/L*SIDE, ny = dx/L*SIDE;
-    seg({x:A.x + nx, y:A.y + ny}, {x:B.x + nx, y:B.y + ny}, RED, 3);
+    if(!seen.has(k)){ seen.add(k); blues.push({a:p[0], b:p[1]}); }
+    else reds.push({a:p[0], b:p[1], lo:lo, hi:hi});
   });
+
+  blues.forEach(function(d){ seg(P[d.a], P[d.b], BLUE, 3); });   /* 실제 대각선과 정확히 일치 */
+
+  /* 빨간 선 — ÷2 장면에서는 짝인 파란 선 위로 하나씩 미끄러져 들어가 사라진다 */
+  let alive = 0;
+  if(!halved){
+    const K = reds.length;
+    reds.forEach(function(d, i){
+      let u = 0;                                   /* 0 = 제자리, 1 = 다 겹쳐 사라짐 */
+      if(mergeT >= 0){
+        const st = K > 1 ? (i/K)*0.62 : 0;
+        u = Math.max(0, Math.min(1, (mergeT - st)/0.34));
+      }
+      if(u >= 1) return;
+      alive++;
+      /* 옆으로 민 방향은 그은 방향과 상관없이 늘 같은 쪽이어야 하므로
+         번호가 작은 꼭짓점 → 큰 꼭짓점 방향을 기준으로 잡는다. */
+      const dx = P[d.hi].x - P[d.lo].x, dy = P[d.hi].y - P[d.lo].y, L = Math.hypot(dx, dy) || 1;
+      const off = SIDE*(1 - u);
+      const nx = -dy/L*off, ny = dx/L*off;
+      ctx.save();
+      ctx.globalAlpha = u < 0.75 ? 1 : (1 - u)/0.25;
+      seg({x:P[d.a].x + nx, y:P[d.a].y + ny}, {x:P[d.b].x + nx, y:P[d.b].y + ny}, RED, 3);
+      ctx.restore();
+    });
+  }
+
+  /* ÷2 장면의 숫자 — 도형(최대 x ≈ 680)과 겹치지 않도록 오른쪽 빈 자리에 둔다 */
+  const INFO_X = 785;
+  if(mergeT >= 0){
+    txt("화면에 남은 선", INFO_X, 252, SUB, 18, true);
+    txt(String(blues.length + alive), INFO_X, 296, INK, 40, true);
+    txt("겹친 선을 걷어 내는 중", INFO_X, 336, SUB, 15, true);
+  }else if(halved){
+    const dup = draws.size;
+    txt(dup + " ÷ 2", INFO_X, 246, INK, 27, true);
+    txt("= " + blues.length, INFO_X, 288, OK, 34, true);
+    txt("실제 대각선", INFO_X, 330, SUB, 16, true);
+    txt(blues.length + "개", INFO_X, 354, OK, 19, true);
+  }
 
   /* 변 */
   for(let i = 0; i < n; i++) seg(P[i], P[(i+1)%n], INK, 4.6);
@@ -448,9 +481,49 @@ function updateCounts(){
     ' → <b>' + total + '개</b></span>';
 }
 
+/* ÷2 장면을 처음 상태로 되돌린다 (선을 새로 그으면 늘 부른다) */
+function resetMerge(){
+  if(mergeAnim){ cancelAnimationFrame(mergeAnim); mergeAnim = null; }
+  mergeT = -1; halved = false;
+}
+
+/* 빨간 선이 짝인 파란 선 위로 하나씩 미끄러져 들어가며 개수가 반으로 줄어드는 장면 */
+function runHalve(){
+  const total = draws.size, uniq = drawnMap().size;
+  if(total === 0){
+    $("exploreFb").innerHTML =
+      '<div class="fb warn">먼저 대각선을 그어 보세요. <b>모든 꼭짓점에서 긋기</b> 를 누르면 한 번에 그어져요.</div>';
+    return;
+  }
+  if(total === uniq){
+    $("exploreFb").innerHTML =
+      '<div class="fb warn">아직 <b>두 번 그은 대각선</b>이 없어요. 같은 대각선을 <b>양쪽 끝에서</b> 그어 보거나' +
+      ' <b>모든 꼭짓점에서 긋기</b> 를 눌러 보세요.</div>';
+    return;
+  }
+  resetMerge();
+  mergeT = 0;
+  const t0 = performance.now(), DUR = 2500;
+  (function step(now){
+    mergeT = Math.min(1, (now - t0)/DUR);
+    draw();
+    if(mergeT < 1){
+      mergeAnim = requestAnimationFrame(step);
+    }else{
+      mergeAnim = null; mergeT = -1; halved = true;
+      draw();
+      $("exploreFb").innerHTML =
+        '<div class="fb ok">🎉 <b>' + total + '번</b> 그었지만 같은 대각선을 <b>두 번씩</b> 그은 것이라' +
+        ' 겹친 선을 걷어 내면 <b>' + total + ' ÷ 2 = ' + uniq + '</b>.' +
+        ' 실제 대각선은 <b>' + uniq + '개</b> 예요.</div>';
+      if(window.MKSCORE) MKSCORE.once("half" + n, 10, nameOf(n) + " 2로 나누기 확인");
+    }
+  })(t0);
+}
+
 $("rN").addEventListener("input", function(e){
   n = +e.target.value;
-  draws.clear(); first = -1;
+  draws.clear(); first = -1; resetMerge();
   $("vN").textContent = nameOf(n) + " (n = " + n + ")";
   $("exploreFb").innerHTML = n === 3
     ? '<div class="fb warn">삼각형은 이웃하지 않는 꼭짓점이 없어서 대각선을 <b>하나도</b> 그을 수 없어요.</div>'
@@ -458,7 +531,7 @@ $("rN").addEventListener("input", function(e){
   updateCounts(); draw();
 });
 $("btnAll").addEventListener("click", function(){
-  draws.clear(); first = -1;
+  draws.clear(); first = -1; resetMerge();
   for(let i = 0; i < n; i++)
     for(let j = 0; j < n; j++)
       if(j !== i && !isAdj(i, j, n)) draws.add(i + ">" + j);   /* 양쪽 방향을 모두 */
@@ -469,14 +542,17 @@ $("btnAll").addEventListener("click", function(){
   updateCounts(); draw();
   if(n >= 4 && window.MKSCORE) MKSCORE.once("all" + n, 5, nameOf(n) + " 대각선 모두 긋기");
 });
+$("btnHalf").addEventListener("click", runHalve);
 $("btnClear").addEventListener("click", function(){
-  draws.clear(); first = -1;
+  draws.clear(); first = -1; resetMerge();
   $("exploreFb").innerHTML = "";
   updateCounts(); draw();
 });
 
 cv.addEventListener("pointerdown", function(ev){
   if(tab !== "explore") return;
+  if(mergeT >= 0) return;                       /* 장면이 도는 동안에는 새로 긋지 않는다 */
+  if(halved) resetMerge();
   const p = (window.MK && MK.pos) ? MK.pos(cv, ev) : {x:ev.offsetX, y:ev.offsetY};
   const d = toDesign(p.x, p.y);
   const P = verts(n, EX_C.x, EX_C.y, EX_R);
@@ -642,6 +718,7 @@ document.querySelectorAll("header nav button").forEach(function(b){
     document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
     b.classList.add("on");
     tab = b.dataset.tab;
+    if(tab !== "explore" && mergeAnim){ cancelAnimationFrame(mergeAnim); mergeAnim = null; mergeT = -1; }
     $("pExplore").classList.toggle("hidden", tab !== "explore");
     $("pTable")  .classList.toggle("hidden", tab !== "table");
     $("pQuiz")   .classList.toggle("hidden", tab !== "quiz");
