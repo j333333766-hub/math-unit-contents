@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>외각 360° 모으기 — 다각형의 외각의 합과 거북이 코딩</title>
+<link rel="stylesheet" href="../assets/common.css">
+<script src="../assets/common.js?v=3" data-home="../index.html?unit=5" defer></script>
+<script src="../assets/track.js?v=4" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 350px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none;}
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn:disabled{opacity:.45; cursor:default;}
+  .btn:disabled:hover{background:var(--panel); border-color:var(--line); color:var(--ink);}
+
+  .slider{margin-top:11px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .formula{
+    margin-top:10px; text-align:center; font-size:15px; font-weight:700; color:var(--ink);
+    background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:11px 8px; line-height:1.95;
+  }
+  .formula .big{font-size:19px; color:var(--accent);}
+  .it{font-family:'Times New Roman',serif; font-style:italic; font-weight:700;}
+
+  /* 거북이 코드 블록 */
+  .code{
+    margin-top:9px; background:#0f172a; border-radius:11px; padding:12px 13px;
+    font:600 13px/1.85 ui-monospace, 'Cascadia Mono', Consolas, monospace; color:#cbd5e1;
+  }
+  .code .kw{color:#f9a8d4;} .code .num{color:#fbbf24;} .code .cm{color:#64748b;}
+  .code .slot{
+    display:inline-block; min-width:38px; text-align:center; border-radius:6px;
+    background:#1e293b; border:1px solid #334155; color:#fbbf24; padding:0 6px;
+  }
+  .code .slot.on{border-color:#fbbf24;}
+
+  .numrow{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;}
+  .numrow .f{display:flex; flex-direction:column; gap:4px;}
+  .numrow label{font-size:12px; font-weight:700; color:var(--sub);}
+  .numrow input{
+    font:700 16px var(--font); padding:8px 10px; text-align:center;
+    border:1px solid var(--line); border-radius:9px; width:100%;
+  }
+  .numrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .numrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+
+  .ansrow{display:flex; align-items:center; gap:8px; margin-top:10px;}
+  .ansrow input{
+    width:112px; font:700 17px var(--font); padding:9px 10px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🐢 외각 360° 모으기</h1>
+  <nav>
+    <button class="on" data-tab="gather">① 외각 모으기</button>
+    <button data-tab="turtle">② 거북이 코딩</button>
+    <button data-tab="quiz">③ 외각 문제</button>
+  </nav>
+  <a class="home-btn" href="../index.html?unit=5">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ① 외각 모으기 -->
+    <section id="pGather">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 외각을 오려 한 점에 모아 보세요</h2>
+        <p>교과서에서는 가위로 외각을 오려 한 점에 모았어요. 여기서는 슬라이더로 <b>모으기</b>를
+           움직이면 외각들이 스스로 한 점에 모여요. 변의 개수를 바꿔도 결과가 같은지 보세요. (교과서 187쪽)</p>
+        <div class="slider">
+          <label><span>변의 개수 <span class="it">n</span></span><span class="v" id="vN">오각형 (n = 5)</span></label>
+          <input type="range" id="rN" min="3" max="12" step="1" value="5">
+        </div>
+        <div class="slider">
+          <label><span>모으기</span><span class="v" id="vT">0 %</span></label>
+          <input type="range" id="rT" min="0" max="100" step="1" value="0">
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary sm" id="btnPlay">▶ 천천히 모으기</button>
+          <button class="btn sm" id="btnBack">↺ 되돌리기</button>
+        </div>
+        <div id="gatherFb"></div>
+      </div>
+      <div class="blk">
+        <h2>알게 된 것</h2>
+        <div class="formula" id="fGather"></div>
+        <p style="margin-top:9px;">모든 내각과 외각의 합은 <b>180°×<span class="it">n</span></b>,
+           거기서 내각의 합 <b>180°×(<span class="it">n</span>−2)</b> 를 빼면 항상 <b>360°</b> 예요.</p>
+      </div>
+    </section>
+
+    <!-- ② 거북이 코딩 -->
+    <section id="pTurtle" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 거북이로 정다각형 그리기</h2>
+        <p>알지오매스 블록 코딩과 같은 방식이에요. <b>반복 횟수</b>와 <b>회전하는 각</b>을 정해
+           정다각형을 그려 보세요. (교과서 190쪽)</p>
+        <div class="code">
+          <span class="cm">// 지우고 시작하기</span><br>
+          <span class="kw">반복</span> <span class="slot" id="slotR">3</span> <span class="kw">회</span><br>
+          &nbsp;&nbsp;앞으로 <span class="num">120</span> 만큼 이동하기<br>
+          &nbsp;&nbsp;반시계방향으로 <span class="slot" id="slotA">120</span> 도 회전하기
+        </div>
+        <div class="numrow">
+          <div class="f"><label>㉠ 반복 횟수</label><input type="number" id="inR" value="3" min="3" max="12" inputmode="numeric"></div>
+          <div class="f"><label>㉡ 회전하는 각</label><input type="number" id="inA" value="120" min="10" max="180" inputmode="numeric"></div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnRun">▶ 실행</button>
+          <button class="btn sm" id="btnPent">정오각형 도전</button>
+        </div>
+        <div id="turtleFb"></div>
+      </div>
+      <div class="blk">
+        <h2>스스로 과제</h2>
+        <p>정<span class="it">n</span>각형을 그리려면 ㉠ = <b><span class="it">n</span></b>,
+           ㉡ = <b>360 ÷ <span class="it">n</span></b> 이에요.
+           거북이가 도는 각이 바로 <b>한 외각</b>이고, 한 바퀴 돌면 <b>360°</b> 니까요.</p>
+        <div class="formula" id="fTurtle"></div>
+      </div>
+    </section>
+
+    <!-- ③ 퀴즈 -->
+    <section id="pQuiz" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 외각 문제 풀기</h2>
+        <p id="ask"></p>
+        <div class="ansrow">
+          <input type="number" id="ansIn" placeholder="?" inputmode="numeric">
+          <span style="font-size:15px;font-weight:700;color:var(--sub);" id="unit">°</span>
+        </div>
+        <div id="quizFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnCheck">✅ 확인</button>
+          <button class="btn sm" id="btnNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+const DW = 900, DH = 600;
+const INK = "#1d2433", SUB = "#68738a";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b";
+const rad = d => d*Math.PI/180;
+
+const NAMES = {3:"삼각형",4:"사각형",5:"오각형",6:"육각형",7:"칠각형",8:"팔각형",
+               9:"구각형",10:"십각형",11:"십일각형",12:"십이각형",15:"십오각형",
+               18:"십팔각형",20:"이십각형",24:"이십사각형",36:"삼십육각형"};
+const nameOf = n => NAMES[n] || (n + "각형");
+const FILLS = ["#3e63dd", "#f5820b", "#2f9e63", "#8e4ec6", "#e5484d",
+               "#0e9bb5", "#c2410c", "#6d28d9", "#0f766e", "#b91c1c", "#1d4ed8", "#a16207"];
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+
+function seg(a, b, color, w, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.restore();
+}
+function dot(P, color, r, filled){
+  ctx.fillStyle = filled ? color : "#fff";
+  ctx.strokeStyle = color; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(P.x, P.y, r || 7, 0, 7); ctx.fill(); ctx.stroke();
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+/* 꼭짓점 O 에서 시작 방향 a0(도, 수학 기준 반시계) 부터 크기 w(도) 만큼의 부채꼴.
+   캔버스는 y 가 아래로 가므로 각의 부호가 뒤집힌다 —
+   w>0(반시계)이면 캔버스에서는 각이 줄어드는 쪽(anticlockwise=true)으로 그려야
+   우각이 아닌 제 각이 칠해진다. */
+function wedge(O, a0, w, R, color, alpha){
+  ctx.beginPath(); ctx.moveTo(O.x, O.y);
+  ctx.arc(O.x, O.y, R, -rad(a0), -rad(a0 + w), w > 0);
+  ctx.closePath();
+  ctx.fillStyle = color + (alpha || "40"); ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 2.4; ctx.stroke();
+}
+
+/* ============================================================
+   상태
+   ============================================================ */
+let tab = "gather";
+let n = 5, t = 0;            /* ① 변의 개수, 모으기 0~1 */
+let anim = null;
+let TR = {r:3, a:120, path:null, closed:false};   /* ② 거북이 */
+let Q = {kind:"sum", n:0, ans:0, done:false, tries:0, ok:0, streak:0};
+
+/* ============================================================
+   ① 외각 모으기
+   정n각형의 각 꼭짓점에서 외각(=360/n)을 만들고, 모으기 t 에 따라
+   꼭짓점 → 가운데 점으로 옮기면서 부채꼴을 차례로 이어 붙인다.
+   ============================================================ */
+const GC = {x:400, y:305}, GR = 175;
+const HUB = {x:690, y:305};
+
+function gatherScene(){
+  const P = [], W = 360/n;
+  for(let i = 0; i < n; i++){
+    const a = -90 + 360*i/n;
+    P.push({x:GC.x + Math.cos(rad(a))*GR, y:GC.y + Math.sin(rad(a))*GR});
+  }
+  /* 꼭짓점 i 의 외각 : 변 i→i+1 방향의 연장선에서 변 i+1 방향까지 */
+  const wedges = [];
+  for(let i = 0; i < n; i++){
+    const A = P[i], B = P[(i+1)%n], C = P[(i+2)%n];
+    /* 화면 기준 반시계 각(도) */
+    const dirAB = Math.atan2(-(B.y - A.y), B.x - A.x)*180/Math.PI;   /* B 에서 나가는 연장선 방향 */
+    const dirBC = Math.atan2(-(C.y - B.y), C.x - B.x)*180/Math.PI;
+    let d = dirBC - dirAB;
+    while(d <= -180) d += 360;
+    while(d > 180) d -= 360;
+    wedges.push({at:B, start:dirAB, w:d, i:i});
+  }
+  return {P:P, wedges:wedges, W:W};
+}
+
+function drawGather(){
+  const S = gatherScene();
+  const P = S.P;
+
+  /* 다각형과 변의 연장선 */
+  for(let i = 0; i < n; i++) seg(P[i], P[(i+1)%n], INK, 4.4);
+  if(t < 1){
+    for(let i = 0; i < n; i++){
+      const A = P[i], B = P[(i+1)%n];
+      const ux = B.x - A.x, uy = B.y - A.y, L = Math.hypot(ux, uy);
+      seg(B, {x:B.x + ux/L*54, y:B.y + uy/L*54}, SUB, 2.6, [7, 6]);
+    }
+  }
+
+  /* 모으는 자리 : 부채꼴을 차례로 이어 붙인다 */
+  let acc = 90;                                   /* 허브에서 시작 방향 */
+  S.wedges.forEach(function(w, k){
+    const col = FILLS[k % FILLS.length];
+    const O  = {x:w.at.x + (HUB.x - w.at.x)*t, y:w.at.y + (HUB.y - w.at.y)*t};
+    const st = w.start + (acc - w.start)*t;       /* 시작 방향도 함께 회전 */
+    const R  = 46 + 30*t;
+    wedge(O, st, w.w, R, col);
+    acc += w.w;
+  });
+
+  for(let i = 0; i < n; i++) dot(P[i], INK, 7);
+  if(t > 0.55) dot(HUB, RED, 7, true);
+  if(t > 0.9){
+    ctx.beginPath(); ctx.arc(HUB.x, HUB.y, 86, 0, 7);
+    ctx.strokeStyle = RED; ctx.lineWidth = 3.2; ctx.setLineDash([8, 7]); ctx.stroke(); ctx.setLineDash([]);
+    txt("360°", HUB.x, HUB.y - 108, RED, 24, true);
+    txt("한 바퀴!", HUB.x, HUB.y + 110, RED, 20, true);
+  }
+  txt(nameOf(n), GC.x, 58, INK, 23, true);
+  $("tip").textContent = t < 0.05 ? "슬라이더를 오른쪽으로 밀어 보세요"
+                       : t > 0.95 ? "몇 각형이든 외각의 합은 360°" : "모으는 중…";
+}
+
+function paintGather(){
+  $("vN").textContent = nameOf(n) + " (n = " + n + ")";
+  $("vT").textContent = Math.round(t*100) + " %";
+  $("fGather").innerHTML =
+    '<span class="it">n</span>각형의 외각의 크기의 합 = <span class="big">360°</span>' +
+    '<br><span style="color:var(--sub);font-size:13.5px;">' +
+    '180° × ' + n + ' − 180° × (' + n + ' − 2) = ' + (180*n) + '° − ' + (180*(n-2)) + '° = <b>360°</b></span>';
+  $("gatherFb").innerHTML = t > 0.95
+    ? '<div class="fb ok">🎉 ' + nameOf(n) + '의 외각 ' + n + '개가 빈틈없이 <b>한 바퀴(360°)</b> 를 채웠어요.' +
+      ' 변의 개수를 바꿔도 똑같아요.</div>'
+    : '';
+}
+
+$("rN").addEventListener("input", function(e){
+  n = +e.target.value; paintGather(); draw();
+});
+$("rT").addEventListener("input", function(e){
+  t = +e.target.value/100; paintGather(); draw();
+  if(t > 0.95 && window.MKSCORE) MKSCORE.once("gather" + n, 5, nameOf(n) + " 외각 모으기");
+});
+function stopAnim(){ if(anim){ cancelAnimationFrame(anim); anim = null; } }
+$("btnPlay").addEventListener("click", function(){
+  stopAnim();
+  const t0 = performance.now(), from = t;
+  (function step(now){
+    const k = Math.min(1, (now - t0)/1600);
+    t = from + (1 - from)*k;
+    $("rT").value = Math.round(t*100);
+    paintGather(); draw();
+    if(k < 1) anim = requestAnimationFrame(step);
+    else { anim = null; if(window.MKSCORE) MKSCORE.once("gather" + n, 5, nameOf(n) + " 외각 모으기"); }
+  })(t0);
+});
+$("btnBack").addEventListener("click", function(){
+  stopAnim(); t = 0; $("rT").value = 0; paintGather(); draw();
+});
+
+/* ============================================================
+   ② 거북이 코딩
+   ============================================================ */
+function turtlePath(times, turn, stepLen){
+  const pts = [{x:0, y:0}];
+  let dir = 0;                                    /* 화면 기준 반시계 각(도) */
+  for(let i = 0; i < times; i++){
+    const p = pts[pts.length - 1];
+    pts.push({x:p.x + Math.cos(rad(dir))*stepLen, y:p.y - Math.sin(rad(dir))*stepLen});
+    dir += turn;
+  }
+  return {pts:pts, dir:dir};
+}
+function runTurtle(){
+  const r = Math.max(1, Math.min(36, Math.round(+$("inR").value || 0)));
+  const a = Math.max(1, Math.min(359, Math.round(+$("inA").value || 0)));
+  TR.r = r; TR.a = a;
+  $("inR").value = r; $("inA").value = a;
+  $("slotR").textContent = r; $("slotA").textContent = a;
+
+  const P = turtlePath(r, a, 130);
+  TR.path = P.pts;
+  const first = P.pts[0], last = P.pts[P.pts.length - 1];
+  TR.closed = Math.hypot(last.x - first.x, last.y - first.y) < 1.5 && (a*r) % 360 === 0;
+
+  const isRegular = TR.closed && r >= 3 && a === 360/r;
+  $("turtleFb").innerHTML = isRegular
+    ? '<div class="fb ok">🎉 <b>정' + nameOf(r) + '</b>이 그려졌어요! 회전한 각 ' + a +
+      '°는 정' + nameOf(r) + '의 <b>한 외각</b>이고, ' + r + '번 돌아 ' + (a*r) + '° = 한 바퀴예요.</div>'
+    : TR.closed
+      ? '<div class="fb warn">도형이 닫히긴 했는데 정다각형은 아니에요. 회전한 각의 합이 ' + (a*r) +
+        '° 라 한 바퀴를 여러 번 돈 모양이에요. <b>㉡ = 360 ÷ ㉠</b> 으로 맞춰 보세요.</div>'
+      : '<div class="fb no">도형이 닫히지 않았어요. ' + r + ' × ' + a + '° = <b>' + (r*a) +
+        '°</b> 라서 한 바퀴(360°)가 되지 않아요. <b>㉠ × ㉡ = 360</b> 이 되어야 제자리로 돌아와요.</div>';
+
+  $("fTurtle").innerHTML =
+    '㉠ × ㉡ = ' + r + ' × ' + a + '° = <b>' + (r*a) + '°</b>' +
+    '<br><span style="color:var(--sub);font-size:13px;">제자리로 돌아오려면 정확히 360° 가 되어야 해요.</span>';
+
+  if(isRegular && window.MKSCORE) MKSCORE.once("turtle" + r, 10, "거북이로 정" + nameOf(r) + " 그리기");
+  draw();
+}
+$("btnRun").addEventListener("click", runTurtle);
+$("btnPent").addEventListener("click", function(){
+  $("inR").value = 5; $("inA").value = 72; runTurtle();
+});
+["inR", "inA"].forEach(function(id){
+  $(id).addEventListener("keydown", function(e){ if(e.key === "Enter") runTurtle(); });
+});
+
+function drawTurtle(){
+  const pts = TR.path;
+  if(!pts || pts.length < 2){ txt("▶ 실행 을 눌러 보세요", 450, 300, SUB, 22); return; }
+  /* 경로를 화면에 맞춰 자동으로 넣는다 */
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  pts.forEach(function(p){
+    if(p.x < x0) x0 = p.x; if(p.x > x1) x1 = p.x;
+    if(p.y < y0) y0 = p.y; if(p.y > y1) y1 = p.y;
+  });
+  const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
+  const s = Math.min(620/w, 400/h, 1.25);
+  const ox = 450 - (x0 + x1)/2*s, oy = 315 - (y0 + y1)/2*s;
+  const put = p => ({x:ox + p.x*s, y:oy + p.y*s});
+
+  for(let i = 0; i + 1 < pts.length; i++)
+    seg(put(pts[i]), put(pts[i+1]), FILLS[i % FILLS.length], 4.4);
+  const S0 = put(pts[0]), SE = put(pts[pts.length - 1]);
+  dot(S0, OK, 8, true);
+  if(!TR.closed) dot(SE, RED, 8, true);
+
+  txt(TR.closed ? "🐢 제자리로 돌아왔어요" : "🐢 여기서 멈췄어요", 450, 56,
+      TR.closed ? OK : RED, 21, true);
+  $("tip").textContent = "반복 " + TR.r + "회 · 회전 " + TR.a + "°";
+}
+
+/* ============================================================
+   ③ 퀴즈
+   ============================================================ */
+const QC = {x:450, y:315}, QR = 178;
+function drawQuiz(){
+  const cnt = Q.n || 6;
+  const P = [];
+  for(let i = 0; i < cnt; i++){
+    const a = -90 + 360*i/cnt;
+    P.push({x:QC.x + Math.cos(rad(a))*QR, y:QC.y + Math.sin(rad(a))*QR});
+  }
+  for(let i = 0; i < cnt; i++) seg(P[i], P[(i+1)%cnt], INK, 4.4);
+  /* 외각을 작게 표시 */
+  for(let i = 0; i < cnt; i++){
+    const A = P[i], B = P[(i+1)%cnt], C = P[(i+2)%cnt];
+    const ux = B.x - A.x, uy = B.y - A.y, L = Math.hypot(ux, uy);
+    seg(B, {x:B.x + ux/L*48, y:B.y + uy/L*48}, SUB, 2.4, [6, 5]);
+    const dirAB = Math.atan2(-(B.y - A.y), B.x - A.x)*180/Math.PI;
+    const dirBC = Math.atan2(-(C.y - B.y), C.x - B.x)*180/Math.PI;
+    let d = dirBC - dirAB;
+    while(d <= -180) d += 360;
+    while(d > 180) d -= 360;
+    wedge(B, dirAB, d, 30, ORANGE, "44");
+  }
+  for(let i = 0; i < cnt; i++) dot(P[i], INK, 6.5);
+  txt((Q.kind === "sum" ? "" : "정") + nameOf(cnt), QC.x, 56, INK, 23, true);
+  $("tip").textContent = "주황 각이 외각이에요";
+}
+
+const KINDS = ["one", "one", "findN", "sum"];
+const POOL = [5, 6, 8, 9, 10, 12, 15, 18, 20, 24, 36];
+function newQuestion(){
+  let kind, nn, guard = 0;
+  do{
+    kind = KINDS[Math.floor(Math.random()*KINDS.length)];
+    nn   = POOL[Math.floor(Math.random()*POOL.length)];
+    guard++;
+  }while(guard < 40 && ((kind !== "sum" && 360 % nn !== 0) || (kind === Q.kind && nn === Q.n)));
+
+  Q.kind = kind; Q.n = nn; Q.done = false;
+  if(kind === "sum"){
+    Q.ans = 360;
+    $("ask").innerHTML = '<b>' + nameOf(nn) + '</b>의 외각의 크기의 합을 구하세요.';
+    $("unit").textContent = "°";
+  }else if(kind === "one"){
+    Q.ans = 360/nn;
+    $("ask").innerHTML = '<b>정' + nameOf(nn) + '</b>의 <b>한 외각</b>의 크기를 구하세요.';
+    $("unit").textContent = "°";
+  }else{
+    Q.ans = nn;
+    $("ask").innerHTML = '한 외각의 크기가 <b>' + (360/nn) + '°</b> 인 정다각형은 몇 각형일까요?';
+    $("unit").textContent = "각형";
+  }
+  const inp = $("ansIn"); inp.value = ""; inp.className = "";
+  $("quizFb").innerHTML = "";
+  draw();
+}
+$("btnCheck").addEventListener("click", function(){
+  if(Q.done) return;
+  const inp = $("ansIn");
+  if(inp.value === ""){ $("quizFb").innerHTML = '<div class="fb warn">답을 적어 주세요.</div>'; return; }
+  const ok = +inp.value === Q.ans;
+  Q.done = true; Q.tries++;
+  if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
+  inp.className = ok ? "good" : "bad";
+
+  const nn = Q.n;
+  let why;
+  if(Q.kind === "sum")
+    why = '다각형의 외각의 크기의 합은 변의 개수와 상관없이 <b>항상 360°</b> 예요.';
+  else if(Q.kind === "one")
+    why = '정다각형은 외각이 모두 같으므로 360° ÷ ' + nn + ' = <b>' + (360/nn) + '°</b> 예요.';
+  else
+    why = '360° ÷ ' + (360/nn) + '° = <b>' + nn + '</b> 이므로 <b>정' + nameOf(nn) + '</b> 이에요.';
+
+  $("quizFb").innerHTML =
+    '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+    (ok ? "🎉 정답! " : '아쉬워요. 답은 <b>' + Q.ans + (Q.kind === "findN" ? "각형" : "°") + '</b>. ') + why + '</div>';
+  $("qTry").textContent = Q.tries; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
+  if(window.MKSCORE) MKSCORE.quiz(ok, "외각 문제");
+});
+$("btnNext").addEventListener("click", newQuestion);
+$("ansIn").addEventListener("keydown", function(e){ if(e.key === "Enter") $("btnCheck").click(); });
+
+/* ============================================================
+   그리기 / 탭
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);    /* 화면 전체를 칠한다 */
+  if(tab === "gather") drawGather();
+  else if(tab === "turtle") drawTurtle();
+  else drawQuiz();
+  ctx.restore();
+}
+
+document.querySelectorAll("header nav button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    stopAnim();
+    $("pGather").classList.toggle("hidden", tab !== "gather");
+    $("pTurtle").classList.toggle("hidden", tab !== "turtle");
+    $("pQuiz")  .classList.toggle("hidden", tab !== "quiz");
+    draw();
+  });
+});
+
+/* ============================================================
+   시작 — common.js 는 defer 이므로 반드시 DOMContentLoaded 이후에
+   ============================================================ */
+function boot(){
+  paintGather();
+  runTurtle();                   /* 데이터 먼저 (pitfalls #16) */
+  newQuestion();
+  tab = "gather";
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
