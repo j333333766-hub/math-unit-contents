@@ -396,7 +396,16 @@ function buildCount(){
 }
 
 function platoGeo(k){
-  if(k === 4)  return new THREE.TetrahedronGeometry(2.3);
+  if(k === 4){
+    /* three.js 기본 정사면체는 꼭짓점 (1,1,1) 방향이 카메라와 거의 일치해서
+       납작한 삼각형으로만 보인다. 그 꼭짓점을 위로 세워 입체로 보이게 한다. */
+    const g = new THREE.TetrahedronGeometry(2.3);
+    const q = new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(1, 1, 1).normalize(), new THREE.Vector3(0, 1, 0));
+    g.applyQuaternion(q);
+    g.rotateY(0.5);
+    return g;
+  }
   if(k === 6)  return new THREE.BoxGeometry(2.9, 2.9, 2.9);
   if(k === 8)  return new THREE.OctahedronGeometry(2.4);
   if(k === 12) return new THREE.DodecahedronGeometry(2.2);

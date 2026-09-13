@@ -330,6 +330,40 @@ function laheGeo(key, angDeg){
   return new THREE.LatheGeometry(pts, seg, 0, Math.max(0.001, angDeg*Math.PI/180));
 }
 
+/* 곡면(구·원뿔 등)은 MeshBasicMaterial 이라 음영이 없어 납작한 원처럼 보인다.
+   위도선·경도선을 얹어서 입체로 읽히게 한다. */
+function addLatheWire(key, angDeg, color, opacity){
+  const s = SHAPE[key];
+  const pts = s.pts.map(function(p){ return [Math.max(0.0001, p[0]), p[1]]; });
+  const total = Math.max(0.001, angDeg*Math.PI/180);
+  const arr = [];
+  const AS = 48;
+  const step = Math.max(1, Math.round(pts.length/7));
+  for(let i = 0; i < pts.length; i += step){
+    const r = pts[i][0], y = pts[i][1];
+    if(r < 0.05) continue;
+    for(let j = 0; j < AS; j++){
+      const a0 = total*j/AS, a1 = total*(j + 1)/AS;
+      arr.push(Math.sin(a0)*r, y, Math.cos(a0)*r, Math.sin(a1)*r, y, Math.cos(a1)*r);
+    }
+  }
+  const MS = Math.max(2, Math.round(angDeg/45) + 1);
+  for(let k = 0; k < MS; k++){
+    const a = total*k/(MS - 1);
+    for(let i = 0; i + 1 < pts.length; i++){
+      arr.push(Math.sin(a)*pts[i][0],     pts[i][1],     Math.cos(a)*pts[i][0],
+               Math.sin(a)*pts[i + 1][0], pts[i + 1][1], Math.cos(a)*pts[i + 1][0]);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(arr, 3));
+  const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({
+    color:color, transparent:true, opacity:opacity
+  }));
+  group.add(l);
+  return l;
+}
+
 /* ============================================================
    상태
    ============================================================ */
@@ -349,6 +383,7 @@ function buildSpin(){
   f.rotation.y = 0;
   if(spinA > 0.5){
     addMesh(laheGeo(sKey, spinA), COL.body, spinA >= 359 ? 0.42 : 0.33);
+    addLatheWire(sKey, spinA, COL.body, 0.5);
     /* 돌아간 자리의 평면도형 */
     const f2 = addMesh(flatShape(sKey), COL.plane, 0.5);
     f2.rotation.y = -spinA*Math.PI/180;
@@ -419,6 +454,7 @@ function buildCut(){
   clearGroup();
   addAxis(6.4);
   addMesh(laheGeo(cKey, 360), COL.body, 0.26);
+  addLatheWire(cKey, 360, COL.body, 0.35);
 
   const yr = yRange(cKey);
   const y = yr[0] + (yr[1] - yr[0])*(cutPos + 100)/200;
@@ -487,6 +523,7 @@ function buildQuiz(){
   clearGroup();
   addAxis(6.4);
   addMesh(laheGeo(Q.key, 360), COL.body, 0.4);
+  addLatheWire(Q.key, 360, COL.body, 0.5);
   if(Q.done){
     const f = addMesh(flatShape(Q.key), COL.flat, 0.72);
     f.rotation.y = 0;

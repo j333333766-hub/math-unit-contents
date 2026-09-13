@@ -267,11 +267,17 @@ let Q = {kind:"coneV", r:0, h:0, l:0, b:0, ans:0, pi:false, done:false, tries:0,
 /* ============================================================
    ① 원뿔 펼치기
    ============================================================ */
-const SC = 16;
+/* 1 cm 를 몇 px 로 그릴지 — 모선이 길어져도 전개도가 캔버스를 넘지 않도록 맞춘다 */
+function coneScale(){
+  const half = Math.PI*rr/ll;                                  /* 부채꼴 중심각의 절반 */
+  const hwPer = (half >= Math.PI/2) ? ll : ll*Math.sin(half);  /* SC 1 당 부채꼴 가로 반지름 */
+  return Math.max(9, Math.min(30, 235/ll, 140/rr, 840/(2*hwPer + 2*rr)));
+}
 function drawNet(){
   const t = clamp01(tOpen);
+  const SC = coneScale();
   const R = rr*SC, L = ll*SC;
-  const cx = 330, cy = 330;
+  const cx = 250 + 200*(1 - t), cy = 330;   /* 접혀 있을 땐 가운데, 펼치면 왼쪽으로 */
 
   /* 부채꼴 중심각 = 360 × r/l */
   const ang = 360*rr/ll;
@@ -289,7 +295,10 @@ function drawNet(){
   }
   if(t > 0.02){
     /* 펼친 부채꼴 */
-    const ox = 620, oy = 300;
+    const half = ang/2;
+    const hw = (half >= 90) ? L : L*Math.sin(rad(half));   /* 부채꼴의 가로 반지름 */
+    /* 부채꼴 + 밑면 원을 한 덩어리로 보고 캔버스 가운데에 놓는다 */
+    const oy = 370, ox = 470 - (2*hw + 2*R + 46)/2 + hw;
     const a0 = 90 + ang/2, a1 = 90 - ang/2;
     ctx.globalAlpha = t;
     ctx.beginPath();
@@ -305,9 +314,11 @@ function drawNet(){
     txt("호 = 2π×" + rr + " = " + (2*rr) + "π cm",
         ox + Math.cos(rad(90))*(L + 30), oy - Math.sin(rad(90))*(L + 30), BLUE, 17, true);
     txt(Math.round(ang) + "°", ox, oy - 30, BLUE, 16, true);
-    /* 밑면 원 */
-    ellipse(ox + L + R + 34, oy + 60, R, R, ORANGE + "44", ORANGE, 2.4);
-    txt(rr + " cm", ox + L + R + 34, oy + 60 + R + 18, ORANGE, 16, true);
+    /* 밑면 원 — 부채꼴 오른쪽 옆에 */
+    const bcx = ox + hw + R + 46, bcy = oy - L/2;
+    ellipse(bcx, bcy, R, R, ORANGE + "44", ORANGE, 2.4);
+    seg({x:bcx, y:bcy}, {x:bcx + R, y:bcy}, ORANGE, 2, [6, 5]);
+    txt(rr + " cm", bcx, bcy + R + 18, ORANGE, 16, true);
     ctx.globalAlpha = 1;
   }
   txt(t > 0.9 ? "전개도 — 옆면은 부채꼴!" : (t < 0.1 ? "원뿔" : "펼치는 중…"),
@@ -356,7 +367,7 @@ $("btnClose").addEventListener("click", function(){ stopOpen(); tOpen = 0; $("rT
 /* ============================================================
    ② 세 번 부으면 — 뿔 → 기둥
    ============================================================ */
-const PCX = 250, PPX = 620, PBY = 470, PH = 230, PR = 82;
+const PCX = 235, PPX = 640, PBY = 500, PH = 300, PR = 108;
 function drawVessel(cx, isCone, fillRatio){
   const top = PBY - PH;
   if(isCone){
@@ -446,7 +457,7 @@ $("btnReset").addEventListener("click", function(){ stopPour(); poured = 0; pain
    ③ 스스로 풀기
    ============================================================ */
 function drawQuiz(){
-  const cx = 430, by = 430, H = 200, R = 78;
+  const cx = 430, by = 490, H = 290, R = 112;
   if(Q.kind.indexOf("cone") === 0){
     poly([{x:cx, y:by - H}, {x:cx - R, y:by}, {x:cx + R, y:by}], BLUE + "26", BLUE, 2.6);
     ellipse(cx, by, R, R*0.28, BLUE + "26", BLUE, 2.4);
@@ -459,7 +470,7 @@ function drawQuiz(){
       txt(Q.l + " cm", cx + R/2 + 40, by - H/2, RED, 17, true);
     }
   }else{
-    const w = 150, d = 50;
+    const w = 215, d = 70;
     poly([{x:cx - w/2, y:by}, {x:cx + w/2, y:by}, {x:cx + w/2 + d, y:by - d*0.55}, {x:cx - w/2 + d, y:by - d*0.55}],
          ORANGE + "40", ORANGE, 2.4);
     const apex = {x:cx + d/2, y:by - H};

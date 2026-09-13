@@ -271,9 +271,17 @@ let Q = {kind:"cylS", r:0, h:0, a:0, b:0, ans:0, pi:false, done:false, tries:0, 
 /* ============================================================
    ① 전개도로 펼치기
    ============================================================ */
-const SC = 17;                      /* 1 cm → 17 px */
+/* 1 cm 를 몇 px 로 그릴지 — 슬라이더 값이 작아도 그림이 화면을 채우도록 맞춘다 */
+function scaleOf(){
+  if(kind === "cyl")
+    return Math.max(10, Math.min(34, 104/rr, 200/(hh/2 + 2*rr)));
+  const per  = (kind === "tri") ? 12 : 2*(rr + 4);
+  const bhcm = (kind === "tri") ? 3 : 4;
+  return Math.max(10, Math.min(34, 840/per, 205/(hh/2 + bhcm)));
+}
 function drawNet(){
   const t = clamp01(tOpen);
+  const SC = scaleOf();
   const R = rr*SC, H = hh*SC;
   const cx = 300, cy = 320;
 
@@ -326,7 +334,9 @@ function drawNet(){
       rect(bx, byU, bw, bh, ORANGE + "44", ORANGE, 2.4);
       rect(bx, byD, bw, bh, ORANGE + "44", ORANGE, 2.4);
     }
-    if(t > 0.75) txt("옆면 : 밑면의 둘레 " + per + " cm × 높이 " + hh + " cm", 450, cy + H/2 + 54, BLUE, 17, true);
+    /* 아래쪽 밑면과 겹치지 않도록 그 밑에 적는다 */
+    if(t > 0.75) txt("옆면 : 밑면의 둘레 " + per + " cm × 높이 " + hh + " cm",
+                     450, byD + bh + 26, BLUE, 17, true);
   }
 
   txt(t > 0.9 ? "전개도" : (t < 0.1 ? "기둥" : "펼치는 중…"), 450, 52, t > 0.9 ? OK : INK, 21, true);
@@ -402,8 +412,8 @@ $("btnClose").addEventListener("click", function(){
    ② 부피 쌓아 보기
    ============================================================ */
 function drawVol(){
-  const cx = 430, cyB = 460;
-  const w = base*9, d = 46, layerH = 22;
+  const cx = 430, cyB = 500;
+  const w = Math.min(330, base*14), d = 62, layerH = Math.min(34, 360/vh);
   const shown = Math.min(vh, stack);
   /* 밑면 */
   const basePts = [{x:cx - w/2, y:cyB}, {x:cx + w/2, y:cyB},
@@ -458,9 +468,9 @@ $("btnClear2").addEventListener("click", function(){ stopStack(); stack = 0; pai
 /* ============================================================
    ③ 스스로 풀기
    ============================================================ */
-const QC = {x:430, y:310};
+const QC = {x:430, y:320};
 function drawQuiz(){
-  const R = 62, H = 150;
+  const R = 88, H = 215;
   if(Q.kind.indexOf("cyl") === 0){
     rect(QC.x - R, QC.y - H/2, 2*R, H, BLUE + "26", BLUE, 2.6);
     ellipse(QC.x, QC.y - H/2, R, R*0.3, "#ffffffdd", BLUE, 2.4);
@@ -470,7 +480,7 @@ function drawQuiz(){
     seg({x:QC.x + R + 24, y:QC.y - H/2}, {x:QC.x + R + 24, y:QC.y + H/2}, INK, 2.2);
     txt(Q.h + " cm", QC.x + R + 62, QC.y, INK, 17, true);
   }else{
-    const w = 150, d = 52;
+    const w = 215, d = 72;
     const x0 = QC.x - w/2, y0 = QC.y + H/2;
     poly([{x:x0, y:y0}, {x:x0 + w, y:y0}, {x:x0 + w + d, y:y0 - d*0.55}, {x:x0 + d, y:y0 - d*0.55}],
          ORANGE + "40", ORANGE, 2.4);
@@ -506,8 +516,12 @@ function newQuestion(){
       $("unit").textContent = "π cm³";
     }
   }else{
-    Q.b = 6 + Math.floor(Math.random()*15);         /* 밑넓이 6~20 */
-    Q.a = 10 + Math.floor(Math.random()*20);        /* 밑면 둘레 10~29 */
+    /* 밑면을 실제 직사각형(가로 × 세로)으로 잡아, 밑넓이와 둘레가 서로 어긋나지 않게 한다
+       (넓이 13 cm² 인데 둘레가 13 cm 인 다각형은 존재하지 않는다) */
+    const bw = 2 + Math.floor(Math.random()*6);     /* 가로 2~7 */
+    const bd = 2 + Math.floor(Math.random()*5);     /* 세로 2~6 */
+    Q.b = bw*bd;                                    /* 밑넓이 */
+    Q.a = 2*(bw + bd);                              /* 밑면 둘레 */
     Q.h = 3 + Math.floor(Math.random()*9);
     Q.pi = false;
     if(k === "priS"){
