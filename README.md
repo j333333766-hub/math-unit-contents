@@ -45,14 +45,41 @@ math-unit-contents/
 │   ├── ch5-10-prism.html            # 기둥 펼치기            (206~210쪽)
 │   ├── ch5-11-pyramid.html          # 뿔 실험실              (211~215쪽)
 │   └── ch5-12-sphere.html           # 구 실험실              (216~218쪽)
-└── assets/
-    ├── style.css                    # 허브 페이지와 간단한 콘텐츠가 쓰는 스타일시트
-    ├── common.css                   # 색·글꼴 토큰, '목차로' 버튼, 기본 부품
-    ├── common.js                    # 목차 버튼 자동 삽입, 학습 기록, 캔버스 도우미(MK)
-    └── vendor/
-        ├── tex-svg.js               # MathJax (수식 표시)
-        └── three.min.js             # Three.js (3차원 도형)
+├── assets/
+│   ├── style.css                    # 허브 페이지와 간단한 콘텐츠가 쓰는 스타일시트
+│   ├── common.css                   # 색·글꼴 토큰, '목차로' 버튼, 기본 부품
+│   ├── common.js                    # 목차 버튼 자동 삽입, 학습 기록, 캔버스 도우미(MK)
+│   ├── track.js                     # 학습 기록 보내기 (아래 '학습 기록' 참고)
+│   └── vendor/
+│       ├── tex-svg.js               # MathJax (수식 표시)
+│       └── three.min.js             # Three.js (3차원 도형)
+├── teacher/
+│   └── dashboard.html               # 교사용 현황판 (파이어베이스 · 구글 로그인)
+└── firebase/
+    ├── database.rules.json          # 보안 규칙 (파이어베이스 콘솔에 붙여 넣는다)
+    └── 설정하기.md                   # 처음 한 번 해야 하는 콘솔 설정 순서
 ```
+
+## 학습 기록 — 어디로 가는가
+
+학생 화면의 `assets/track.js` 가 **번호만** 받아서 "어떤 콘텐츠를 열었는지, 화면을 보고 있는지,
+정답·완료 신호가 떴는지, 점수는 몇 점인지"를 보냅니다. 답안 내용과 이름·반은 보내지 않습니다.
+
+| | 기록이 가는 곳 | 현황판 |
+|---|---|---|
+| 조창현 (원본) | 파이어베이스 Realtime Database | [teacher/dashboard.html](https://j333333766-hub.github.io/math-unit-contents/teacher/dashboard.html) |
+| 김해윤 (사본) | Apps Script → 구글 시트 | 사본 스프레드시트의 웹앱 |
+
+`track.js` 의 `FB.databaseURL` 이 적혀 있으면 파이어베이스로, 비어 있으면 Apps Script 로 갑니다.
+`tools/sync-khy.sh` 가 사본을 만들 때 이 값을 비우므로, **평소처럼 원본만 고치면** 됩니다.
+파이어베이스 쪽이 말썽이면 원본의 `FB.databaseURL` 을 `""` 로 비우기만 하면 곧바로 예전 방식으로 돌아갑니다.
+
+현황판은 선생님 구글 계정으로 로그인해야 열리고, 로그인 전에는 데이터가 한 줄도 내려오지 않습니다.
+[▶ 수업 시작] 을 누른 뒤부터 [■ 수업 종료] 전까지 들어온 기록만 저장되는 것은 예전과 같습니다.
+처음 한 번 해야 하는 콘솔 설정은 [`firebase/설정하기.md`](firebase/설정하기.md) 에 있습니다.
+
+> `track.js` 를 고치면 각 콘텐츠의 `<script src="../assets/track.js?v=5">` 에서 `v=` 숫자를 하나 올립니다.
+> 태블릿 브라우저가 옛 파일을 계속 쓰지 않도록 하기 위해서입니다.
 
 ## 글자 크기 조절 (교실 TV)
 
@@ -167,15 +194,16 @@ git push
 | 조창현 | https://j333333766-hub.github.io/math-unit-contents/ | `math-unit-contents` (원본) |
 | 김해윤 | https://j333333766-hub.github.io/math-unit-contents-khy/ | `math-unit-contents-khy` (사본) |
 
-두 사이트는 **`assets/track.js`의 `ENDPOINT` 한 줄만 다릅니다.**
+두 사이트는 **`assets/track.js` 가 기록을 보내는 곳만 다릅니다**(위 '학습 기록' 참고).
 사본은 직접 고치지 말고, 원본을 고쳐 커밋한 뒤 아래 한 줄만 실행하세요.
 
 ```bash
 bash tools/sync-khy.sh
 ```
 
-원본의 커밋된 파일을 사본으로 통째로 옮기고, `ENDPOINT`만 김해윤 선생님 현황판 주소로
-바꾼 뒤 커밋·푸시합니다. (`tools/`와 `.gitignore` 대상은 사본에 가지 않습니다.)
+원본의 커밋된 파일을 사본으로 통째로 옮기고, 파이어베이스 설정을 비운 뒤
+`ENDPOINT`를 김해윤 선생님 현황판 주소로 바꿔 커밋·푸시합니다.
+(`tools/` · `teacher/` · `firebase/` 와 `.gitignore` 대상은 사본에 가지 않습니다.)
 
 ---
 

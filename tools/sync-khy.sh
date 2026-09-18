@@ -2,15 +2,19 @@
 # ===========================================================
 #  조창현 선생님 저장소(원본) -> 김해윤 선생님 저장소(사본) 동기화
 #
-#  두 사이트는 콘텐츠가 완전히 같고, 다른 것은 track.js 의
-#  ENDPOINT(= 어느 현황판으로 기록을 보낼지) 한 줄뿐이다.
-#  그래서 사본은 직접 고치지 않고 이 스크립트로만 갱신한다.
+#  두 사이트는 콘텐츠가 완전히 같고, 다른 것은 track.js 가 기록을 보내는 곳뿐이다.
+#    · 원본(조창현) : 파이어베이스
+#    · 사본(김해윤) : 예전 그대로 Apps Script(구글 시트)
+#  그래서 이 스크립트가 사본의 track.js 에서 파이어베이스 설정을 비우고
+#  ENDPOINT 를 김해윤 선생님 현황판 주소로 바꾼다.
+#  사본은 직접 고치지 않고 이 스크립트로만 갱신한다.
 #
 #  쓰는 법 : 원본에 commit(+push) 한 뒤
 #     bash tools/sync-khy.sh
 #
 #  · 커밋된 파일만 옮긴다(git archive). 교과서 PDF·_원본 은 .gitignore 라 안 간다.
-#  · tools/ 는 사본에 넣지 않는다(학생용 사이트라 필요 없음).
+#  · tools/ · teacher/ · firebase/ 는 사본에 넣지 않는다
+#    (학생용 사이트라 필요 없고, 교사 현황판은 조창현 선생님 것만 있으면 된다).
 #  · 사본에서 직접 고친 내용은 이 스크립트를 돌리면 지워진다.
 # ===========================================================
 set -euo pipefail
@@ -50,20 +54,29 @@ fi
 # ---------- 3. 원본의 커밋된 파일로 통째로 갈아끼우기 ----------
 find "$MIRROR" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
 $GIT -C "$SRC" archive HEAD | tar -x -C "$MIRROR"
-rm -rf "$MIRROR/tools"
+rm -rf "$MIRROR/tools" "$MIRROR/teacher" "$MIRROR/firebase"
 
-# ---------- 4. 다른 점 딱 하나 : 기록을 보낼 현황판 주소 ----------
+# ---------- 4. 다른 점 : 기록을 어디로 보내는지 ----------
+#   파이어베이스 설정을 비우면 track.js 가 알아서 예전 방식(Apps Script)으로 보낸다.
 TRACK="$MIRROR/assets/track.js"
 python - "$TRACK" "$EP_KHY" <<'PY'
 import io, os, re, sys
 p, ep = sys.argv[1], sys.argv[2]
 s = io.open(p, encoding="utf-8").read()
-new, n = re.subn(r'(var ENDPOINT = ")[^"]+(";)', lambda m: m.group(1) + ep + m.group(2), s, count=1)
+
+s, n = re.subn(r'(var ENDPOINT = ")[^"]*(";)', lambda m: m.group(1) + ep + m.group(2), s, count=1)
 assert n == 1, "track.js 에서 ENDPOINT 줄을 못 찾았습니다"
-assert ep in new
-io.open(p + ".tmp", "w", encoding="utf-8").write(new)
+assert ep in s
+
+s, n = re.subn(r'(databaseURL: ")[^"]*(")', lambda m: m.group(1) + m.group(2), s, count=1)
+assert n == 1, "track.js 에서 databaseURL 줄을 못 찾았습니다"
+s, n = re.subn(r'(apiKey:      ")[^"]*(")', lambda m: m.group(1) + m.group(2), s, count=1)
+assert n == 1, "track.js 에서 apiKey 줄을 못 찾았습니다"
+assert 'databaseURL: ""' in s and 'apiKey:      ""' in s, "파이어베이스 설정을 비우지 못했습니다"
+
+io.open(p + ".tmp", "w", encoding="utf-8", newline="").write(s)
 os.replace(p + ".tmp", p)
-print("   ENDPOINT -> 김해윤 선생님 현황판")
+print("   기록 보낼 곳 -> 김해윤 선생님 현황판(Apps Script), 파이어베이스 설정은 비움")
 PY
 
 # ---------- 5. 사본임을 표시 ----------
@@ -76,7 +89,7 @@ banner = (
 "> ## ⚠️ 이 저장소는 자동 생성된 사본입니다\n"
 "> \n"
 "> **김해윤 선생님용** 사이트입니다. 원본과 콘텐츠가 완전히 같고,\n"
-"> `assets/track.js` 의 학습기록 주소(ENDPOINT) 한 줄만 다릅니다.\n"
+"> `assets/track.js` 가 기록을 보내는 곳만 다릅니다(원본은 파이어베이스).\n"
 "> \n"
 "> **여기서 직접 고치지 마세요.** 원본을 고치고 `bash tools/sync-khy.sh` 를 돌리면\n"
 "> 이 저장소는 통째로 다시 덮어쓰입니다.\n"

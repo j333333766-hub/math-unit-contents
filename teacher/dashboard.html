@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>수학 콘텐츠 학습 현황판</title>
+<!-- ===========================================================
+     교사용 현황판 (파이어베이스 판)
+
+     · 학생 화면의 assets/track.js 가 파이어베이스로 보낸 기록을 실시간으로 받는다.
+       예전 Apps Script 판처럼 몇 초마다 새로 묻지 않고, 바뀌는 즉시 화면이 바뀐다.
+     · 아래 TEACHER 계정으로 구글 로그인해야 열린다. 로그인하지 않으면 데이터가
+       한 줄도 내려오지 않는다(파이어베이스 보안 규칙이 막는다).
+     · 학년·반은 여기서 [수업 시작] 을 누를 때 정해진다. 학생은 번호만 입력한다.
+     =========================================================== -->
+<style>
+  :root{
+    --bg:#f4f6fa; --panel:#fff; --line:#e3e8f0; --ink:#1d2433; --sub:#68738a;
+    --accent:#3e63dd; --ok:#2f9e63; --warn:#f5820b; --no:#e5484d;
+    --font:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); padding:14px 16px 30px;}
+
+  header{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;}
+  h1{font-size:20px; font-weight:800;}
+  .sp{flex:1;}
+  .ctl{display:flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:var(--sub);}
+  .ctl input{width:56px; font:700 14px var(--font); padding:6px 8px; border:1px solid var(--line);
+             border-radius:8px; text-align:center;}
+  .btn{font:600 13px/1 var(--font); padding:8px 12px; border-radius:9px; border:1px solid var(--line);
+       background:var(--panel); color:var(--ink); cursor:pointer; text-decoration:none;}
+  .btn:hover{background:#eef2ff; border-color:var(--accent); color:var(--accent);}
+  .btn.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+
+  /* 실시간으로 이어져 있는지 */
+  .wifi{font-size:12px; font-weight:700; color:var(--ok); display:flex; align-items:center; gap:5px;}
+  .wifi.off{color:var(--no);}
+  .wifi::before{content:"●"; font-size:10px;}
+
+  /* 수업 묶음 고르기 */
+  .blocks{display:flex; gap:7px; flex-wrap:wrap; align-items:center; margin-bottom:13px;}
+  .blocks .lab{font-size:12.5px; font-weight:700; color:var(--sub); margin-right:2px;}
+  .bk{font:600 12.5px/1.35 var(--font); padding:7px 11px; border-radius:9px; border:1px solid var(--line);
+      background:var(--panel); color:var(--ink); cursor:pointer; text-align:center;}
+  .bk b{display:block; font-size:13px; font-weight:800;}
+  .bk span{font-size:11px; color:var(--sub); font-weight:600;}
+  .bk:hover{border-color:var(--accent);}
+  .bk.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .bk.on span{color:#dce3ff;}
+  .bk.livedot b::after{content:" \25CF"; color:var(--ok); font-size:10px; vertical-align:2px;}
+  .bk.on.livedot b::after{color:#b6f0cf;}
+
+  /* 이 수업은 몇 반인지 붙이는 줄 */
+  .classbar{display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin:-4px 0 13px;
+            padding:9px 12px; background:var(--panel); border:1px solid var(--line); border-radius:12px;}
+  .classbar .lab{font-size:12.5px; font-weight:700; color:var(--sub);}
+  .classbar .now{font-size:15px; font-weight:800; color:var(--accent);}
+  .classbar .hint{font-size:12px; color:var(--sub); font-weight:600;}
+  .classbar .pick{display:flex; gap:4px; flex-wrap:wrap;}
+  .classbar .pick button{font:700 13px var(--font); min-width:34px; padding:6px 9px; border-radius:8px;
+                         border:1px solid var(--line); background:#f8fafd; color:var(--ink); cursor:pointer;}
+  .classbar .pick button:hover{border-color:var(--accent); color:var(--accent);}
+  .classbar .pick button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .classbar .sep{width:1px; height:22px; background:var(--line); margin:0 3px;}
+  .classbar .sp{flex:1;}
+  .classbar .runon{font-size:15px; font-weight:800; color:var(--ok);}
+  .classbar .runoff{font-size:15px; font-weight:800; color:var(--accent);}
+  .classbar .btn.go{background:var(--ok); border-color:var(--ok); color:#fff;}
+  .classbar .btn.go:hover{background:#268253; border-color:#268253; color:#fff;}
+  .classbar .btn.stop{background:var(--no); border-color:var(--no); color:#fff;}
+  .classbar .btn.stop:hover{background:#c93b3f; border-color:#c93b3f; color:#fff;}
+  .classbar .btn[disabled]{opacity:.4; cursor:not-allowed;}
+  .classbar .btn[disabled]:hover{background:var(--panel); border-color:var(--line); color:var(--ink);}
+  .classbar.idle{border-color:#f6cf9b; background:#fff8ee;}
+
+  .sum{display:grid; grid-template-columns:repeat(5,1fr); gap:9px; margin-bottom:14px;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 8px; text-align:center;}
+  .card .v{font-size:26px; font-weight:800; line-height:1.1;}
+  .card .l{font-size:12px; color:var(--sub); margin-top:3px; font-weight:600;}
+  .card.g .v{color:var(--ok);} .card.o .v{color:var(--warn);}
+  .card.r .v{color:var(--no);} .card.x .v{color:#9aa5b8;}
+
+  section{background:var(--panel); border:1px solid var(--line); border-radius:14px;
+          padding:13px 14px; margin-bottom:13px;}
+  section h2{font-size:15px; font-weight:800; margin-bottom:10px; display:flex; align-items:center; gap:8px;}
+  section h2 small{font-weight:600; color:var(--sub); font-size:12.5px;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(112px,1fr)); gap:8px;}
+  .s{border:1px solid var(--line); border-radius:11px; padding:8px 8px 7px; background:#f8fafd;
+     min-height:78px; display:flex; flex-direction:column; gap:2px;}
+  .s .no{font-size:19px; font-weight:800; line-height:1.05;}
+  .s .pg{font-size:11.5px; font-weight:700; line-height:1.25; height:29px; overflow:hidden;}
+  .s .ago{font-size:11px; color:var(--sub); font-weight:600; display:flex; justify-content:space-between;}
+  .s.on   {background:#eaf7f0; border-color:#a9dcc0;}
+  .s.on   .no{color:var(--ok);}
+  .s.away {background:#fff3e3; border-color:#f6cf9b;}
+  .s.away .no{color:#a75c00;}
+  .s.gone {background:#fdeced; border-color:#f3bfc1;}
+  .s.gone .no{color:var(--no);}
+  .s.did  {background:#eef2ff; border-color:#c3cff8;}
+  .s.did  .no{color:var(--accent);}
+  .s.off  {background:#f2f4f8; border-color:#e3e8f0; opacity:.6;}
+  .s.off  .no{color:#9aa5b8;}
+  .s .tagline{font-size:10.5px; font-weight:800; letter-spacing:-.2px;}
+  .s .score{font-size:12.5px; font-weight:800; color:#a15c00;}
+
+  /* 점수판 */
+  .twocol{display:grid; grid-template-columns:1fr 1fr; gap:13px;}
+  @media (max-width:820px){ .twocol{grid-template-columns:1fr;} }
+  .rank{display:flex; flex-direction:column; gap:5px;}
+  .rank .r{display:flex; align-items:center; gap:9px; padding:6px 9px; border-radius:9px;
+           background:#f8fafd; border:1px solid var(--line); font-size:13.5px;}
+  .rank .r .m{font-size:15px; width:22px; text-align:center;}
+  .rank .r .who{font-weight:800;}
+  .rank .r .gap{flex:1;}
+  .rank .r .pt{font-weight:800; color:#a15c00; font-variant-numeric:tabular-nums;}
+  .rank .r .when{font-size:11.5px; color:var(--sub); font-weight:600;}
+  .rank .r.top{background:#fff8ee; border-color:#f6cf9b;}
+  .rank .none{font-size:13px; color:var(--sub); padding:10px 2px;}
+
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  th,td{padding:7px 8px; border-bottom:1px solid var(--line); text-align:left;}
+  th{color:var(--sub); font-size:12px; font-weight:700;}
+  td.n{text-align:right; font-weight:700; font-variant-numeric:tabular-nums;}
+
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--sub); font-weight:600; margin-top:10px;}
+  .legend i{display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:5px; vertical-align:-1px;}
+  .empty{font-size:13.5px; color:var(--sub); padding:14px 2px;}
+
+  /* 로그인 화면 */
+  #gate{position:fixed; inset:0; background:var(--bg); display:flex; align-items:center;
+        justify-content:center; padding:20px; z-index:50;}
+  #gate .box{background:var(--panel); border:1px solid var(--line); border-radius:16px;
+             padding:28px 26px; width:min(400px,94vw); text-align:center;
+             box-shadow:0 12px 40px rgba(29,36,51,.10);}
+  #gate h2{font-size:18px; font-weight:800; margin-bottom:8px;}
+  #gate p{font-size:13px; color:var(--sub); line-height:1.65; margin-bottom:18px;}
+  #gate .btn{font-size:14px; padding:11px 20px;}
+  #gate .err{font-size:12.5px; color:var(--no); font-weight:700; margin-top:12px; min-height:18px;}
+  #app{display:none;}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="box">
+    <h2>📊 수학 콘텐츠 학습 현황판</h2>
+    <p>선생님 구글 계정으로 로그인해야 열립니다.<br>학생 기록은 로그인 전에는 내려오지 않습니다.</p>
+    <button class="btn on" id="bLogin">구글 계정으로 로그인</button>
+    <div class="err" id="gateErr"></div>
+  </div>
+</div>
+
+<div id="app">
+<header>
+  <h1>📊 수학 콘텐츠 학습 현황판</h1>
+  <div class="wifi" id="wifi">이어짐</div>
+  <div class="sp"></div>
+  <div class="ctl">번호 <input id="cap" type="number" min="1" max="45" value="30"></div>
+  <button class="btn on" id="bToday">오늘</button>
+  <button class="btn" id="bYest">어제</button>
+  <button class="btn" id="bClean">🧹 기록 정리</button>
+  <button class="btn" id="bOut">로그아웃</button>
+</header>
+
+<div class="blocks" id="blocks"></div>
+<div class="classbar" id="classbar" style="display:none"></div>
+
+<div class="sum">
+  <div class="card g"><div class="v" id="cOn">0</div><div class="l">화면 보는 중</div></div>
+  <div class="card o"><div class="v" id="cAway">0</div><div class="l">다른 탭 보는 중</div></div>
+  <div class="card r"><div class="v" id="cGone">0</div><div class="l">신호 끊김</div></div>
+  <div class="card x"><div class="v" id="cOff">0</div><div class="l">미접속</div></div>
+  <div class="card"><div class="v" id="cOk">0</div><div class="l">잘함 신호(누적)</div></div>
+</div>
+
+<div id="wrap"></div>
+
+<div class="twocol">
+  <section>
+    <h2>&#127941; 이 수업 점수 <small>번호별 최고 점수</small></h2>
+    <div class="rank" id="rankNow"></div>
+  </section>
+  <section>
+    <h2>&#127942; 역대 최고 점수 <small>콘텐츠별로 지금까지 가장 높은 기록</small></h2>
+    <div class="rank" id="rankBest"></div>
+  </section>
+</div>
+
+<section>
+  <h2>콘텐츠별 <small>이 수업에서 몇 명이 열었고, 정답·완료 신호가 몇 번 나왔는지</small></h2>
+  <div id="pages"></div>
+</section>
+
+<div class="legend" id="legend"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut }
+  from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getDatabase, ref, onValue, onChildAdded, query, limitToLast, update, remove }
+  from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+/* ===========================================================
+   설정 — 교실에서 쓰는 파이어베이스 프로젝트의 값을 넣는다.
+   (콘솔 › 프로젝트 설정 › 내 앱 › firebaseConfig 에서 그대로 옮긴다)
+   =========================================================== */
+const CFG = {
+  apiKey:       "AIzaSyAk7A11wjMPzvOpgPZZbsDlsypcOX7764k",
+  authDomain:   "math-learning-log.firebaseapp.com",
+  databaseURL:  "https://math-learning-log-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:    "math-learning-log"
+};
+const TEACHER = "j333333766@gmail.com";     /* 이 계정만 열 수 있다(보안 규칙과 같아야 한다) */
+
+const app  = initializeApp(CFG);
+const auth = getAuth(app);
+const db   = getDatabase(app);
+
+/* ---------- 콘텐츠 파일이름 → 보여 줄 이름 ---------- */
+const NAMES = {
+  "index":                  "목차",
+  "01-pixel-zoom":          "픽셀 돋보기",
+  "02-point-line-plane":    "점·선·면 탐구실",
+  "03-angle-lab":           "각도 실험실",
+  "04-perp-foot":           "수선의 발과 거리",
+  "05-plane-position":      "평면 위의 위치 관계",
+  "05-space-3d":            "공간에서의 위치 관계",
+  "06-mole-game":           "두더지 잡기",
+  "07-parallel-angles":     "평행선 각 탐구실",
+  "08-aux-line":            "보조선 도전",
+  "09-illusion":            "착시 실험실",
+  "10-construction":        "가상 작도판",
+  "11-triangle-condition":  "삼각형 결정 조건",
+  "12-congruence":          "합동 포개기",
+  "13-egg-puzzle":          "에그 퍼즐",
+  "14-truss":               "흔들리지 않는 삼각형",
+
+  "ch5-01-diagonals":       "대각선 탐험대",
+  "ch5-02-exterior-angle":  "삼각형 외각 실험실",
+  "ch5-03-interior-sum":    "내각의 합 조립실",
+  "ch5-04-exterior-sum":    "외각 360° 모으기",
+  "ch5-05-circle-parts":    "원의 부분 이름 찾기",
+  "ch5-06-central-angle":   "중심각과 호 실험실",
+  "ch5-07-sector-size":     "부채꼴 호·넓이 계산기",
+  "ch5-08-polyhedron":      "다면체 탐구실",
+  "ch5-09-revolution":      "회전체 만들기",
+  "ch5-10-prism":           "기둥 펼치기",
+  "ch5-11-pyramid":         "뿔 실험실",
+  "ch5-12-sphere":          "구 실험실"
+};
+
+const AUTO_END_MS = 3 * 3600 * 1000;   /* 종료를 깜빡해도 3시간 지나면 끝난 것으로 본다 */
+
+/* ---------- 받아 둔 것 ---------- */
+let SESS = {};          /* 수업 : ms -> {ms,g,c,end} */
+let CUR  = null;        /* 지금 열린 수업 {ms,g,c} */
+let EV   = {};          /* 기록 : ms -> [ {t,n,k,p,d,v,sc} ... ] */
+let SCORES = [];        /* 점수 : [{t,g,c,n,p,sc}] */
+let LEARNED = {};       /* 이름표에 없는 콘텐츠의 이름 */
+let OFF = 0;            /* 서버 시계와의 차이 — 교사 컴퓨터 시계가 틀려도 정확하게 */
+let SUBS = {};          /* 붙여 둔 실시간 구독 : ms -> 끊는 함수 */
+let PENDING_NAMES = {};
+
+const $ = (id) => document.getElementById(id);
+const serverNow = () => Date.now() + OFF;
+const nameOf = (p) => NAMES[p] || LEARNED[p] || p;
+
+/* ---------- 로그인 ---------- */
+$("bLogin").onclick = async () => {
+  $("gateErr").textContent = "";
+  try{
+    await signInWithPopup(auth, new GoogleAuthProvider());
+  }catch(err){
+    $("gateErr").textContent = "로그인하지 못했습니다 — " + (err && err.code ? err.code : err);
+  }
+};
+$("bOut").onclick = () => signOut(auth);
+
+onAuthStateChanged(auth, (user) => {
+  if(!user){
+    $("gate").style.display = "flex";
+    $("app").style.display = "none";
+    return;
+  }
+  if(user.email !== TEACHER){
+    $("gateErr").textContent = user.email + " 계정으로는 열 수 없습니다.";
+    signOut(auth);
+    return;
+  }
+  $("gate").style.display = "none";
+  $("app").style.display = "block";
+  listen();
+});
+
+/* ---------- 실시간으로 받아 오기 ---------- */
+let started = false;
+function listen(){
+  if(started) return;
+  started = true;
+
+  onValue(ref(db, ".info/serverTimeOffset"), (s) => { OFF = Number(s.val()) || 0; });
+  onValue(ref(db, ".info/connected"), (s) => {
+    const on = !!s.val();
+    $("wifi").className = "wifi" + (on ? "" : " off");
+    $("wifi").textContent = on ? "이어짐" : "끊김";
+  });
+
+  onValue(ref(db, "mk/sessions"), (s) => {
+    SESS = s.val() || {};
+    syncSubs();
+    draw();
+  });
+  onValue(ref(db, "mk/current"), (s) => {
+    const v = s.val();
+    CUR = (v && v.ms) ? {ms:Number(v.ms), g:Number(v.g)||0, c:Number(v.c)||0} : null;
+    syncSubs();
+    draw();
+  });
+  onValue(ref(db, "mk/names"), (s) => { LEARNED = s.val() || {}; draw(); });
+
+  /* 점수는 역대 최고를 뽑아야 하므로 최근 것만 넉넉히 받아 둔다 */
+  onChildAdded(query(ref(db, "mk/scores"), limitToLast(4000)), (s) => {
+    const v = s.val() || {};
+    SCORES.push({t:Number(v.st)||0, g:Number(v.g)||0, c:Number(v.c)||0,
+                 n:Number(v.n)||0, p:String(v.p||""), sc:Number(v.sc)||0});
+    draw();
+  });
+}
+
+/* 보고 있는 날짜의 수업들과 진행 중인 수업만 구독한다 */
+function syncSubs(){
+  const want = {};
+  for(const ms of dayList(DAY)) want[ms] = true;
+  if(CUR) want[CUR.ms] = true;
+
+  for(const ms of Object.keys(SUBS)){
+    if(!want[ms]){ SUBS[ms](); delete SUBS[ms]; }
+  }
+  for(const ms of Object.keys(want)){
+    if(SUBS[ms]) continue;
+    EV[ms] = EV[ms] || [];
+    SUBS[ms] = onChildAdded(ref(db, "mk/ev/" + ms), (s) => { addBatch(ms, s.val()); draw(); });
+  }
+}
+
+/* 학생이 한 번에 밀어 넣은 묶음을 이벤트 낱개로 편다.
+   시각은 서버가 찍은 st 에 묶음 안 상대 간격(o)을 더해 되살린다. */
+function addBatch(ms, b){
+  if(!b || !b.e) return;
+  const st = Number(b.st) || 0;
+  const n  = Number(b.n) || 0;
+  const list = Array.isArray(b.e) ? b.e : Object.keys(b.e).map((k) => b.e[k]);
+  const arr = EV[ms] || (EV[ms] = []);
+  for(const e of list){
+    if(!e) continue;
+    const p = String(e.p || "");
+    arr.push({t: st + (Number(e.o) || 0), n, k:String(e.k||""), p,
+              d:String(e.d||""), v: e.v ? 1 : 0,
+              sc: (typeof e.sc === "number") ? e.sc : undefined});
+    if(e.k === "open") learn(p, String(e.d || ""));
+  }
+}
+
+/* 이름표에 없는 콘텐츠는 학생 화면이 보내 준 제목에서 배운다 */
+function learn(page, title){
+  if(!page || !title || NAMES[page] || LEARNED[page] || PENDING_NAMES[page]) return;
+  const short = title.split("—")[0].split("–")[0].trim().slice(0, 40);
+  if(!short || short === page) return;
+  PENDING_NAMES[page] = short;
+  update(ref(db, "mk/names"), {[page]: short}).catch(() => {});
+}
+
+/* ---------- 날짜·수업 고르기 ---------- */
+let DAY = 0, BLK = null;
+
+function dayRange(d){
+  const base = new Date();
+  base.setDate(base.getDate() - d);
+  base.setHours(0,0,0,0);
+  return [base.getTime(), base.getTime() + 24*3600*1000];
+}
+function dayList(d){
+  const [lo, hi] = dayRange(d);
+  return Object.keys(SESS).map(Number).filter((ms) => ms >= lo && ms < hi).sort((a,b) => a-b);
+}
+function activeSession(){
+  if(!CUR) return null;
+  const s = SESS[CUR.ms];
+  if(s && s.end) return null;
+  if(serverNow() - CUR.ms > AUTO_END_MS) return null;   /* 종료를 깜빡한 수업 */
+  return {ms:CUR.ms, g:CUR.g, c:CUR.c};
+}
+
+/* ---------- 집계 : Apps Script 의 getState() 를 그대로 옮긴 것 ---------- */
+function build(){
+  const now = serverNow();
+  const [dayStart, dayEnd] = dayRange(DAY);
+  const act = activeSession();
+
+  const blocks = dayList(DAY).map((ms) => {
+    const s = SESS[ms] || {};
+    return {from:ms, to:(Number(s.end) || Math.min(now, dayEnd)),
+            g:Number(s.g)||0, c:Number(s.c)||0, n:0, open: !!(act && act.ms === ms)};
+  });
+
+  /* 수업별 참여 인원 */
+  blocks.forEach((b) => {
+    const seen = {};
+    for(const e of (EV[b.from] || [])) if(e.t >= b.from && e.t <= b.to) seen[e.n] = true;
+    b.n = Object.keys(seen).length;
+  });
+
+  /* 볼 구간 고르기 */
+  let sel;
+  if(BLK === null){
+    sel = -1;
+    blocks.forEach((b, i) => { if(b.open) sel = i; });
+    if(sel < 0 && blocks.length) sel = blocks.length - 1;
+  }else sel = Number(BLK);
+  if(!(sel >= 0 && sel < blocks.length)) sel = -1;          /* -1 = 하루 전체 */
+
+  const lo = sel < 0 ? dayStart : blocks[sel].from;
+  const hi = sel < 0 ? dayEnd   : blocks[sel].to + 1;
+
+  /* 그 구간의 학생·콘텐츠 집계 */
+  const stu = {}, pageCnt = {};
+  let total = 0;
+  for(const ms of (sel < 0 ? dayList(DAY) : [blocks[sel].from])){
+    const s = SESS[ms] || {};
+    for(const e of (EV[ms] || [])){
+      if(e.t < lo || e.t >= hi) continue;
+      total++;
+      const key = (s.g||0) + "-" + (s.c||0) + "-" + e.n;
+      let a = stu[key];
+      if(!a) a = stu[key] = {n:e.n, first:e.t, last:0, page:"", vis:1, ok:0, pages:{}, hidden:0};
+      if(e.t < a.first) a.first = e.t;
+      if(e.t >= a.last){ a.last = e.t; a.vis = e.v; if(e.p) a.page = e.p; }
+      if(e.p){
+        a.pages[e.p] = true;
+        if(!pageCnt[e.p]) pageCnt[e.p] = {visit:{}, ok:0};
+        pageCnt[e.p].visit[key] = true;
+      }
+      if(e.k === "ok"){ a.ok++; if(e.p && pageCnt[e.p]) pageCnt[e.p].ok++; }
+      if(e.k === "hide") a.hidden++;
+    }
+  }
+
+  const students = Object.keys(stu).map((k) => {
+    const a = stu[k];
+    a.pageCount = Object.keys(a.pages).length;
+    a.pageName  = nameOf(a.page);
+    a.span = Math.max(0, a.last - a.first);
+    delete a.pages;
+    return a;
+  }).sort((x,y) => x.n - y.n);
+
+  const pages = Object.keys(pageCnt).map((p) => ({
+    page:p, name:nameOf(p), visit:Object.keys(pageCnt[p].visit).length, ok:pageCnt[p].ok
+  })).sort((a,b) => b.visit - a.visit);
+
+  /* 점수 */
+  const mine = {}, bestBy = {};
+  for(const r of SCORES){
+    if(r.t >= lo && r.t < hi){
+      if(!(r.n in mine) || r.sc > mine[r.n]) mine[r.n] = r.sc;
+    }
+    const b = bestBy[r.p];
+    if(!b || r.sc > b.sc) bestBy[r.p] = r;
+  }
+  students.forEach((a) => { if(a.n in mine) a.score = mine[a.n]; });
+
+  const best = Object.keys(bestBy).map((p) => {
+    const r = bestBy[p];
+    return {page:p, name:nameOf(p), score:r.sc, g:r.g, c:r.c, n:r.n, ms:r.t};
+  }).sort((a,b) => b.score - a.score);
+
+  const rank = Object.keys(mine).map((k) => ({n:Number(k), score:mine[k]}))
+    .sort((a,b) => b.score - a.score);
+
+  return {
+    now, students, blocks, sel,
+    live: sel >= 0 && blocks[sel].open,
+    from: sel < 0 ? dayStart : blocks[sel].from,
+    to:   sel < 0 ? Math.min(now, dayEnd) : blocks[sel].to,
+    g: sel < 0 ? 0 : blocks[sel].g,
+    c: sel < 0 ? 0 : blocks[sel].c,
+    startMs: sel < 0 ? 0 : blocks[sel].from,
+    running: act ? {from:act.ms, g:act.g, c:act.c} : null,
+    pages, best, rank, total
+  };
+}
+
+/* ---------- 그리기 (예전 현황판과 같은 화면) ---------- */
+let DATA = null;
+function cap(){ return Math.max(1, Math.min(45, Number($("cap").value) || 30)); }
+function ago(ms){
+  const s = Math.round(ms/1000);
+  if(s < 60) return s + "초 전";
+  const m = Math.floor(s/60);
+  if(m < 60) return m + "분 전";
+  return Math.floor(m/60) + "시간 전";
+}
+function hhmm(ms){
+  const d = new Date(ms);
+  return ("0"+d.getHours()).slice(-2) + ":" + ("0"+d.getMinutes()).slice(-2);
+}
+function mins(ms){ return Math.max(1, Math.round(ms/60000)) + "분"; }
+function className(g, c){ return c ? ((g ? g + "-" : "") + c + "반") : ""; }
+
+/* 데이터가 쏟아질 때 화면을 너무 자주 다시 그리지 않도록 잠깐 모아서 그린다 */
+let drawTimer = 0;
+function draw(){
+  if(drawTimer) return;
+  drawTimer = setTimeout(() => { drawTimer = 0; render(); }, 250);
+}
+function render(){
+  DATA = build();
+  paintBlocks();
+  paintClassbar();
+  paint();
+}
+
+function paintBlocks(){
+  const b = DATA.blocks;
+  let html = '<span class="lab">수업</span>';
+  b.forEach((x, i) => {
+    const live = x.open && DAY === 0;
+    const time = hhmm(x.from) + "~" + hhmm(x.to);
+    const top  = x.c ? className(x.g, x.c) : time;
+    const sub  = x.c ? (time + " · " + x.n + "명") : (x.n + "명");
+    html += '<button class="bk' + (DATA.sel === i ? " on" : "") + (live ? " livedot" : "") +
+            '" data-i="' + i + '"><b>' + top + '</b><span>' + sub + '</span></button>';
+  });
+  html += '<button class="bk' + (DATA.sel < 0 ? " on" : "") + '" data-i="-1">' +
+          '<b>하루 전체</b><span>모두 합쳐서</span></button>';
+  $("blocks").innerHTML = html;
+  $("blocks").querySelectorAll(".bk").forEach((el) => {
+    el.onclick = () => { BLK = Number(el.getAttribute("data-i")); render(); };
+  });
+}
+
+/* ---------- 수업 시작 / 종료 ---------- */
+let PICK_G = 1, PICK_C = 0, EDIT = false, BUSY = false, SAYMSG = null, BARSIG = "";
+try{ PICK_G = Number(localStorage.getItem("dash.grade")) || 1; }catch(e){}
+
+function pickerHtml(selG, selC){
+  let gh = "", ch = "";
+  for(let g=1;g<=3;g++)
+    gh += '<button data-g="' + g + '"' + (selG === g ? ' class="on"' : "") + '>' + g + '학년</button>';
+  for(let c=1;c<=12;c++)
+    ch += '<button data-c="' + c + '"' + (selC === c ? ' class="on"' : "") + '>' + c + '</button>';
+  return '<span class="pick" id="pickG">' + gh + '</span><span class="sep"></span>' +
+         '<span class="pick" id="pickC">' + ch + '</span><span class="lab">반</span>';
+}
+
+function paintClassbar(force){
+  const bar = $("classbar");
+  if(!DATA){ bar.style.display = "none"; BARSIG = ""; return; }
+  bar.style.display = "flex";
+
+  const run = DATA.running;
+  const pastSel = (DATA.sel >= 0 && !(run && DATA.startMs === run.from)) ? DATA.sel : -1;
+
+  const sig = [run && run.from, run && run.g, run && run.c,
+               DATA.sel, DATA.g, DATA.c, PICK_G, PICK_C, EDIT, BUSY,
+               SAYMSG && SAYMSG.t].join("|");
+  if(!force && sig === BARSIG) return;
+  BARSIG = sig;
+
+  let html;
+  if(run){
+    html = '<span class="runon">● ' + className(run.g, run.c) + ' 수업 중</span>' +
+           '<span class="lab">' + hhmm(run.from) + ' 시작 · <span id="runMin">0분</span>째</span>' +
+           '<span class="hint">지금 들어오는 학생 기록만 저장됩니다.</span>' +
+           '<span class="sp"></span>' +
+           '<button class="btn stop" id="btnEnd">■ 수업 종료</button>';
+  }else if(pastSel >= 0 && !EDIT){
+    html = '<span class="lab">' + hhmm(DATA.from) + "~" + hhmm(DATA.to) + ' 수업</span>' +
+           '<span class="runoff">' + (DATA.c ? className(DATA.g, DATA.c) : "반 없음") + '</span>' +
+           '<button class="btn" id="btnEdit">반 고치기</button>' +
+           '<span class="sep"></span>' +
+           '<span class="lab">새 수업</span>' + pickerHtml(PICK_G, PICK_C) +
+           '<button class="btn go" id="btnStart"' + (PICK_C ? "" : " disabled") + '>▶ 수업 시작</button>';
+  }else if(EDIT){
+    html = '<span class="lab">' + hhmm(DATA.from) + "~" + hhmm(DATA.to) + ' 수업을</span>' +
+           pickerHtml(PICK_G, PICK_C) +
+           '<button class="btn go" id="btnRename"' + (PICK_C ? "" : " disabled") + '>로 고치기</button>' +
+           '<button class="btn" id="btnCancel">취소</button>';
+  }else{
+    html = '<span class="lab">학년·반을 고르고 시작하세요</span>' +
+           pickerHtml(PICK_G, PICK_C) +
+           '<button class="btn go" id="btnStart"' + (PICK_C ? "" : " disabled") + '>▶ 수업 시작</button>' +
+           '<span class="hint">시작을 눌러야 학생 기록이 저장됩니다.</span>';
+  }
+  bar.innerHTML = html;
+  bar.style.opacity = BUSY ? ".55" : "1";
+
+  if(SAYMSG){
+    const e = document.createElement("span");
+    e.className = "hint";
+    e.style.color = SAYMSG.bad ? "#e5484d" : "#2f9e63";
+    e.textContent = SAYMSG.t;
+    bar.appendChild(e);
+  }
+}
+
+async function ask(fn, msg){
+  BUSY = true; SAYMSG = {t:msg, bad:false};
+  paintClassbar(true);
+  try{
+    await fn();
+    SAYMSG = null; BLK = null;
+  }catch(err){
+    SAYMSG = {t:"실패: " + (err && err.message ? err.message : err), bad:true};
+  }
+  BUSY = false;
+  render();
+  paintClassbar(true);
+}
+
+async function startClass(g, c){
+  const ms  = serverNow();
+  const act = activeSession();
+  const up  = {};
+  if(act) up["mk/sessions/" + act.ms + "/end"] = ms;      /* 앞 수업 닫기 */
+  up["mk/sessions/" + ms] = {ms, g, c, end:0};
+  up["mk/current"] = {ms, g, c};
+  await update(ref(db), up);
+}
+async function endClass(){
+  const act = activeSession();
+  const up = {};
+  if(act) up["mk/sessions/" + act.ms + "/end"] = serverNow();
+  up["mk/current"] = null;
+  await update(ref(db), up);
+}
+async function renameSession(ms, g, c){
+  const up = {};
+  up["mk/sessions/" + ms + "/g"] = g;
+  up["mk/sessions/" + ms + "/c"] = c;
+  if(CUR && CUR.ms === ms) up["mk/current"] = {ms, g, c};
+  await update(ref(db), up);
+}
+
+$("classbar").addEventListener("click", (ev) => {
+  const b = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+  if(!b || !DATA || BUSY || b.disabled) return;
+
+  if(b.hasAttribute("data-g")){
+    PICK_G = Number(b.getAttribute("data-g"));
+    try{ localStorage.setItem("dash.grade", PICK_G); }catch(e){}
+    paintClassbar(true);
+    return;
+  }
+  if(b.hasAttribute("data-c")){
+    const c = Number(b.getAttribute("data-c"));
+    PICK_C = (c === PICK_C) ? 0 : c;
+    paintClassbar(true);
+    return;
+  }
+  if(b.id === "btnStart" && PICK_C){
+    EDIT = false;
+    ask(() => startClass(PICK_G, PICK_C), "수업을 여는 중…");
+    return;
+  }
+  if(b.id === "btnEnd"){ ask(endClass, "수업을 닫는 중…"); return; }
+  if(b.id === "btnEdit"){ EDIT = true; PICK_G = DATA.g || PICK_G; PICK_C = DATA.c || 0; paintClassbar(true); return; }
+  if(b.id === "btnCancel"){ EDIT = false; PICK_C = 0; paintClassbar(true); return; }
+  if(b.id === "btnRename" && PICK_C){
+    const ms = DATA.startMs;
+    EDIT = false;
+    ask(() => renameSession(ms, PICK_G, PICK_C), "고치는 중…");
+    return;
+  }
+});
+
+function paint(){
+  if(!DATA) return;
+  $("classbar").className = "classbar" + (DATA.running ? "" : " idle");
+  const rm = $("runMin");
+  if(rm && DATA.running) rm.textContent = Math.max(0, Math.round((serverNow() - DATA.running.from)/60000)) + "분";
+
+  const N = cap(), live = DATA.live && DAY === 0;
+  let on = 0, away = 0, gone = 0, off = 0, did = 0, okAll = 0;
+
+  const byNo = {};
+  DATA.students.forEach((a) => { byNo[a.n] = a; okAll += a.ok; });
+
+  let cells = "", extra = "";
+  function cell(i, a){
+    let cls = "off", tag = "미접속", pg = "", info = "";
+    if(a){
+      const d = serverNow() - a.last;
+      if(!live){                                   /* 지난 수업 : 참여했는지만 본다 */
+        cls = "did"; tag = "참여함"; did++;
+        info = '<div class="ago"><span>' + mins(a.span) + " 머묾</span><span>✓" + a.ok + "</span></div>";
+      }else if(d > 180000){ cls = "gone"; tag = "신호 끊김"; gone++; }
+      else if(!a.vis){ cls = "away"; tag = "다른 탭"; away++; }
+      else { cls = "on"; tag = "학습 중"; on++; }
+      if(live) info = '<div class="ago"><span>' + ago(d) + "</span><span>✓" + a.ok + "</span></div>";
+      if(a.score !== undefined && a.score !== null)
+        info += '<div class="ago"><span class="score">&#127941; ' + a.score + '점</span></div>';
+      pg = a.pageName || "";
+    }else off++;
+    return '<div class="s ' + cls + '"><div class="no">' + i + '</div>' +
+           '<div class="tagline">' + tag + '</div><div class="pg">' + pg + '</div>' + info + '</div>';
+  }
+
+  for(let i=1;i<=N;i++) cells += cell(i, byNo[i]);
+  DATA.students.forEach((a) => { if(a.n > N) extra += cell(a.n, a); });
+
+  let title = DATA.from ? hhmm(DATA.from) + " ~ " + hhmm(DATA.to) + " 수업" : "기록";
+  if(DATA.c) title = className(DATA.g, DATA.c) +
+    ' <small style="font-weight:700;color:#68738a">' + hhmm(DATA.from) + " ~ " + hhmm(DATA.to) + '</small>';
+  $("wrap").innerHTML = DATA.students.length
+    ? '<section><h2>' + title + ' <small>접속 ' + DATA.students.length + '명' +
+      (live ? " · 진행 중" : "") + '</small></h2><div class="grid">' + cells + extra + '</div></section>'
+    : '<section><div class="empty">' + (DATA.running
+        ? "아직 접속한 학생이 없습니다. 학생이 콘텐츠를 열면 여기에 나타납니다."
+        : "수업이 시작되지 않았습니다. 위에서 학년·반을 고르고 <b>수업 시작</b>을 눌러 주세요. 시작한 뒤의 기록만 저장됩니다.") +
+        '</div></section>';
+
+  const none = !DATA.students.length;
+  $("cOn").textContent = none ? 0 : (live ? on : did);
+  $("cAway").textContent = none ? 0 : away; $("cGone").textContent = none ? 0 : gone;
+  $("cOff").textContent = none ? 0 : off;   $("cOk").textContent = okAll;
+  $("cOn").parentNode.querySelector(".l").textContent = live ? "화면 보는 중" : "참여함";
+
+  $("legend").innerHTML = live
+    ? '<span><i style="background:#2f9e63"></i>화면을 보고 있음(90초 이내)</span>' +
+      '<span><i style="background:#f5820b"></i>페이지는 열려 있으나 다른 탭·창을 보는 중</span>' +
+      '<span><i style="background:#e5484d"></i>3분 넘게 신호 없음(창을 닫았거나 자리 비움)</span>' +
+      '<span><i style="background:#9aa5b8"></i>접속 기록 없음</span>'
+    : '<span><i style="background:#3e63dd"></i>이 수업에 참여함</span>' +
+      '<span><i style="background:#9aa5b8"></i>접속 기록 없음</span>' +
+      '<span>지난 수업은 실시간 색 대신 참여 여부·머문 시간을 보여 줍니다.</span>';
+
+  paintScores();
+
+  let t = '<table><tr><th>콘텐츠</th><th style="text-align:right">연 인원</th><th style="text-align:right">잘함 신호</th></tr>';
+  if(!DATA.pages.length) t += '<tr><td colspan="3" class="empty">기록 없음</td></tr>';
+  DATA.pages.forEach((p) => {
+    t += '<tr><td>' + p.name + '</td><td class="n">' + p.visit + '</td><td class="n">' + p.ok + '</td></tr>';
+  });
+  $("pages").innerHTML = t + "</table>";
+}
+
+const MEDAL = ["&#129351;", "&#129352;", "&#129353;"];
+function ymd(ms){ const d = new Date(ms); return (d.getMonth()+1) + "/" + d.getDate(); }
+function paintScores(){
+  const rank = DATA.rank || [], best = DATA.best || [];
+  let h = "";
+  if(!rank.length)
+    h = '<div class="none">이 수업에는 아직 점수 기록이 없습니다. 두더지 잡기처럼 점수가 나오는 콘텐츠를 하면 여기에 쌓입니다.</div>';
+  rank.slice(0, 10).forEach((r, i) => {
+    h += '<div class="r' + (i === 0 ? " top" : "") + '">' +
+           '<span class="m">' + (MEDAL[i] || (i+1)) + '</span>' +
+           '<span class="who">' + r.n + '번</span><span class="gap"></span>' +
+           '<span class="pt">' + r.score + '점</span></div>';
+  });
+  $("rankNow").innerHTML = h;
+
+  h = "";
+  if(!best.length) h = '<div class="none">아직 기록이 없습니다.</div>';
+  best.slice(0, 10).forEach((r, i) => {
+    h += '<div class="r' + (i === 0 ? " top" : "") + '">' +
+           '<span class="m">' + (MEDAL[i] || (i+1)) + '</span>' +
+           '<span class="who">' + r.name + '</span><span class="gap"></span>' +
+           '<span class="when">' + className(r.g, r.c) + " " + r.n + "번 · " + ymd(r.ms) + '</span>' +
+           '<span class="pt">' + r.score + '점</span></div>';
+  });
+  $("rankBest").innerHTML = h;
+}
+
+/* ---------- 오래된 기록 지우기 ---------- */
+$("bClean").onclick = async () => {
+  const days = Number(prompt("며칠 지난 기록을 지울까요? (예: 30)\n※ 점수 기록(역대 최고)은 지우지 않습니다.", "30"));
+  if(!(days > 0)) return;
+  const limit = serverNow() - days*24*3600*1000;
+  const old = Object.keys(SESS).map(Number).filter((ms) => ms < limit);
+  if(!old.length){ alert("지울 기록이 없습니다."); return; }
+  if(!confirm(old.length + "개 수업의 기록을 지웁니다. 계속할까요?")) return;
+  for(const ms of old){
+    await remove(ref(db, "mk/ev/" + ms));
+    await remove(ref(db, "mk/sessions/" + ms));
+    delete EV[ms];
+  }
+  alert(old.length + "개 수업을 지웠습니다.");
+};
+
+/* ---------- 날짜 ---------- */
+function day(d){
+  DAY = d; BLK = null;
+  $("bToday").classList.toggle("on", d === 0);
+  $("bYest").classList.toggle("on", d === 1);
+  syncSubs();
+  render();
+}
+$("bToday").onclick = () => day(0);
+$("bYest").onclick  = () => day(1);
+$("cap").oninput = () => { if(DATA) paint(); };
+
+/* 실시간으로 받으므로 새로 묻지 않는다. 다만 '몇 초 전' 표시는 1초마다 다시 쓴다. */
+setInterval(() => {
+  if(DATA && DAY === 0 && (DATA.live || DATA.running) && document.visibilityState === "visible") paint();
+}, 1000);
+</script>
+</body>
+</html>

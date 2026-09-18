@@ -12,7 +12,16 @@
      화면 오른쪽 위 '○번' 단추를 누르면 언제든 번호를 바꿀 수 있다.
    · 보내는 것 : 어떤 콘텐츠를 열었는지, 화면을 보고 있는지, 활동 전환,
                  정답·완료 표시가 떴는지, 그리고 **점수**(MKLOG.score). 답안 내용 자체는 보내지 않는다.
-   · 기록 서버(Apps Script)가 꺼져 있어도 콘텐츠는 그대로 동작한다.
+   · 기록 서버가 꺼져 있어도 콘텐츠는 그대로 동작한다.
+
+   기록을 받는 곳은 두 가지다. 아래 설정에서 FB.databaseURL 이 적혀 있으면 **파이어베이스**로,
+   비어 있으면 예전처럼 **Apps Script(구글 시트)** 로 보낸다.
+     · 조창현 선생님 사이트(원본)  → 파이어베이스
+     · 김해윤 선생님 사이트(사본)  → Apps Script  (tools/sync-khy.sh 가 FB 를 비워서 복사한다)
+   파이어베이스 쪽이 말썽이면 FB.databaseURL 을 "" 로 비우기만 하면 곧바로 예전 방식으로 돌아간다.
+
+   파이어베이스로 보낼 때도 SDK 를 불러오지 않는다(콘텐츠 한 개가 30~60KB 인데 SDK 가 150KB 다).
+   익명 로그인 토큰을 받아 REST 로만 주고받는다.
    =========================================================== */
 (function(){
   "use strict";
@@ -20,13 +29,23 @@
   /* ---------- 설정 : 배포 주소가 바뀌면 이 줄만 고친다 ---------- */
   var ENDPOINT = "https://script.google.com/macros/s/AKfycbzSgerg_gkoiA3y98x_xp3CCIqyKZV0A3CVfrUCjG8wBdd4hT3N8VabA2v_tfUvX2hslw/exec";
 
+  /* 파이어베이스로 보낼 때만 채운다. 비어 있으면 위 ENDPOINT 로 간다.
+     apiKey 는 웹에 드러나도 되는 값이다(권한은 파이어베이스 보안 규칙이 지킨다). */
+  var FB = {
+    databaseURL: "https://math-learning-log-default-rtdb.asia-southeast1.firebasedatabase.app",
+    apiKey:      "AIzaSyAk7A11wjMPzvOpgPZZbsDlsypcOX7764k"
+  };
+
   var BEAT_MS  = 25000;            /* 살아 있다는 신호 간격 */
   var HOLD_MS  = 50 * 60 * 1000;   /* 이만큼 안 쓰면 번호가 자동으로 풀린다(한 교시 + 쉬는 시간) */
+  var CUR_MS   = 60000;            /* 지금 열린 수업이 무엇인지 다시 확인하는 간격 */
   var NO_KEY   = "mk.no";          /* 번호 저장 (옛 mk.id 는 버린다) */
   var Q_KEY    = "mk.queue";
+  var AUTH_KEY = "mk.fbauth";      /* 익명 로그인 토큰 보관 */
   var MAX_NO   = 45;
 
-  if(!ENDPOINT || location.protocol === "file:") return;   /* 주소 미설정·로컬 파일이면 조용히 끔 */
+  var FIRE = !!(FB.databaseURL && FB.apiKey);
+  if((!FIRE && !ENDPOINT) || location.protocol === "file:") return;   /* 주소 미설정·로컬 파일이면 조용히 끔 */
 
   /* ---------- 페이지 이름 ---------- */
   var PAGE = (function(){
@@ -73,6 +92,13 @@
     if(!NO || !Q.length) return;
     keepNo();                                  /* 쓰고 있는 동안에는 번호가 안 풀리게 */
     var batch = Q.splice(0, 60);
+    if(FIRE) sendFB(batch, useBeacon);
+    else     sendGAS(batch, useBeacon);
+  }
+  function requeue(batch){ Q = batch.concat(Q).slice(-120); }   /* 실패하면 다음 기회에 다시 */
+
+  /* ---------- 보내는 길 1 : Apps Script (구글 시트) ---------- */
+  function sendGAS(batch, useBeacon){
     var body = JSON.stringify({s:{n:NO, sid:SID}, e:batch});
     var sent = false;
     if(useBeacon && navigator.sendBeacon){
@@ -88,8 +114,133 @@
       cache: "no-store",
       headers: {"Content-Type": "text/plain;charset=utf-8"},
       body: body
-    })["catch"](function(){
-      Q = batch.concat(Q).slice(-120);          /* 실패하면 다음 기회에 다시 */
+    })["catch"](function(){ requeue(batch); });
+  }
+
+  /* ---------- 보내는 길 2 : 파이어베이스 (REST) ----------
+     · 익명 로그인으로 토큰을 받아 쓴다. 학생은 계정을 만들지 않는다.
+     · 지금 열린 수업(/mk/current)이 없으면 보내지 않는다.
+       Apps Script 판에서 "수업 시작을 눌러야 저장된다" 던 것과 같은 규칙인데,
+       이번에는 서버가 버리는 게 아니라 아예 보내지 않는다.
+     · 한 번 보낼 때 묶음 하나를 통째로 밀어 넣는다(/mk/ev/<수업시작ms>).
+       시각은 기기 시계를 믿지 않고 서버가 찍게 한다(st). 묶음 안 이벤트의
+       앞뒤 간격은 기기 시계로 재서 현황판이 되살린다.                        */
+  var TOK = null;        /* {id, rt, exp} */
+  var CUR = null;        /* 지금 열린 수업 {ms, g, c} */
+  var CUR_AT = 0;
+  var SRV_OFF = 0;       /* 이 태블릿 시계와 서버 시계의 차이 */
+  try{ TOK = JSON.parse(localStorage.getItem(AUTH_KEY) || "null"); }catch(e){}
+
+  function keepTok(){ try{ localStorage.setItem(AUTH_KEY, JSON.stringify(TOK)); }catch(e){} }
+  function useTok(j){
+    TOK = {id:j.idToken, rt:j.refreshToken, exp:Date.now() + (Number(j.expiresIn) || 3600) * 1000};
+    keepTok();
+    return TOK.id;
+  }
+  function jpost(url, body){
+    return fetch(url, {method:"POST", cache:"no-store",
+                       headers:{"Content-Type":"application/json"},
+                       body:JSON.stringify(body)})
+      .then(function(r){ return r.json(); });
+  }
+  function signUp(){
+    return jpost("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + FB.apiKey,
+                 {returnSecureToken:true})
+      .then(function(j){
+        if(!j.idToken) throw new Error("anon");
+        return useTok(j);
+      });
+  }
+  function token(){
+    if(TOK && TOK.id && TOK.exp - Date.now() > 300000) return Promise.resolve(TOK.id);
+    if(TOK && TOK.rt){
+      return fetch("https://securetoken.googleapis.com/v1/token?key=" + FB.apiKey, {
+        method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"},
+        body:"grant_type=refresh_token&refresh_token=" + encodeURIComponent(TOK.rt)
+      }).then(function(r){ return r.json(); }).then(function(j){
+        if(!j.id_token) throw new Error("refresh");
+        return useTok({idToken:j.id_token, refreshToken:j.refresh_token, expiresIn:j.expires_in});
+      })["catch"](function(){ TOK = null; return signUp(); });
+    }
+    return signUp();
+  }
+  function dbUrl(path, t){ return FB.databaseURL + path + ".json?auth=" + encodeURIComponent(t); }
+
+  /* 지금 열린 수업이 무엇인지 확인한다 */
+  function pullCurrent(){
+    return token().then(function(t){
+      return fetch(dbUrl("/mk/current", t), {cache:"no-store"});
+    }).then(function(r){
+      /* 여러 반이 돌려 쓰는 태블릿은 시계가 어긋나 있곤 한다.
+         응답의 Date 머리글로 서버 시계와의 차이를 재 둔다. */
+      try{
+        var d = Date.parse(r.headers.get("Date"));
+        if(d) SRV_OFF = d - Date.now();
+      }catch(e){}
+      return r.json();
+    }).then(function(j){
+      CUR = (j && j.ms) ? {ms:Number(j.ms), g:Number(j.g) || 0, c:Number(j.c) || 0} : null;
+      CUR_AT = Date.now();
+      return CUR;
+    })["catch"](function(){ CUR_AT = Date.now(); return CUR; });
+  }
+
+  function sendFB(batch, useBeacon){
+    if(!window.fetch || !window.Promise){ Q = batch.concat(Q); return; }
+
+    /* 떠나는 길에는 기다릴 새가 없다. 토큰과 수업이 이미 손에 있을 때만 던진다.
+       (못 보낸 것은 localStorage 에 남았다가 다음에 열 때 간다) */
+    if(useBeacon){
+      if(!CUR || !TOK || !TOK.id || TOK.exp < Date.now()){ requeue(batch); return; }
+      pushBatch(TOK.id, batch, true)["catch"](function(){});   /* 떠난 뒤라 다시 넣어 봐야 소용없다 */
+      return;
+    }
+
+    var fresh = (Date.now() - CUR_AT < CUR_MS) ? Promise.resolve(CUR) : pullCurrent();
+    fresh.then(function(cur){
+      if(!cur) return;                       /* 수업이 열려 있지 않으면 그냥 버린다 */
+      return token().then(function(t){ return pushBatch(t, batch, false); });
+    })["catch"](function(){ requeue(batch); });
+  }
+
+  /* 실패하면 거절된 약속을 돌려준다 — 다시 넣을지는 부르는 쪽이 정한다 */
+  function pushBatch(t, batch, keepalive){
+    var lo = CUR ? CUR.ms - SRV_OFF : 0;      /* 수업 시작 시각을 이 기기 시계로 옮겨 잰다 */
+    var evs = [], i, last = 0;
+    for(i=0;i<batch.length;i++){
+      if(batch[i].t >= lo){ evs.push(batch[i]); if(batch[i].t > last) last = batch[i].t; }
+    }
+    if(!evs.length) return Promise.resolve();   /* 수업 시작 전 기록은 보내지 않는다 */
+
+    /* 기기 시계가 어긋나 있어도 되도록, 묶음의 마지막 이벤트를 기준으로 한 상대 시각만 보낸다.
+       현황판이 서버 시각(st) 에 이 값을 더해 되살린다. */
+    var out = [];
+    for(i=0;i<evs.length;i++){
+      var e = evs[i], o = {o:evs[i].t - last, k:e.k, p:e.p, v:e.v};
+      if(e.d) o.d = e.d;
+      if(typeof e.sc === "number") o.sc = e.sc;
+      out.push(o);
+    }
+    var body = JSON.stringify({n:NO, sid:SID, st:{".sv":"timestamp"}, e:out});
+    var url  = dbUrl("/mk/ev/" + CUR.ms, t);
+
+    var opt = {method:"POST", cache:"no-store",
+               headers:{"Content-Type":"application/json"}, body:body};
+    if(keepalive) opt.keepalive = true;
+
+    return fetch(url, opt).then(function(r){
+      if(!r.ok) throw new Error("push " + r.status);
+      /* 점수는 따로 한 줄 더 남긴다 — 현황판의 역대 최고가 이것만 훑는다 */
+      for(var i=0;i<out.length;i++){
+        if(out[i].k === "score" && typeof out[i].sc === "number"){
+          fetch(dbUrl("/mk/scores", t), {
+            method:"POST", cache:"no-store", keepalive:!!keepalive,
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({st:{".sv":"timestamp"}, g:CUR.g, c:CUR.c, n:NO,
+                                 p:out[i].p, sc:out[i].sc, d:out[i].d || ""})
+          })["catch"](function(){});
+        }
+      }
     });
   }
 
@@ -267,6 +418,10 @@
     styles();
     makeBadge();
     watchProgress();
+    /* 번호를 이미 아는 학생만 미리 알아 둔다. 번호를 넣지 않은 브라우저까지
+       익명 계정을 만들면 한 반이 같은 학교 IP 로 몰릴 때 가입 한도에 걸린다.
+       번호를 넣고 나면 첫 기록을 보낼 때 알아서 확인한다. */
+    if(FIRE && NO) pullCurrent();
     if(NO) push("open", document.title, true);
     else askNo(false);
 

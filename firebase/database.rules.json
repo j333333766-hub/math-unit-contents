@@ -1,0 +1,79 @@
+{
+  /* ===========================================================
+     수학 콘텐츠 학습기록 — 파이어베이스 실시간 데이터베이스 보안 규칙
+
+     이 프로젝트에는 다른 앱도 함께 들어 있으므로, 여기 있는 "mk" 덩어리만
+     기존 규칙의 "rules" 안에 그대로 끼워 넣는다(통째로 덮어쓰지 말 것).
+
+     · 학생 : 익명 로그인. /mk/current(지금 열린 수업)만 읽고,
+              그 수업 아래에만 새 기록을 **덧붙일** 수 있다. 남의 기록은 보지도 고치지도 못한다.
+     · 교사 : 아래 이메일로 구글 로그인한 사람만 전부 읽고 쓴다.
+     · [수업 시작] 을 누르지 않으면 /mk/current 가 없으므로 학생 기록은 아예 저장되지 않는다.
+       (Apps Script 판에서 시작 전 기록을 서버가 버리던 것과 같은 규칙이다)
+     =========================================================== */
+  "rules": {
+    "mk": {
+      "current": {
+        ".read":  "auth != null",
+        ".write": "auth != null && auth.token.email === 'j333333766@gmail.com' && auth.token.email_verified === true",
+        ".validate": "newData.hasChildren(['ms','g','c']) && newData.child('ms').isNumber()"
+      },
+
+      "sessions": {
+        ".read":  "auth != null && auth.token.email === 'j333333766@gmail.com'",
+        ".write": "auth != null && auth.token.email === 'j333333766@gmail.com'",
+        "$ms": { ".validate": "newData.hasChildren(['ms','g','c'])" }
+      },
+
+      "ev": {
+        ".read":  "auth != null && auth.token.email === 'j333333766@gmail.com'",
+        ".write": "auth != null && auth.token.email === 'j333333766@gmail.com'",
+        "$ms": {
+          "$id": {
+            /* 학생은 '지금 열린 수업' 아래에만, 새 기록으로만 쓸 수 있다 */
+            ".write": "auth != null && !data.exists() && $ms === root.child('mk/current/ms').val() + ''",
+            ".validate": "newData.hasChildren(['n','st','e']) && newData.child('st').val() === now && newData.child('n').isNumber() && newData.child('n').val() >= 1 && newData.child('n').val() <= 45",
+            "n":   { ".validate": true },
+            "st":  { ".validate": true },
+            "sid": { ".validate": "newData.isString() && newData.val().length <= 12" },
+            "e": {
+              "$i": {
+                ".validate": "newData.hasChild('k')",
+                "k":  { ".validate": "newData.isString() && newData.val().length <= 10" },
+                "p":  { ".validate": "newData.isString() && newData.val().length <= 40" },
+                "d":  { ".validate": "newData.isString() && newData.val().length <= 150" },
+                "o":  { ".validate": "newData.isNumber() && newData.val() <= 0 && newData.val() > -86400000" },
+                "v":  { ".validate": "newData.isNumber()" },
+                "sc": { ".validate": "newData.isNumber()" },
+                "$other": { ".validate": false }
+              }
+            },
+            "$other": { ".validate": false }
+          }
+        }
+      },
+
+      "scores": {
+        ".read":  "auth != null && auth.token.email === 'j333333766@gmail.com'",
+        ".write": "auth != null && auth.token.email === 'j333333766@gmail.com'",
+        "$id": {
+          ".write": "auth != null && !data.exists() && root.child('mk/current/ms').exists()",
+          ".validate": "newData.hasChildren(['st','n','p','sc']) && newData.child('st').val() === now && newData.child('sc').isNumber() && newData.child('n').val() >= 1 && newData.child('n').val() <= 45",
+          "st": { ".validate": true },
+          "g":  { ".validate": "newData.isNumber()" },
+          "c":  { ".validate": "newData.isNumber()" },
+          "n":  { ".validate": "newData.isNumber()" },
+          "p":  { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "d":  { ".validate": "newData.isString() && newData.val().length <= 150" },
+          "sc": { ".validate": true },
+          "$other": { ".validate": false }
+        }
+      },
+
+      "names": {
+        ".read":  "auth != null && auth.token.email === 'j333333766@gmail.com'",
+        ".write": "auth != null && auth.token.email === 'j333333766@gmail.com'"
+      }
+    }
+  }
+}
