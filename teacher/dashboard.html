@@ -39,6 +39,23 @@
   .wifi.off{color:var(--no);}
   .wifi::before{content:"●"; font-size:10px;}
 
+  /* 날짜 고르기 */
+  .daypick{display:flex; align-items:center; gap:4px;}
+  .daypick input{font:700 13px var(--font); padding:6px 8px; border:1px solid var(--line);
+                 border-radius:9px; background:var(--panel); color:var(--ink);}
+  .daypick input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px #3e63dd22;}
+  .btn.ar{padding:8px 9px; line-height:1; font-size:11px;}
+  .dayw{font-size:13px; font-weight:700; color:var(--sub);}
+
+  /* 기록이 있는 날 */
+  .daybar{display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:10px;}
+  .daybar .lab{font-size:12.5px; font-weight:700; color:var(--sub); margin-right:2px;}
+  .daybar button{font:700 12px var(--font); padding:5px 10px; border-radius:8px;
+                 border:1px solid var(--line); background:var(--panel); color:var(--sub); cursor:pointer;}
+  .daybar button:hover{border-color:var(--accent); color:var(--accent);}
+  .daybar button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .daybar .none{font-size:12.5px; color:var(--sub); font-weight:600;}
+
   /* 수업 묶음 고르기 */
   .blocks{display:flex; gap:7px; flex-wrap:wrap; align-items:center; margin-bottom:13px;}
   .blocks .lab{font-size:12.5px; font-weight:700; color:var(--sub); margin-right:2px;}
@@ -160,11 +177,17 @@
   <div class="sp"></div>
   <div class="ctl">번호 <input id="cap" type="number" min="1" max="45" value="30"></div>
   <button class="btn on" id="bToday">오늘</button>
-  <button class="btn" id="bYest">어제</button>
+  <div class="daypick">
+    <button class="btn ar" id="bPrev" title="하루 앞으로">&#9664;</button>
+    <input type="date" id="dayPick">
+    <button class="btn ar" id="bNext" title="하루 뒤로">&#9654;</button>
+  </div>
+  <span class="dayw" id="dayNote"></span>
   <button class="btn" id="bClean">🧹 기록 정리</button>
   <button class="btn" id="bOut">로그아웃</button>
 </header>
 
+<div class="daybar" id="daybar"></div>
 <div class="blocks" id="blocks"></div>
 <div class="classbar" id="classbar" style="display:none"></div>
 
@@ -375,14 +398,25 @@ function learn(page, title){
 }
 
 /* ---------- 날짜·수업 고르기 ---------- */
-let DAY = 0, BLK = null;
+/* DAY 는 '보고 있는 날짜의 0시'(ms). 달력에서 아무 날이나 고를 수 있다. */
+const DAY_MS = 24*3600*1000;
+const WEEK = ["일","월","화","수","목","금","토"];
 
-function dayRange(d){
-  const base = new Date();
-  base.setDate(base.getDate() - d);
-  base.setHours(0,0,0,0);
-  return [base.getTime(), base.getTime() + 24*3600*1000];
+function startOfDay(ms){ const d = new Date(ms); d.setHours(0,0,0,0); return d.getTime(); }
+function today(){ return startOfDay(Date.now()); }
+function isToday(){ return DAY === today(); }
+function ymdStr(ms){
+  const d = new Date(ms);
+  return d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
 }
+function mdw(ms){
+  const d = new Date(ms);
+  return (d.getMonth()+1) + "/" + d.getDate() + "(" + WEEK[d.getDay()] + ")";
+}
+
+let DAY = today(), BLK = null;
+
+function dayRange(d){ return [d, d + DAY_MS]; }
 function dayList(d){
   const [lo, hi] = dayRange(d);
   return Object.keys(SESS).map(Number).filter((ms) => ms >= lo && ms < hi).sort((a,b) => a-b);
@@ -519,6 +553,7 @@ function draw(){
 }
 function render(){
   DATA = build();
+  paintDaybar();
   paintBlocks();
   paintClassbar();
   paint();
@@ -528,7 +563,7 @@ function paintBlocks(){
   const b = DATA.blocks;
   let html = '<span class="lab">수업</span>';
   b.forEach((x, i) => {
-    const live = x.open && DAY === 0;
+    const live = x.open && isToday();
     const time = hhmm(x.from) + "~" + hhmm(x.to);
     const top  = x.c ? className(x.g, x.c) : time;
     const sub  = x.c ? (time + " · " + x.n + "명") : (x.n + "명");
@@ -684,7 +719,7 @@ function paint(){
   const rm = $("runMin");
   if(rm && DATA.running) rm.textContent = Math.max(0, Math.round((serverNow() - DATA.running.from)/60000)) + "분";
 
-  const N = cap(), live = DATA.live && DAY === 0;
+  const N = cap(), live = DATA.live && isToday();
   let on = 0, away = 0, gone = 0, off = 0, did = 0, okAll = 0;
 
   const byNo = {};
@@ -719,9 +754,12 @@ function paint(){
   $("wrap").innerHTML = DATA.students.length
     ? '<section><h2>' + title + ' <small>접속 ' + DATA.students.length + '명' +
       (live ? " · 진행 중" : "") + '</small></h2><div class="grid">' + cells + extra + '</div></section>'
-    : '<section><div class="empty">' + (DATA.running
-        ? "아직 접속한 학생이 없습니다. 학생이 콘텐츠를 열면 여기에 나타납니다."
-        : "수업이 시작되지 않았습니다. 위에서 학년·반을 고르고 <b>수업 시작</b>을 눌러 주세요. 시작한 뒤의 기록만 저장됩니다.") +
+    : '<section><div class="empty">' + (
+        !isToday()
+          ? mdw(DAY) + "에는 기록이 없습니다. 위 <b>기록 있는 날</b>에서 고르거나 달력으로 다른 날을 보세요."
+        : DATA.running
+          ? "아직 접속한 학생이 없습니다. 학생이 콘텐츠를 열면 여기에 나타납니다."
+          : "수업이 시작되지 않았습니다. 위에서 학년·반을 고르고 <b>수업 시작</b>을 눌러 주세요. 시작한 뒤의 기록만 저장됩니다.") +
         '</div></section>';
 
   const none = !DATA.students.length;
@@ -793,20 +831,51 @@ $("bClean").onclick = async () => {
 };
 
 /* ---------- 날짜 ---------- */
-function day(d){
-  DAY = d; BLK = null;
-  $("bToday").classList.toggle("on", d === 0);
-  $("bYest").classList.toggle("on", d === 1);
+function goDay(ms){
+  DAY = Math.min(startOfDay(ms), today());     /* 오지 않은 날은 볼 것이 없다 */
+  BLK = null;
+  $("dayPick").value = ymdStr(DAY);
+  $("dayPick").max = ymdStr(today());
+  $("bToday").classList.toggle("on", isToday());
+  $("bNext").disabled = isToday();
+  $("dayNote").textContent = mdw(DAY) + (isToday() ? " · 오늘" : "");
   syncSubs();
   render();
 }
-$("bToday").onclick = () => day(0);
-$("bYest").onclick  = () => day(1);
+$("bToday").onclick = () => goDay(today());
+$("bPrev").onclick  = () => goDay(DAY - DAY_MS);
+$("bNext").onclick  = () => goDay(DAY + DAY_MS);
+$("dayPick").onchange = () => {
+  const v = $("dayPick").value;
+  if(!v) { $("dayPick").value = ymdStr(DAY); return; }
+  const [y, m, d] = v.split("-").map(Number);
+  goDay(new Date(y, m-1, d).getTime());
+};
+goDay(today());
+
+/* 기록이 남아 있는 날들 — 눌러서 바로 간다 */
+function paintDaybar(){
+  const days = [...new Set(Object.keys(SESS).map((ms) => startOfDay(Number(ms))))]
+    .sort((a, b) => b - a);
+  if(!days.length){
+    $("daybar").innerHTML = '<span class="none">아직 기록이 없습니다. 수업을 시작하면 이 줄에 날짜가 쌓입니다.</span>';
+    return;
+  }
+  let html = '<span class="lab">기록 있는 날</span>';
+  days.slice(0, 12).forEach((ms) => {
+    html += '<button data-d="' + ms + '"' + (ms === DAY ? ' class="on"' : "") + '>' + mdw(ms) + '</button>';
+  });
+  if(days.length > 12) html += '<span class="none">외 ' + (days.length - 12) + '일 — 달력에서 고르세요</span>';
+  $("daybar").innerHTML = html;
+  $("daybar").querySelectorAll("button[data-d]").forEach((el) => {
+    el.onclick = () => goDay(Number(el.getAttribute("data-d")));
+  });
+}
 $("cap").oninput = () => { if(DATA) paint(); };
 
 /* 실시간으로 받으므로 새로 묻지 않는다. 다만 '몇 초 전' 표시는 1초마다 다시 쓴다. */
 setInterval(() => {
-  if(DATA && DAY === 0 && (DATA.live || DATA.running) && document.visibilityState === "visible") paint();
+  if(DATA && isToday() && (DATA.live || DATA.running) && document.visibilityState === "visible") paint();
 }, 1000);
 </script>
 </body>
