@@ -351,7 +351,10 @@ function listen(){
   onValue(ref(db, "mk/names"), (s) => { LEARNED = s.val() || {}; draw(); });
 
   /* 점수는 역대 최고를 뽑아야 하므로 최근 것만 넉넉히 받아 둔다 */
-  onChildAdded(query(ref(db, "mk/scores"), limitToLast(4000)), (s) => {
+  /* 옛 구글 시트 기록을 가져오면서 점수가 4800개를 넘었다. 4000이면 오래된 것이
+     잘려 '역대 최고'가 달라진다. 가져온 점수의 키는 '!'로 시작해(파이어베이스
+     푸시키의 '-'보다 앞선다) 시간순으로 줄 서므로, 한도만 넉넉히 올리면 된다. */
+  onChildAdded(query(ref(db, "mk/scores"), limitToLast(20000)), (s) => {
     const v = s.val() || {};
     SCORES.push({t:Number(v.st)||0, g:Number(v.g)||0, c:Number(v.c)||0,
                  n:Number(v.n)||0, p:String(v.p||""), sc:Number(v.sc)||0});
