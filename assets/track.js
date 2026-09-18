@@ -151,8 +151,20 @@
         return useTok(j);
       });
   }
+  /* 토큰을 받는 중이면 그 줄에 세운다. 이게 없으면 첫 화면에서 pullCurrent 와
+     open 전송이 동시에 signUp 을 불러 익명 계정이 둘 생기고 왕복도 두 배가 된다.
+     — 학생이 현황판에 늦게 뜨던 원인. */
+  var TOKP = null;
   function token(){
     if(TOK && TOK.id && TOK.exp - Date.now() > 300000) return Promise.resolve(TOK.id);
+    if(TOKP) return TOKP;
+    var p = newToken();
+    TOKP = p;
+    function clear(){ if(TOKP === p) TOKP = null; }
+    p.then(clear, clear);
+    return p;
+  }
+  function newToken(){
     if(TOK && TOK.rt){
       return fetch("https://securetoken.googleapis.com/v1/token?key=" + FB.apiKey, {
         method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"},
@@ -166,8 +178,17 @@
   }
   function dbUrl(path, t){ return FB.databaseURL + path + ".json?auth=" + encodeURIComponent(t); }
 
-  /* 지금 열린 수업이 무엇인지 확인한다 */
+  /* 지금 열린 수업이 무엇인지 확인한다 — 이것도 겹쳐 부르지 않게 줄을 세운다 */
+  var CURP = null;
   function pullCurrent(){
+    if(CURP) return CURP;
+    var p = doPullCurrent();
+    CURP = p;
+    function clear(){ if(CURP === p) CURP = null; }
+    p.then(clear, clear);
+    return p;
+  }
+  function doPullCurrent(){
     return token().then(function(t){
       return fetch(dbUrl("/mk/current", t), {cache:"no-store"});
     }).then(function(r){
@@ -443,7 +464,16 @@
         askNo(false);
         return;
       }
-      push(visible() ? "show" : "hide", "", true);
+      /* 숨겨질 때는 창이 닫히는 중일 수도 있다. 보통 fetch 는 탭이 사라지면
+         취소되어 'hide' 가 통째로 사라졌다 — 그래서 창을 닫아도 초록으로 남았다.
+         숨길 때만 keepalive 길로 던진다. */
+      var vis = visible();
+      push(vis ? "show" : "hide", "");
+      flush(!vis);
+      /* keepalive 길은 토큰·수업이 손에 있을 때만 던지고 아니면 되돌려 넣는다.
+         되돌아온 게 있으면 보통 길로 한 번 더 — 이래야 '다른 탭' 주황이
+         예전처럼 곧바로 뜬다. 이미 나갔으면 Q 가 비어 있어 그냥 지나간다. */
+      if(!vis) flush(false);
     });
 
     window.addEventListener("pagehide", function(){

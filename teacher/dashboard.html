@@ -239,6 +239,11 @@ const CFG = {
 };
 const TEACHER = "j333333766@gmail.com";     /* 이 계정만 열 수 있다(보안 규칙과 같아야 한다) */
 
+/* 학생 신호(beat)는 25초마다 온다. 90초면 세 번을 내리 놓친 것이라
+   한두 번 빠뜨린 것과 확실히 구분된다. 예전 3분은 너무 길어서
+   창을 닫은 학생이 한참 초록으로 남아 있었다. */
+const GONE_MS = 90000;
+
 const app  = initializeApp(CFG);
 const auth = getAuth(app);
 const db   = getDatabase(app);
@@ -733,7 +738,7 @@ function paint(){
       if(!live){                                   /* 지난 수업 : 참여했는지만 본다 */
         cls = "did"; tag = "참여함"; did++;
         info = '<div class="ago"><span>' + mins(a.span) + " 머묾</span><span>✓" + a.ok + "</span></div>";
-      }else if(d > 180000){ cls = "gone"; tag = "신호 끊김"; gone++; }
+      }else if(d > GONE_MS){ cls = "gone"; tag = "신호 끊김"; gone++; }
       else if(!a.vis){ cls = "away"; tag = "다른 탭"; away++; }
       else { cls = "on"; tag = "학습 중"; on++; }
       if(live) info = '<div class="ago"><span>' + ago(d) + "</span><span>✓" + a.ok + "</span></div>";
@@ -771,7 +776,7 @@ function paint(){
   $("legend").innerHTML = live
     ? '<span><i style="background:#2f9e63"></i>화면을 보고 있음(90초 이내)</span>' +
       '<span><i style="background:#f5820b"></i>페이지는 열려 있으나 다른 탭·창을 보는 중</span>' +
-      '<span><i style="background:#e5484d"></i>3분 넘게 신호 없음(창을 닫았거나 자리 비움)</span>' +
+      '<span><i style="background:#e5484d"></i>90초 넘게 신호 없음(창을 닫았거나 자리 비움)</span>' +
       '<span><i style="background:#9aa5b8"></i>접속 기록 없음</span>'
     : '<span><i style="background:#3e63dd"></i>이 수업에 참여함</span>' +
       '<span><i style="background:#9aa5b8"></i>접속 기록 없음</span>' +
