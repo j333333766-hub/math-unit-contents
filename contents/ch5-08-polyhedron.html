@@ -220,6 +220,19 @@
         <div id="platoFb"></div>
       </div>
       <div class="blk">
+        <h2>전개도로 펼쳐 보기</h2>
+        <p>모서리를 따라 잘라 바닥에 펼치면 <b>전개도</b>가 돼요. 펼친 뒤 면의 개수를 세어 보세요. (교과서 200쪽)</p>
+        <div class="slider">
+          <label><span>펼치기</span><span class="v" id="vNet">0 %</span></label>
+          <input type="range" id="rNet" min="0" max="100" step="1" value="0">
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm primary" id="btnUnfold">▶ 전개도로 펼치기</button>
+          <button class="btn sm" id="btnRefold">◀ 다시 접기</button>
+        </div>
+        <div id="netFb"></div>
+      </div>
+      <div class="blk">
         <h2>왜 다섯 가지뿐일까?</h2>
         <p>한 꼭짓점에 <b>세 개 이상</b>의 면이 모여야 하고, 모인 각의 합이 <b>360°보다 작아야</b>
            입체가 돼요. 정육각형은 한 각이 120° 라서 세 개만 모아도 <b>360°</b> — 평평해져 버려요.</p>
@@ -453,11 +466,158 @@ function platoGeo(k){
   if(k === 12) return new THREE.DodecahedronGeometry(2.2);
   return new THREE.IcosahedronGeometry(2.3);
 }
+/* ---------- 전개도 ----------
+   면을 다각형으로 모으고, 이웃한 면(모서리 공유)으로 신장 트리를 만든다. 밑면(뿌리)은 그대로 두고
+   나머지 면은 부모 면과 맞닿은 모서리(경첩)를 축으로 t × (두 면 법선 사이 각) 만큼 돌려 펼친다.
+   펼친 결과가 겹치지 않는 트리를 뿌리·탐색 순서를 바꿔 가며 찾는다. */
+let netT = 0, netAnim = null;
+const netCache = {};
+function rotAbout(a, d, ang){
+  return new THREE.Matrix4().makeTranslation(a.x, a.y, a.z)
+    .multiply(new THREE.Matrix4().makeRotationAxis(d, ang))
+    .multiply(new THREE.Matrix4().makeTranslation(-a.x, -a.y, -a.z));
+}
+function netFrames(net, tree, t){
+  const M = [];
+  M[tree.root] = new THREE.Matrix4();
+  tree.order.forEach(function(f){
+    if(f === tree.root) return;
+    const h = tree.hinge[f];
+    M[f] = M[tree.parent[f]].clone().multiply(rotAbout(h.a, h.d, h.ang*t));
+  });
+  return M;
+}
+function polysOverlap(A, B){                      /* 볼록다각형 분리축 검사 */
+  const polys = [A, B];
+  for(let pi = 0; pi < 2; pi++){
+    const P = polys[pi];
+    for(let i = 0; i < P.length; i++){
+      const p = P[i], q = P[(i + 1) % P.length];
+      const nx = -(q.y - p.y), ny = q.x - p.x;
+      let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+      A.forEach(function(v){ const s = v.x*nx + v.y*ny; a0 = Math.min(a0, s); a1 = Math.max(a1, s); });
+      B.forEach(function(v){ const s = v.x*nx + v.y*ny; b0 = Math.min(b0, s); b1 = Math.max(b1, s); });
+      if(a1 <= b0 || b1 <= a0) return false;
+    }
+  }
+  return true;
+}
+function netOf(k){
+  if(netCache[k]) return netCache[k];
+  let g = platoGeo(k);
+  if(g.index) g = g.toNonIndexed();
+  const P = g.attributes.position, groups = {}, gl = [];
+  for(let i = 0; i < P.count; i += 3){
+    const tri = [0, 1, 2].map(function(j){ return new THREE.Vector3(P.getX(i + j), P.getY(i + j), P.getZ(i + j)); });
+    const n = new THREE.Vector3().subVectors(tri[1], tri[0]).cross(new THREE.Vector3().subVectors(tri[2], tri[0])).normalize();
+    const key = [n.x, n.y, n.z].map(function(x){ return Math.round(x*100) || 0; }).join(",");   /* -0 과 0 을 같게 */
+    if(!groups[key]){ groups[key] = []; gl.push(groups[key]); }
+    groups[key].push.apply(groups[key], tri);
+  }
+  g.dispose();
+  const vkey = v => v.x.toFixed(3) + "," + v.y.toFixed(3) + "," + v.z.toFixed(3);
+  /* 면마다 꼭짓점을 한 바퀴 순서로 */
+  const faces = gl.map(function(list){
+    const uniq = [];
+    list.forEach(function(v){ if(!uniq.some(function(u){ return u.distanceTo(v) < 1e-4; })) uniq.push(v); });
+    const c = new THREE.Vector3();
+    uniq.forEach(function(v){ c.add(v); });
+    c.multiplyScalar(1/uniq.length);
+    const n = c.clone().normalize();
+    const u = uniq[0].clone().sub(c).normalize(), w = n.clone().cross(u);
+    uniq.sort(function(a, b){
+      const da = a.clone().sub(c), db = b.clone().sub(c);
+      return Math.atan2(da.dot(w), da.dot(u)) - Math.atan2(db.dot(w), db.dot(u));
+    });
+    return {v:uniq, c:c, n:n, keys:uniq.map(vkey)};
+  });
+  const F = faces.length, adj = [];
+  for(let i = 0; i < F; i++) adj.push([]);
+  for(let i = 0; i < F; i++) for(let j = i + 1; j < F; j++){
+    const sh = faces[i].keys.filter(function(x){ return faces[j].keys.indexOf(x) >= 0; });
+    if(sh.length === 2){ adj[i].push({f:j, e:sh}); adj[j].push({f:i, e:sh}); }
+  }
+  const vOf = function(f, key){ return faces[f].v[faces[f].keys.indexOf(key)]; };
+  function makeTree(root, mode){
+    const parent = [], hinge = [], order = [], seen = {};
+    seen[root] = true;
+    const list = [root];
+    while(list.length){
+      const f = mode === "bfs" ? list.shift() : list.pop();
+      order.push(f);
+      adj[f].forEach(function(e){
+        if(seen[e.f]) return;
+        seen[e.f] = true; parent[e.f] = f;
+        const a = vOf(f, e.e[0]), b = vOf(f, e.e[1]);
+        const d = b.clone().sub(a).normalize();
+        const ang = Math.acos(Math.max(-1, Math.min(1, faces[e.f].n.dot(faces[f].n))));
+        /* 자식 법선이 부모 법선과 같아지는 쪽으로 돈다 */
+        const test = faces[e.f].n.clone().applyAxisAngle(d, ang);
+        hinge[e.f] = {a:a, d:d, ang:test.dot(faces[f].n) > 0.999 ? ang : -ang};
+        list.push(e.f);
+      });
+    }
+    return {root:root, parent:parent, hinge:hinge, order:order};
+  }
+  function flat2D(tree){
+    const M = netFrames(null, tree, 1), r = faces[tree.root];
+    const u = r.v[1].clone().sub(r.v[0]).normalize(), w = r.n.clone().cross(u);
+    return faces.map(function(fc, i){
+      const pts = fc.v.map(function(v){ return v.clone().applyMatrix4(M[i]); });
+      const c = new THREE.Vector3();
+      pts.forEach(function(p){ c.add(p); });
+      c.multiplyScalar(1/pts.length);
+      return pts.map(function(p){ const q = p.clone().lerp(c, 0.01); return {x:q.dot(u), y:q.dot(w)}; });
+    });
+  }
+  let tree = null;
+  outer:
+  for(let r = 0; r < F; r++) for(const mode of ["bfs", "dfs"]){
+    const tr = makeTree(r, mode), polys = flat2D(tr);
+    let bad = false;
+    for(let i = 0; i < F && !bad; i++) for(let j = i + 1; j < F && !bad; j++) if(polysOverlap(polys[i], polys[j])) bad = true;
+    if(!bad){ tree = tr; break outer; }
+  }
+  /* 뿌리 면이 바닥(법선 −y)에 오게 돌리고, 다 펼친 전개도의 가운데·크기를 잰다 */
+  const Q = new THREE.Matrix4().makeRotationFromQuaternion(
+    new THREE.Quaternion().setFromUnitVectors(faces[tree.root].n, new THREE.Vector3(0, -1, 0)));
+  const M1 = netFrames(null, tree, 1), box = new THREE.Box3();
+  faces.forEach(function(fc, i){ fc.v.forEach(function(v){ box.expandByPoint(v.clone().applyMatrix4(M1[i]).applyMatrix4(Q)); }); });
+  const c = box.getCenter(new THREE.Vector3());
+  let rad = 0;                                    /* 돌아가며 보므로 가운데에서 가장 먼 거리로 맞춘다 */
+  faces.forEach(function(fc, i){ fc.v.forEach(function(v){
+    const q = v.clone().applyMatrix4(M1[i]).applyMatrix4(Q);
+    rad = Math.max(rad, Math.hypot(q.x - c.x, q.z - c.z));
+  }); });
+  return (netCache[k] = {faces:faces, tree:tree, Q:Q, c:c, fit:Math.min(1, 3.0/rad)});
+}
 function buildPlato(){
   clearGroup();
-  addSolid(platoGeo(platN), {color:COL.plat, opacity:0.34, verts:true, edgeAngle:6});
-  $("caption").textContent = PLAT[platN].name;
-  $("tip").textContent = "끌어서 돌려 보세요";
+  const net = netOf(platN), t = netT;
+  const M = netFrames(net, net.tree, t);
+  const s = 1 + (net.fit - 1)*Math.min(1, t*2.5);   /* 펼치며 커지기 전에 먼저 줄인다 */
+  const W = new THREE.Matrix4().makeScale(s, s, s)
+    .multiply(new THREE.Matrix4().makeTranslation(-net.c.x*t, -net.c.y*t, -net.c.z*t))
+    .multiply(net.Q);
+  net.faces.forEach(function(fc, i){
+    const pts = fc.v.map(function(v){ return v.clone().applyMatrix4(M[i]).applyMatrix4(W); });
+    const pos = [];
+    for(let j = 1; j < pts.length - 1; j++)
+      [pts[0], pts[j], pts[j + 1]].forEach(function(q){ pos.push(q.x, q.y, q.z); });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+      color:i === net.tree.root ? 0x4fae84 : COL.plat, transparent:true, opacity:0.34 + 0.24*t,
+      side:THREE.DoubleSide, depthWrite:false})));
+    group.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({color:COL.edge})));
+    if(t === 0) pts.forEach(function(p){
+      const sp = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), new THREE.MeshBasicMaterial({color:COL.vert}));
+      sp.position.copy(p); group.add(sp);
+    });
+  });
+  $("caption").textContent = PLAT[platN].name + (t >= 1 ? "의 전개도" : "");
+  $("tip").textContent = t > 0 ? "끌어서 돌려 보세요 · 휠로 확대" : "끌어서 돌려 보세요";
 }
 
 function rebuild(){
@@ -561,7 +721,7 @@ document.querySelectorAll("#platBtns button").forEach(function(b){
     document.querySelectorAll("#platBtns button").forEach(function(x){ x.classList.remove("on"); });
     b.classList.add("on");
     platN = +b.dataset.p;
-    paintPlato(); rebuild();
+    paintPlato(); paintNet(); rebuild();
   });
 });
 $("btnHex").addEventListener("click", function(){
@@ -571,6 +731,36 @@ $("btnHex").addEventListener("click", function(){
     ' (교과서 200쪽 생각 KEY 우기)</div>';
   if(window.MKSCORE) MKSCORE.once("hex", 10, "정육각형이 안 되는 이유");
 });
+
+function paintNet(){
+  const p = PLAT[platN];
+  $("vNet").textContent = Math.round(netT*100) + " %";
+  $("rNet").value = Math.round(netT*100);
+  $("netFb").innerHTML = netT >= 1
+    ? '<div class="fb ok">🎉 <b>' + p.name + '</b> 의 전개도 — ' + p.shape + ' <b>' + p.F + '개</b> 가 이어져 있어요.' +
+      ' 진한 면이 바닥에 놓였던 면이에요.</div>'
+    : '<div class="fb info">[전개도로 펼치기] 를 누르거나 슬라이더를 밀어 보세요.</div>';
+}
+function stopNet(){ if(netAnim){ cancelAnimationFrame(netAnim); netAnim = null; } }
+function playNet(to){
+  stopNet();
+  const from = netT, t0 = performance.now(), DUR = 2000*Math.abs(to - from) + 1;
+  if(to > 0 && from === 0) rot.ph = 1.0;      /* 바닥에 펼쳐지는 모습이 보이게 위에서 */
+  (function step(now){
+    const u = Math.max(0, Math.min(1, (now - t0)/DUR));
+    netT = from + (to - from)*(u < 0.5 ? 2*u*u : 1 - 2*(1 - u)*(1 - u));
+    netAnim = u < 1 ? requestAnimationFrame(step) : null;
+    paintNet();
+    if(tab === "plato") rebuild();
+    if(u >= 1 && to === 1 && window.MKSCORE) MKSCORE.once("net" + platN, 3, PLAT[platN].name + " 전개도 펼치기");
+  })(t0);
+}
+$("rNet").addEventListener("input", function(e){
+  stopNet(); netT = +e.target.value/100; paintNet(); rebuild();
+  if(netT >= 1 && window.MKSCORE) MKSCORE.once("net" + platN, 3, PLAT[platN].name + " 전개도 펼치기");
+});
+$("btnUnfold").addEventListener("click", function(){ playNet(1); });
+$("btnRefold").addEventListener("click", function(){ playNet(0); });
 
 $("btnGoWhy").addEventListener("click", function(){
   document.querySelector('header nav button[data-tab="why"]').click();
@@ -674,7 +864,7 @@ function solidFaces(key, s){
   for(let i = 0; i < pts.length; i += 3){
     const n = new THREE.Vector3().subVectors(pts[i + 1], pts[i])
       .cross(new THREE.Vector3().subVectors(pts[i + 2], pts[i])).normalize();
-    const nk = n.x.toFixed(2) + "," + n.y.toFixed(2) + "," + n.z.toFixed(2);
+    const nk = [n.x, n.y, n.z].map(function(x){ return Math.round(x*100) || 0; }).join(",");   /* -0 과 0 을 같게 */
     if(!faces[nk]){ faces[nk] = {tris:[]}; order.push(faces[nk]); }
     faces[nk].tris.push(pts[i], pts[i + 1], pts[i + 2]);
   }
@@ -834,6 +1024,7 @@ function boot(){
   resize();
   paintCount();
   paintPlato();
+  paintNet();
   paintWhy();
   nextFind();                                 /* 데이터 먼저 (pitfalls #16) */
   tab = "find";
