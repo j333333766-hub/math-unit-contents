@@ -63,6 +63,12 @@
   .btn.primary:hover{background:var(--accent-dark); color:#fff;}
   .btn.sm{padding:7px 10px; font-size:13px;}
   .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn:disabled, .btn:disabled:hover{opacity:.42; cursor:not-allowed; background:var(--panel); border-color:var(--line); color:var(--ink);}
+  .btn.primary:disabled, .btn.primary:disabled:hover{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .found{display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px;}
+  .found span{font-size:13px; font-weight:700; padding:8px 6px; border-radius:9px; text-align:center;
+    border:1px dashed var(--line); color:#a7b0c2;}
+  .found span.on{border:1px solid var(--ok); background:var(--ok-soft); color:var(--ok);}
 
   .kinds{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px;}
   .plat{display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px;}
@@ -120,6 +126,7 @@
     <button class="on" data-tab="find">① 다면체 찾기</button>
     <button data-tab="count">② 면·모서리·꼭짓점</button>
     <button data-tab="plato">③ 정다면체 다섯</button>
+    <button data-tab="why">④ 왜 다섯 가지?</button>
   </nav>
   <a class="home-btn" href="../index.html?unit=5">← 목차</a>
 </header>
@@ -218,8 +225,43 @@
            입체가 돼요. 정육각형은 한 각이 120° 라서 세 개만 모아도 <b>360°</b> — 평평해져 버려요.</p>
         <div class="row" style="margin-top:10px;">
           <button class="btn sm" id="btnHex">정육각형 세 개 모아 보기</button>
+          <button class="btn sm primary" id="btnGoWhy">④ 직접 접어 보기 ▶</button>
         </div>
         <div id="hexFb"></div>
+      </div>
+    </section>
+
+    <!-- ④ 왜 다섯 가지? -->
+    <section id="pWhy" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 4</span> 한 꼭짓점에 정다각형을 모아 접어 보세요</h2>
+        <p>입체의 꼭짓점이 되려면 한 꼭짓점에 면이 <b>3개 이상</b> 모이고,
+           모인 각의 합이 <b>360°보다 작아야</b> 해요. 면의 모양과 개수를 바꿔 보세요. (교과서 200쪽)</p>
+        <div class="slider">
+          <label><span>면의 모양</span><span class="v" id="vWP">정삼각형</span></label>
+          <input type="range" id="rWP" min="3" max="10" step="1" value="3">
+        </div>
+        <div class="slider">
+          <label><span>한 꼭짓점에 모이는 개수</span><span class="v" id="vWK">3개</span></label>
+          <input type="range" id="rWK" min="1" max="7" step="1" value="3">
+        </div>
+        <div id="whyFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm primary" id="btnFold">📐 접기</button>
+          <button class="btn sm primary" id="btnGrow">🧊 모든 꼭짓점으로 확장</button>
+          <button class="btn sm" id="btnFlat">↺ 펼치기</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h2>찾은 정다면체 <span id="foundCnt" style="color:var(--accent)">0 / 5</span></h2>
+        <div class="found" id="foundList">
+          <span data-f="3,3">정사면체</span>
+          <span data-f="4,3">정육면체</span>
+          <span data-f="3,4">정팔면체</span>
+          <span data-f="5,3">정십이면체</span>
+          <span data-f="3,5">정이십면체</span>
+        </div>
+        <div id="foundFb"></div>
       </div>
     </section>
   </aside>
@@ -402,7 +444,7 @@ function platoGeo(k){
     const g = new THREE.TetrahedronGeometry(2.3);
     const q = new THREE.Quaternion().setFromUnitVectors(
       new THREE.Vector3(1, 1, 1).normalize(), new THREE.Vector3(0, 1, 0));
-    g.applyQuaternion(q);
+    g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(q));   /* r128 에는 applyQuaternion 이 없다 */
     g.rotateY(0.5);
     return g;
   }
@@ -421,7 +463,8 @@ function buildPlato(){
 function rebuild(){
   if(tab === "find") buildFind();
   else if(tab === "count") buildCount();
-  else buildPlato();
+  else if(tab === "plato") buildPlato();
+  else buildWhy();
   scene.updateMatrixWorld(true);            /* 만든 직후 행렬 갱신 (pitfalls #6) */
 }
 
@@ -529,6 +572,239 @@ $("btnHex").addEventListener("click", function(){
   if(window.MKSCORE) MKSCORE.once("hex", 10, "정육각형이 안 되는 이유");
 });
 
+$("btnGoWhy").addEventListener("click", function(){
+  document.querySelector('header nav button[data-tab="why"]').click();
+});
+
+/* ============================================================
+   ④ 왜 다섯 가지? — 한 꼭짓점에 정n각형 k개를 모아 접고, 모든 꼭짓점으로 확장한다
+   꼭짓점을 원점에 두고 모서리 k개를 아래로 벌린 원뿔 위에 놓는다.
+   원뿔 반각 θ 와 이웃 모서리 사이 방위각 φ 가 cos α = cos²θ + sin²θ·cos φ (α = 한 내각) 를
+   늘 지키므로, θ 를 90°(평면)에서 줄이면 이웃한 면끼리 모서리가 맞붙은 채로 접힌다.
+   ============================================================ */
+const PNAME = {3:"정삼각형",4:"정사각형",5:"정오각형",6:"정육각형",7:"정칠각형",8:"정팔각형",9:"정구각형",10:"정십각형"};
+const SOLID_OF = {"3,3":4, "4,3":6, "3,4":8, "5,3":12, "3,5":20};
+const WCOL = [0xf5820b, 0x3e63dd, 0x2f9e63, 0x8e4ec6, 0xe5484d, 0x0ea5b7, 0xd6409f];
+const OVER = 0xe5484d;
+let wP = 3, wK = 3, wMode = "flat", wT = 0, wAnim = null;
+const found = {};
+
+const rad = d => d*Math.PI/180;
+const innerDeg = n => 180*(n - 2)/n;
+const fmtDeg = d => (Math.round(d*10)/10) + "°";
+function whyState(){
+  const a = innerDeg(wP), sum = a*wK;
+  return {a:a, sum:sum, flat:Math.abs(sum - 360) < 1e-6, ok:wK >= 3 && sum < 360 - 1e-6};
+}
+const sideLen = () => Math.min(2.2, 3.0*Math.sin(Math.PI/wP));
+
+/* 꼭짓점(원점)에서 뻗은 두 모서리 u, v 사이에 놓인, 한 변이 s 인 정n각형의 꼭짓점들 */
+function regPoly(u, v, n, s){
+  const b = u.clone().add(v).normalize();
+  const w = u.clone().sub(b.clone().multiplyScalar(u.dot(b))).normalize();
+  const R = s/(2*Math.sin(Math.PI/n));
+  const c = b.clone().multiplyScalar(R), pts = [];
+  for(let j = 0; j < n; j++){
+    const t = 2*Math.PI*j/n;
+    pts.push(c.clone().add(b.clone().multiplyScalar(-R*Math.cos(t))).add(w.clone().multiplyScalar(R*Math.sin(t))));
+  }
+  return pts;
+}
+function triMesh(pos, color, opacity){
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+    color:color, transparent:true, opacity:opacity, side:THREE.DoubleSide, depthWrite:false})));
+  return g;
+}
+function addFace(pts, color, opacity){
+  const pos = [];
+  for(let j = 1; j < pts.length - 1; j++)
+    [pts[0], pts[j], pts[j + 1]].forEach(function(q){ pos.push(q.x, q.y, q.z); });
+  triMesh(pos, color, opacity);
+  group.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({color:COL.edge})));
+}
+/* 접힌 정도 t(0 평면 ~ 1 완전히 접힘)에서 모서리 방향 e_0 … e_k */
+function edgeDirs(t){
+  const st = whyState(), a = rad(st.a);
+  let th = Math.PI/2, ph = a;
+  if(st.ok && t > 0){
+    const thF = Math.asin(Math.sqrt((1 - Math.cos(a))/(1 - Math.cos(2*Math.PI/wK))));
+    th = Math.PI/2 + (thF - Math.PI/2)*t;
+    const c = (Math.cos(a) - Math.cos(th)*Math.cos(th))/(Math.sin(th)*Math.sin(th));
+    ph = Math.acos(Math.max(-1, Math.min(1, c)));
+  }
+  const E = [];
+  for(let i = 0; i <= wK; i++)
+    E.push(new THREE.Vector3(Math.sin(th)*Math.cos(i*ph), -Math.cos(th), Math.sin(th)*Math.sin(i*ph)));
+  return E;
+}
+
+/* 정다면체를 '한 꼭짓점이 원점, 그 꼭짓점의 모서리 하나가 방위각 0' 이 되게 놓고 면별로 나눈다.
+   그러면 접어 만든 꼭짓점의 면들과 꼭 겹친다. */
+const solidCache = {};
+function solidFaces(key, s){
+  const ck = key + "/" + s.toFixed(3);
+  if(solidCache[ck]) return solidCache[ck];
+  const F = SOLID_OF[key];
+  let g = F === 4 ? new THREE.TetrahedronGeometry(1) : F === 6 ? new THREE.BoxGeometry(1, 1, 1)
+        : F === 8 ? new THREE.OctahedronGeometry(1) : F === 12 ? new THREE.DodecahedronGeometry(1)
+        : new THREE.IcosahedronGeometry(1);
+  if(g.index) g = g.toNonIndexed();
+  const P = g.attributes.position, pts = [];
+  for(let i = 0; i < P.count; i++) pts.push(new THREE.Vector3(P.getX(i), P.getY(i), P.getZ(i)));
+  g.dispose();
+  const uniq = [];
+  pts.forEach(function(q){ if(!uniq.some(function(u){ return u.distanceTo(q) < 1e-4; })) uniq.push(q.clone()); });
+  let V = uniq[0], edge = Infinity;
+  uniq.forEach(function(u){ if(u.y > V.y) V = u; });
+  V = V.clone();
+  uniq.forEach(function(u){ const d = u.distanceTo(V); if(d > 1e-4 && d < edge) edge = d; });
+  const q = new THREE.Quaternion().setFromUnitVectors(V.clone().normalize(), new THREE.Vector3(0, 1, 0));
+  const L = V.length(), k = s/edge;
+  const place = function(p){ p.applyQuaternion(q); p.y -= L; p.multiplyScalar(k); };
+  pts.forEach(place); uniq.forEach(place);
+  let nb = null;
+  uniq.forEach(function(u){ if(!nb && Math.abs(u.length() - s) < 1e-3) nb = u; });
+  const beta = Math.atan2(nb.z, nb.x), Y = new THREE.Vector3(0, 1, 0);
+  pts.forEach(function(p){ p.applyAxisAngle(Y, beta); });
+  /* 같은 평면(법선)에 놓인 삼각형끼리 한 면으로 묶는다 */
+  const faces = {}, order = [];
+  for(let i = 0; i < pts.length; i += 3){
+    const n = new THREE.Vector3().subVectors(pts[i + 1], pts[i])
+      .cross(new THREE.Vector3().subVectors(pts[i + 2], pts[i])).normalize();
+    const nk = n.x.toFixed(2) + "," + n.y.toFixed(2) + "," + n.z.toFixed(2);
+    if(!faces[nk]){ faces[nk] = {tris:[]}; order.push(faces[nk]); }
+    faces[nk].tris.push(pts[i], pts[i + 1], pts[i + 2]);
+  }
+  order.forEach(function(f){
+    const c = new THREE.Vector3();
+    f.tris.forEach(function(p){ c.add(p); });
+    c.multiplyScalar(1/f.tris.length);
+    f.dist = c.length();
+    f.az = (Math.atan2(c.z, c.x) + 2*Math.PI) % (2*Math.PI);
+  });
+  /* 꼭짓점에 가까운 면부터 차례로 붙인다 */
+  order.sort(function(a, b){ return (Math.abs(a.dist - b.dist) > 1e-3 ? a.dist - b.dist : a.az - b.az); });
+  return (solidCache[ck] = order);
+}
+
+function buildWhy(){
+  clearGroup();
+  group.position.y = 0;
+  const st = whyState(), s = sideLen(), key = wP + "," + wK;
+  if(wMode === "grow" && st.ok){
+    const faces = solidFaces(key, s);
+    const shown = wK + (faces.length - wK)*wT;
+    faces.forEach(function(f, i){
+      if(i >= Math.ceil(shown - 1e-9)) return;
+      const part = Math.min(1, shown - i), near = i < wK;
+      const col = near ? WCOL[Math.floor(f.az/(2*Math.PI/wK)) % WCOL.length] : COL.plat;
+      const pos = [];
+      f.tris.forEach(function(p){ pos.push(p.x, p.y, p.z); });
+      const g = triMesh(pos, col, (near ? 0.5 : 0.42)*part);
+      group.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 1),
+        new THREE.LineBasicMaterial({color:COL.edge, transparent:true, opacity:part})));
+    });
+  }else{
+    const t = wMode === "fold" ? wT : 0;
+    const E = edgeDirs(t);
+    for(let i = 0; i < wK; i++){
+      const over = !st.ok && wK >= 3 && (i + 1)*st.a > 360 + 1e-6;   /* 360° 를 넘어 겹친 면 */
+      addFace(regPoly(E[i], E[i + 1], wP, s), over ? OVER : WCOL[i % WCOL.length], over ? 0.42 : 0.5);
+    }
+    if(t === 0 && st.sum < 360 - 1e-6){
+      /* 남는 각(빈틈)을 회색 부채꼴로 */
+      const r = s*0.55, a0 = rad(st.sum), pos = [];
+      for(let j = 0; j < 24; j++){
+        const p0 = a0 + (2*Math.PI - a0)*j/24, p1 = a0 + (2*Math.PI - a0)*(j + 1)/24;
+        pos.push(0, 0, 0, r*Math.cos(p0), 0, r*Math.sin(p0), r*Math.cos(p1), 0, r*Math.sin(p1));
+      }
+      triMesh(pos, 0x9aa4b8, 0.35);
+    }
+  }
+  const apex = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), new THREE.MeshBasicMaterial({color:COL.vert}));
+  group.add(apex);
+  /* 보이는 것의 위아래 가운데가 화면 가운데에 오게 */
+  group.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(group);
+  group.position.y = -(box.min.y + box.max.y)/2;
+
+  $("caption").textContent = wMode === "grow" && wT >= 1 ? PLAT[SOLID_OF[key]].name + " 완성!"
+    : PNAME[wP] + " " + wK + "개 · " + fmtDeg(st.sum);
+  $("tip").textContent = wMode === "flat" && st.ok ? "[접기] 를 눌러 보세요" : "끌어서 돌려 보세요 · 휠로 확대";
+}
+
+function paintWhy(){
+  const st = whyState(), key = wP + "," + wK;
+  $("vWP").textContent = PNAME[wP] + " (한 각 " + fmtDeg(st.a) + ")";
+  $("vWK").textContent = wK + "개";
+  const calc = '<b>' + PNAME[wP] + '</b> 한 내각 ' + fmtDeg(st.a) + ' × ' + wK + '개 = <b>' + fmtDeg(st.sum) + '</b>';
+  let fb;
+  if(wK < 3)
+    fb = '<div class="fb no">' + calc + '<br>한 꼭짓점에 면이 <b>' + wK + '개</b>뿐이에요. 면이 <b>3개 이상</b> 모여야' +
+         ' 입체의 꼭짓점이 생겨요. <b>다면체가 될 수 없어요.</b></div>';
+  else if(st.flat)
+    fb = '<div class="fb no">' + calc + '<br>각의 합이 딱 <b>360°</b> — 바닥을 평평하게 덮을 뿐 접히지 않아요.' +
+         ' <b>다면체가 될 수 없어요.</b></div>';
+  else if(!st.ok)
+    fb = '<div class="fb no">' + calc + '<br>각의 합이 <b>360°보다 커서</b> 면이 서로 겹쳐요(빨간 면).' +
+         ' <b>다면체가 될 수 없어요.</b></div>';
+  else if(wMode === "grow" && wT >= 1)
+    fb = '<div class="fb ok">🎉 <b>' + PLAT[SOLID_OF[key]].name + '</b> 완성! 모든 꼭짓점에 ' + PNAME[wP] + ' <b>' + wK +
+         '개</b>씩 모여요. (면 ' + PLAT[SOLID_OF[key]].F + '개)</div>';
+  else if(wMode === "grow")
+    fb = '<div class="fb ok">' + calc + '<br>모든 꼭짓점에 ' + PNAME[wP] + ' <b>' + wK + '개</b>씩 모이도록 면을 붙이는 중…</div>';
+  else if(wMode === "fold" && wT >= 1)
+    fb = '<div class="fb ok">' + calc + '<br>모서리와 모서리가 맞붙어 <b>꼭짓점 하나</b>가 생겼어요.' +
+         ' 이제 <b>[모든 꼭짓점으로 확장]</b> 을 눌러 보세요.</div>';
+  else
+    fb = '<div class="fb ok">' + calc + ' &lt; 360°<br>3개 이상이고 360°보다 작아요. 남는 <b>' + fmtDeg(360 - st.sum) +
+         '</b>(회색)를 오므리면 꼭짓점이 생겨요. <b>[접기]</b> 를 눌러 보세요.</div>';
+  $("whyFb").innerHTML = fb;
+  $("btnFold").disabled = !st.ok || wMode !== "flat" || !!wAnim;
+  $("btnGrow").disabled = !st.ok || wMode !== "fold" || wT < 1 || !!wAnim;
+
+  const n = Object.keys(found).length;
+  $("foundCnt").textContent = n + " / 5";
+  document.querySelectorAll("#foundList span").forEach(function(sp){ sp.classList.toggle("on", !!found[sp.dataset.f]); });
+  $("foundFb").innerHTML = n === 5
+    ? '<div class="fb ok">🎉 다섯 가지를 모두 찾았어요. 다른 조합은 모두 면이 <b>3개 미만</b>이거나 각의 합이' +
+      ' <b>360° 이상</b>이라서 정다면체는 <b>다섯 가지뿐</b>이에요.</div>'
+    : '<div class="fb info">면의 모양과 개수를 바꿔 가며 접히는 조합을 모두 찾아보세요.</div>';
+}
+
+function stopWhy(){ if(wAnim){ cancelAnimationFrame(wAnim); wAnim = null; } }
+function playWhy(mode, dur, done){
+  stopWhy();
+  wMode = mode; wT = 0;
+  const t0 = performance.now();
+  (function step(now){
+    const u = Math.max(0, Math.min(1, (now - t0)/dur));
+    wT = 1 - (1 - u)*(1 - u);                   /* 끝에서 살살 */
+    wAnim = u < 1 ? requestAnimationFrame(step) : null;
+    if(tab === "why") buildWhy();
+    paintWhy();
+    if(u >= 1 && done) done();
+  })(t0);
+}
+function resetWhy(){ stopWhy(); wMode = "flat"; wT = 0; paintWhy(); if(tab === "why") rebuild(); }
+$("rWP").addEventListener("input", function(e){ wP = +e.target.value; resetWhy(); });
+$("rWK").addEventListener("input", function(e){ wK = +e.target.value; resetWhy(); });
+$("btnFlat").addEventListener("click", resetWhy);
+$("btnFold").addEventListener("click", function(){ playWhy("fold", 1600); });
+$("btnGrow").addEventListener("click", function(){
+  const key = wP + "," + wK;
+  playWhy("grow", 2600, function(){
+    found[key] = true; paintWhy();
+    if(window.MKSCORE){
+      MKSCORE.once("why" + key, 5, PLAT[SOLID_OF[key]].name + " 접어 만들기");
+      if(Object.keys(found).length === 5) MKSCORE.once("whyAll", 10, "정다면체 다섯 가지 모두 찾기");
+    }
+  });
+});
+
 /* ============================================================
    탭 / 시작
    ============================================================ */
@@ -540,6 +816,9 @@ document.querySelectorAll("header nav button").forEach(function(b){
     $("pFind") .classList.toggle("hidden", tab !== "find");
     $("pCount").classList.toggle("hidden", tab !== "count");
     $("pPlato").classList.toggle("hidden", tab !== "plato");
+    $("pWhy")  .classList.toggle("hidden", tab !== "why");
+    if(tab === "why") rot.ph = 0.8;           /* 펼친 모양이 잘 보이게 위에서 내려다본다 */
+    else group.position.y = 0;
     rebuild();
   });
 });
@@ -555,6 +834,7 @@ function boot(){
   resize();
   paintCount();
   paintPlato();
+  paintWhy();
   nextFind();                                 /* 데이터 먼저 (pitfalls #16) */
   tab = "find";
   rebuild();
