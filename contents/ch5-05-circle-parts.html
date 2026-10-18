@@ -278,6 +278,7 @@ let tab = "learn";
 const LC = {x:420, y:300}, LR = 195;
 let xDeg = 120;
 const show = {arc:true, chord:false, secant:false, sector:false, segment:false};
+let cDeg = 205, dDeg = 335, dragCD = null;          /* 할선의 두 점 C, D — 원을 따라 끈다 */
 
 /* ② */
 const MC = {x:430, y:300}, MR = 195;
@@ -346,7 +347,7 @@ function drawKind(kind, C, R, a, b, color){
 function drawLearn(){
   const aA = 90, aB = 90 - xDeg;                 /* A 는 위, B 는 시계 방향으로 x 만큼 */
   const A = at(LC, LR, aA), B = at(LC, LR, aB);
-  const Cp = at(LC, LR, 205), Dp = at(LC, LR, 335);
+  const Cp = at(LC, LR, cDeg), Dp = at(LC, LR, dDeg);
 
   if(show.sector)  fillSector(LC, LR, aB, aA, ORANGE, "33");
   if(show.segment) fillSegment(LC, LR, aB, aA, PURPLE, "33");
@@ -356,10 +357,18 @@ function drawLearn(){
     const dx = Dp.x - Cp.x, dy = Dp.y - Cp.y, L = Math.hypot(dx, dy);
     const u = {x:dx/L, y:dy/L};
     seg({x:Cp.x - u.x*115, y:Cp.y - u.y*115}, {x:Dp.x + u.x*115, y:Dp.y + u.y*115}, OK, 3.6);
-    dot(Cp, OK, 7, true); dot(Dp, OK, 7, true);
-    ital("C", Cp.x - 24, Cp.y + 16, OK, 21);
-    ital("D", Dp.x + 24, Dp.y + 16, OK, 21);
-    txt("할선 CD", (Cp.x + Dp.x)/2, (Cp.y + Dp.y)/2 + 26, OK, 17, true);
+    dot(Cp, OK, dragCD === "C" ? 11 : 9, true); dot(Dp, OK, dragCD === "D" ? 11 : 9, true);
+    ital("C", LC.x + Math.cos(rad(cDeg))*(LR + 26), LC.y - Math.sin(rad(cDeg))*(LR + 26), OK, 21);
+    ital("D", LC.x + Math.cos(rad(dDeg))*(LR + 26), LC.y - Math.sin(rad(dDeg))*(LR + 26), OK, 21);
+    /* 이름은 현 CD 가운데에서 원 안쪽(중심 쪽)으로 — 두 점이 가까워도 C, D 글자와 안 겹친다.
+       현이 중심 가까이 지나면 글자 O 에서 먼 쪽으로 */
+    let nx = -u.y, ny = u.x;
+    const mx = (Cp.x + Dp.x)/2, my = (Cp.y + Dp.y)/2;
+    const Ol = {x:LC.x - 20, y:LC.y + 16};
+    const near = Math.hypot(mx - LC.x, my - LC.y) < 50;
+    if(near ? Math.hypot(mx + nx*24 - Ol.x, my + ny*24 - Ol.y) < Math.hypot(mx - nx*24 - Ol.x, my - ny*24 - Ol.y)
+            : (mx - LC.x)*nx + (my - LC.y)*ny > 0){ nx = -nx; ny = -ny; }
+    txt("할선 CD", mx + nx*24, my + ny*24, OK, 17, true);
   }
   const mid = 90 - xDeg/2;
   const both = (xDeg === 180) && show.sector && show.segment;   /* 반원이면 둘이 같은 도형 */
@@ -397,7 +406,7 @@ function drawLearn(){
     txt("현 AB", mx + nx, my + ny, BLUE, 17, true);     /* 호 쪽(활꼴 안)으로 살짝 */
   }
 
-  $("tip").textContent = "단추를 눌러 하나씩 켜 보세요";
+  $("tip").textContent = show.secant ? "점 C, D 를 끌어 원을 따라 움직여 보세요" : "단추를 눌러 하나씩 켜 보세요";
 }
 
 function paintLearn(){
@@ -406,7 +415,7 @@ function paintLearn(){
   const TXT = {
     arc:     '<b style="color:#e5484d">호 AB</b> — 원 위의 두 점 A, B 사이의 <b>굽은 선</b>이에요. 기호로 <b>⌒AB</b>.',
     chord:   '<b style="color:#3e63dd">현 AB</b> — 두 점 A, B 를 이은 <b>선분</b>이에요. 지름도 현이에요.',
-    secant:  '<b style="color:#2f9e63">할선 CD</b> — 원 위의 두 점을 지나는 <b>직선</b>이에요.',
+    secant:  '<b style="color:#2f9e63">할선 CD</b> — 원 위의 두 점을 지나는 <b>직선</b>이에요. 점 C, D 를 끌어 원을 따라 움직여 보세요.',
     sector:  '<b style="color:#f5820b">부채꼴 AOB</b> — 두 반지름 OA, OB 와 호 AB 로 둘러싸인 도형. ∠AOB 가 <b>중심각</b>이에요.',
     segment: '<b style="color:#8e4ec6">활꼴</b> — 호 AB 와 현 AB 로 둘러싸인 도형이에요.'
   };
@@ -431,6 +440,40 @@ document.querySelectorAll("#terms .term").forEach(function(b){
       MKSCORE.once("halfcircle", 10, "반원 = 부채꼴이면서 활꼴 찾기");
   });
 });
+
+/* 할선의 점 C, D 끌기 — 원 위에서만 움직이고, 두 점이 겹치지 않게 10° 떨어뜨린다 */
+function learnPt(ev){
+  const p = (window.MK && MK.pos) ? MK.pos(cv, ev) : {x:ev.offsetX, y:ev.offsetY};
+  return toDesign(p.x, p.y);
+}
+function nearCD(d){
+  const C = at(LC, LR, cDeg), D = at(LC, LR, dDeg);
+  const dc = Math.hypot(C.x - d.x, C.y - d.y), dd = Math.hypot(D.x - d.x, D.y - d.y);
+  if(Math.min(dc, dd) > 36) return null;
+  return dc <= dd ? "C" : "D";
+}
+cv.addEventListener("pointerdown", function(ev){
+  if(tab !== "learn" || !show.secant) return;
+  const k = nearCD(learnPt(ev));
+  if(!k) return;
+  dragCD = k; cv.setPointerCapture(ev.pointerId); draw();
+});
+cv.addEventListener("pointermove", function(ev){
+  if(tab !== "learn" || !show.secant){ return; }
+  const d = learnPt(ev);
+  if(!dragCD){ cv.style.cursor = nearCD(d) ? "grab" : ""; return; }
+  let deg = Math.round(Math.atan2(LC.y - d.y, d.x - LC.x) * 180 / Math.PI);
+  deg = (deg + 360) % 360;
+  const other = dragCD === "C" ? dDeg : cDeg;
+  const gap = ((deg - other + 540) % 360) - 180;           /* -180 ~ 180 */
+  if(Math.abs(gap) < 10) return;
+  if(dragCD === "C") cDeg = deg; else dDeg = deg;
+  cv.style.cursor = "grabbing";
+  draw();
+});
+function endCD(){ if(dragCD){ dragCD = null; cv.style.cursor = ""; draw(); } }
+cv.addEventListener("pointerup", endCD);
+cv.addEventListener("pointercancel", endCD);
 
 /* ============================================================
    ② 직접 나타내기
