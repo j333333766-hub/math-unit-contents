@@ -412,7 +412,8 @@ function drawHalf(){
     const idx = Math.floor(i/2);
     const P1 = {
       x:RX + cellW*idx + cellW/2 + (up ? 0 : cellW/2),
-      y:up ? RY : RY - HR,
+      /* 뒤집은 조각의 꼭짓점은 이웃 조각 반지름의 끝(호의 양 끝)에 맞춘다 — 호의 꼭대기(RY - HR)보다 조금 아래 */
+      y:up ? RY : RY - HR*Math.cos(rad(step/2)),
       rot:up ? (90 - mid) : (90 - mid + 180)
     };
     const px = P0.x + (P1.x - P0.x)*t;
