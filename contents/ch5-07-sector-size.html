@@ -176,7 +176,7 @@
            가로는 호의 절반 <b>½<span class="it">l</span></b>, 세로는 반지름 <b><span class="it">r</span></b> 이에요. (교과서 196쪽)</p>
         <div class="slider">
           <label><span>몇 조각으로 자를까</span><span class="v" id="vK">8조각</span></label>
-          <input type="range" id="rK" min="4" max="24" step="2" value="8">
+          <input type="range" id="rK" min="4" max="60" step="2" value="8">
         </div>
         <div class="slider">
           <label><span>펴기</span><span class="v" id="vT">0 %</span></label>
@@ -382,13 +382,24 @@ $("rX").addEventListener("input", function(e){ xx = +e.target.value; paintCalc()
    ③ 잘라서 펴 보기 — S = ½rl
    부채꼴을 k 조각으로 자르고, 위·아래로 엇갈리게 붙여 직사각형에 가깝게 만든다.
    ============================================================ */
-const HC = {x:300, y:250}, HR = 165, HANG = 200;      /* 중심각 200° 짜리 부채꼴로 보여 준다 */
+const HC = {x:245, y:320}, HR = 165, HANG = 200;      /* 중심각 200° 짜리 부채꼴 — 왼쪽에 그대로 두고, 오른쪽에 펼친다 */
 function drawHalf(){
   const t = clamp01(tSpread);
   const step = HANG/kCut;
   const arcLen = 2*Math.PI*HR*HANG/360;
-  const w = arcLen/2;                                  /* 펼친 직사각형의 가로 = 호의 절반 */
-  const RX = 460 - w/2, RY = 330;                      /* 펼친 자리(왼쪽 위 기준) */
+  /* 조각을 현 길이만큼 띄워야 이웃 조각의 반지름끼리 꼭 맞닿는다(호 길이로 띄우면 겹친다).
+     조각이 잘수록 현 → 호 이므로 가로 → 호의 절반 */
+  const cellW = 2*HR*Math.sin(rad(step/2));
+  const w = cellW*kCut/2;                              /* 펼친 직사각형의 가로 ≈ 호의 절반 */
+  const RX = 690 - (w + cellW/2)/2, RY = HC.y;         /* 펼친 자리 : 윗변 왼쪽 끝 x, 아랫변 y */
+
+  /* 원래 부채꼴은 잘린 금만 보이게 제자리에 그대로 둔다 */
+  for(let i = 0; i < kCut; i++){
+    const a = 90 + HANG/2 - i*step, b = a - step;
+    sectorPath(HC, HR, b, a);
+    ctx.fillStyle = FILLS[i % FILLS.length] + "44"; ctx.fill();
+    ctx.strokeStyle = "#c2410c"; ctx.lineWidth = kCut > 24 ? 0.7 : 1.4; ctx.stroke();
+  }
 
   for(let i = 0; i < kCut; i++){
     const a = 90 + HANG/2 - i*step, b = a - step;
@@ -397,11 +408,10 @@ function drawHalf(){
 
     /* 제자리(부채꼴) 좌표계 */
     const P0 = {x:HC.x, y:HC.y, rot:0};
-    /* 펼친 자리 : i 번째 조각을 가로로 나란히 */
-    const cellW = w/Math.ceil(kCut/2);
+    /* 펼친 자리 : 위로 선 조각(꼭짓점이 아래)은 호 한 칸씩, 뒤집은 조각은 그 사이(반 칸 옆)에 끼운다 */
     const idx = Math.floor(i/2);
     const P1 = {
-      x:RX + cellW*idx + (up ? 0 : cellW),
+      x:RX + cellW*idx + cellW/2 + (up ? 0 : cellW/2),
       y:up ? RY : RY - HR,
       rot:up ? (90 - mid) : (90 - mid + 180)
     };
@@ -414,24 +424,24 @@ function drawHalf(){
     ctx.rotate(rad(-rot));
     ctx.translate(-HC.x, -HC.y);
     sectorPath(HC, HR, b, a);
-    ctx.fillStyle = FILLS[i % FILLS.length] + "77";
+    ctx.fillStyle = FILLS[i % FILLS.length] + (t > 0 ? "cc" : "77");
     ctx.fill();
-    ctx.strokeStyle = "#c2410c"; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.strokeStyle = "#c2410c"; ctx.lineWidth = kCut > 24 ? 0.8 : 1.6; ctx.stroke();
     ctx.restore();
   }
 
   if(t > 0.92){
     /* 가로·세로 표시 */
     const y0 = RY - HR, y1 = RY;
-    seg({x:RX, y:y1 + 26}, {x:RX + w, y:y1 + 26}, PURPLE, 3);
-    txt("½ l", RX + w/2, y1 + 48, PURPLE, 19, true);
+    seg({x:RX + cellW/2, y:y1 + 26}, {x:RX + cellW/2 + w, y:y1 + 26}, PURPLE, 3);
+    txt("½ l", RX + cellW/2 + w/2, y1 + 48, PURPLE, 19, true);
     seg({x:RX - 26, y:y0}, {x:RX - 26, y:y1}, OK, 3);
     txt("r", RX - 48, (y0 + y1)/2, OK, 19, true);
     txt("S = r × ½ l = ½ r l", 450, 60, OK, 23, true);
   }else{
     txt("부채꼴을 잘게 잘라 엇갈리게 붙여 보세요", 450, 60, SUB, 20, true);
   }
-  $("tip").textContent = t > 0.92 ? "직사각형에 가까워졌어요" : "펴기 슬라이더를 밀어 보세요";
+  $("tip").textContent = t > 0.92 ? "직사각형에 가까워졌어요" : "펴기 슬라이더를 밀면 오른쪽에 엇갈려 붙여요";
 }
 function paintHalf(){
   $("vK").textContent = kCut + "조각";
