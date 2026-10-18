@@ -546,7 +546,7 @@ function newQuestion(){
   const a = Math.floor(Math.random()*12)*30 + 15;
   let span = 60 + Math.floor(Math.random()*4)*40;          /* 60·100·140·180 */
   if(kind === "segment" && span > 160) span = 120;         /* 활꼴은 작은 쪽이 알아보기 쉽다 */
-  Q.kind = kind; Q.a = a; Q.b = a - span; Q.done = false;
+  Q.kind = kind; Q.a = a; Q.b = a - span; Q.span = span; Q.done = false;
 
   $("quizQ").textContent = "왼쪽 그림에 표시된 것은 무엇일까요?";
   const box = $("qChoices");
@@ -570,13 +570,19 @@ const WHY = {
 function answer(k, btn){
   if(Q.done) return;
   Q.done = true; Q.tries++;
-  const ok = k === Q.kind;
+  /* 중심각 180° 부채꼴은 반원 — 부채꼴이면서 활꼴이므로 둘 다 정답 */
+  const half = Q.kind === "sector" && Q.span === 180;
+  const good = half ? ["sector", "segment"] : [Q.kind];
+  const ok = good.indexOf(k) >= 0;
   if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
   btn.className = ok ? "good" : "bad";
-  if(!ok) $("qChoices").querySelector('button[data-k="' + Q.kind + '"]').className = "good";
+  good.forEach(function(g){ $("qChoices").querySelector('button[data-k="' + g + '"]').className = "good"; });
+  const why = half
+    ? "중심각이 <b>180°</b>인 <b>반원</b>이에요. 두 반지름과 호로 둘러싸였으니 <b>부채꼴</b>이고, 지름(현)과 호로 둘러싸였으니 <b>활꼴</b>이기도 해요."
+    : WHY[Q.kind];
   $("quizFb").innerHTML =
     '<div class="fb ' + (ok ? "ok" : "no") + '">' +
-    (ok ? "🎉 정답! " : '아쉬워요. 답은 <b>' + KNAME[Q.kind] + '</b>. ') + WHY[Q.kind] + '</div>';
+    (ok ? "🎉 정답! " : '아쉬워요. 답은 <b>' + good.map(function(g){ return KNAME[g]; }).join("</b>, <b>") + '</b>. ') + why + '</div>';
   $("qTry").textContent = Q.tries; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
   if(window.MKSCORE) MKSCORE.quiz(ok, "원의 부분 이름 맞히기");
 }
