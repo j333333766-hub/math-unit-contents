@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아르키메데스의 원기둥 — 원뿔 : 구 : 원기둥 = 1 : 2 : 3</title>
+<link rel="stylesheet" href="../assets/common.css?v=4">
+<script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
+<script src="../assets/track.js?v=11" defer></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 356px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  #board{width:100%; height:100%; display:block; touch-action:none;}
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn:disabled{opacity:.45; cursor:default;}
+  .btn:disabled:hover{background:var(--panel); border-color:var(--line); color:var(--ink);}
+
+  .slider{margin-top:11px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:9px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .calc{
+    margin-top:10px; background:#f7f9fd; border:1px solid var(--line); border-radius:10px;
+    padding:11px 12px; font-size:13.5px; font-weight:700; line-height:1.95; color:var(--ink);
+  }
+  .calc .step{color:var(--sub); font-size:12.5px; font-weight:600;}
+  .calc .res{color:var(--accent); font-size:16px;}
+  .it{font-family:'Times New Roman',serif; font-style:italic; font-weight:700;}
+  .frac{display:inline-block; vertical-align:middle; text-align:center; margin:0 2px;}
+  .frac .top{display:block; border-bottom:2px solid currentColor; padding:0 5px;}
+  .frac .bot{display:block; padding:0 5px;}
+
+  .ansrow{display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .ansrow input{
+    width:104px; font:700 17px var(--font); padding:9px 10px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+  .ansrow .unit{font-size:14px; font-weight:700; color:var(--sub);}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:50vh; min-height:320px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 4px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <h1>🏛️ 아르키메데스의 원기둥</h1>
+  <nav>
+    <button class="on" data-tab="ratio">① 1 : 2 : 3</button>
+    <button data-tab="water">② 물 넘치기 실험</button>
+    <button data-tab="cut">③ 단면 비교</button>
+    <button data-tab="quiz">④ 스스로 풀기</button>
+  </nav>
+  <a class="home-btn" href="../index.html?unit=5">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <canvas id="board"></canvas>
+    <div id="tip"></div>
+  </div>
+
+  <aside>
+    <!-- ① 1 : 2 : 3 -->
+    <section id="pRatio">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 꼭 맞는 세 입체도형</h2>
+        <p>반지름이 <span class="it">r</span> 인 <b>구</b>가 <b>원기둥</b> 안에 꼭 맞게 들어가요.
+           원기둥과 <b>원뿔</b>은 밑면의 반지름이 <span class="it">r</span>, 높이가 <b>2<span class="it">r</span></b> 예요.<br>
+           세 입체도형의 부피의 비 <b>(원뿔 : 구 : 원기둥)</b> 를 예상해 보세요.</p>
+        <div class="row" style="margin-top:10px;" id="ratioBtns">
+          <button class="btn sm" data-ratio="1">1 : 1 : 1</button>
+          <button class="btn sm" data-ratio="2">1 : 2 : 3</button>
+          <button class="btn sm" data-ratio="3">1 : 3 : 4</button>
+          <button class="btn sm" data-ratio="4">2 : 3 : 4</button>
+        </div>
+        <div id="ratioFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn sm" id="btnShow">📊 부피 비교해 보기</button>
+        </div>
+        <div class="slider">
+          <label><span>반지름 <span class="it">r</span></span><span class="v" id="vR">3 cm</span></label>
+          <input type="range" id="rR" min="1" max="6" step="1" value="3">
+        </div>
+        <div class="calc hidden" id="ratioCalc"></div>
+      </div>
+      <div class="blk hidden" id="ratioLearn">
+        <h2>알게 된 것</h2>
+        <p><b>원뿔 : 구 : 원기둥 = 1 : 2 : 3</b><br>
+           고대 그리스의 수학자 <b>아르키메데스</b>(기원전 3세기)가 밝혀낸 관계예요.
+           그는 이 발견을 무척 자랑스러워해서 자기 묘비에 <b>원기둥 속의 구</b>를 새겨 달라고 했대요.</p>
+      </div>
+    </section>
+
+    <!-- ② 물 넘치기 -->
+    <section id="pWater" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 물로 확인해 보세요</h2>
+        <p>물이 <b>가득 찬</b> 원기둥에 꼭 맞는 구를 넣으면 물이 넘쳐요. 넘친 물은 옆의 <b>똑같은 원기둥</b>에 모여요.
+           구를 꺼낸 뒤에는 같은 원기둥에 꼭 맞는 <b>원뿔</b>로 물을 부어 봐요.</p>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary sm" id="btnW1">① 구 넣기</button>
+          <button class="btn primary sm" id="btnW2" disabled>② 구 꺼내기</button>
+          <button class="btn primary sm" id="btnW3" disabled>③ 원뿔로 붓기</button>
+        </div>
+        <div class="row" style="margin-top:6px;">
+          <button class="btn sm" id="btnWReset">↺ 처음부터</button>
+        </div>
+        <div class="calc" id="waterCalc"></div>
+        <div id="waterFb"></div>
+      </div>
+    </section>
+
+    <!-- ③ 단면 비교 -->
+    <section id="pCut" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> (도전) 단면으로 비교하기</h2>
+        <p>원기둥 안에 <b>구</b>와, 꼭짓점이 구의 중심에서 만나는 <b>원뿔 두 개</b>를 넣었어요.
+           높이를 바꿔 가며 같은 높이에서 자른 단면을 비교해 보세요. (반지름 10 으로 계산해요)</p>
+        <div class="slider">
+          <label><span>자르는 높이 (중심에서 <span class="it">d</span>)</span><span class="v" id="vH">0</span></label>
+          <input type="range" id="rH" min="0" max="20" step="1" value="13">
+        </div>
+        <div class="calc" id="cutCalc"></div>
+        <div id="cutFb"></div>
+      </div>
+      <div class="blk">
+        <h2>알게 된 것</h2>
+        <p>어느 높이에서 잘라도 <b>(원기둥 단면) − (구 단면) = (원뿔 단면)</b> 이에요.
+           그러니 <b>원기둥 − 구 = 원뿔 두 개</b>, 곧 높이 2<span class="it">r</span> 인 원뿔 하나만큼이에요.<br>
+           구 = 원기둥 − 원뿔 = 3 − 1 = <b>2</b> (원뿔 몇 개분)</p>
+      </div>
+    </section>
+
+    <!-- ④ 퀴즈 -->
+    <section id="pQuiz" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 4</span> 스스로 풀기</h2>
+        <p id="ask"></p>
+        <div class="ansrow">
+          <input type="text" id="ansIn" placeholder="?" inputmode="decimal" autocomplete="off">
+          <span class="unit">π cm³</span>
+        </div>
+        <p style="margin-top:7px;font-size:12.5px;">π 를 빼고 <b>숫자만</b> 적어 주세요.
+           분수는 <b>16/3</b> 처럼 적어도 되고 <b>5.33</b> 처럼 소수로 적어도 돼요.</p>
+        <div id="quizFb"></div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="btnCheck">✅ 확인</button>
+          <button class="btn sm" id="btnNext">🔄 새 문제</button>
+        </div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+
+const DW = 900, DH = 600;
+const INK = "#1d2433", SUB = "#68738a";
+const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b", TEAL = "#0f9488";
+const WATER = "#4dabf7";
+const rad = d => d*Math.PI/180;
+const clamp01 = v => Math.max(0, Math.min(1, v));
+const sm = x => { x = clamp01(x); return x*x*(3 - 2*x); };
+
+const cv = $("board"), ctx = cv.getContext("2d");
+function view(){
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const s = Math.min(W/DW, H/DH);
+  return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
+}
+function seg(a, b, color, w, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.restore();
+}
+function txt(t, x, y, color, size, halo){
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "800 " + size + "px Pretendard, 'Malgun Gothic', sans-serif";
+  if(halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = color; ctx.fillText(t, x, y);
+}
+function ellipse(cx, cy, rx, ry, fill, stroke, lw){
+  ctx.beginPath(); ctx.ellipse(cx, cy, Math.max(0, rx), Math.max(0, ry), 0, 0, 7);
+  if(fill){ ctx.fillStyle = fill; ctx.fill(); }
+  if(stroke){ ctx.strokeStyle = stroke; ctx.lineWidth = lw || 2.4; ctx.stroke(); }
+}
+function poly(pts, fill, stroke, lw){
+  ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath();
+  if(fill){ ctx.fillStyle = fill; ctx.fill(); }
+  if(stroke){ ctx.strokeStyle = stroke; ctx.lineWidth = lw || 2.4; ctx.stroke(); }
+}
+function ball(cx, cy, R, color, alpha){
+  ctx.save(); ctx.globalAlpha = alpha == null ? 1 : alpha;
+  const g = ctx.createRadialGradient(cx - R*0.35, cy - R*0.4, R*0.08, cx, cy, R);
+  g.addColorStop(0, "#ffffff"); g.addColorStop(0.25, color + "cc"); g.addColorStop(1, color);
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+}
+const r2 = v => Math.round(v*100)/100;
+function frac(n, d){            /* 화면 칸에 쓰는 분수 */
+  const g = (function gcd(a, b){ return b ? gcd(b, a % b) : a; })(Math.abs(n), Math.abs(d));
+  const p = n/g, q = d/g;
+  return q === 1 ? String(p)
+    : '<span class="frac"><span class="top">' + p + '</span><span class="bot">' + q + '</span></span>';
+}
+function fracT(n, d){           /* 캔버스에 쓰는 분수 */
+  const g = (function gcd(a, b){ return b ? gcd(b, a % b) : a; })(Math.abs(n), Math.abs(d));
+  return d/g === 1 ? String(n/g) : (n/g) + "/" + (d/g);
+}
+function clipBelow(P, yl){                                   /* 다각형에서 y ≥ yl 인 부분(아래쪽) */
+  const out = [];
+  for(let i = 0; i < P.length; i++){
+    const a = P[i], b = P[(i + 1) % P.length], ia = a.y >= yl, ib = b.y >= yl;
+    if(ia) out.push(a);
+    if(ia !== ib){ const k = (yl - a.y)/(b.y - a.y); out.push({x:a.x + (b.x - a.x)*k, y:yl}); }
+  }
+  return out;
+}
+function area(P){ let s = 0; for(let i = 0; i < P.length; i++){ const a = P[i], b = P[(i + 1) % P.length]; s += a.x*b.y - b.x*a.y; } return Math.abs(s)/2; }
+
+/* ============================================================
+   상태
+   ============================================================ */
+let tab = "ratio";
+let rr = 3, shown = false, ratioDone = false, ratioTried = false;          /* ① */
+let wStage = 0, wAnim = null, wT = 0;                                      /* ② 0 처음 · 1 구 넣음 · 2 구 꺼냄 · 3 원뿔로 채움 */
+let cutH = 13, cutSeen = {}, cutDone = false;                              /* ③ */
+let Q = {give:"r", ask:"sphere", r:0, ans:0, done:false, tries:0, ok:0, streak:0};
+
+/* 세 입체도형 그리기 (밑면 가운데 x, 밑면 y, 반지름 R) */
+function drawCone(cx, by, R, fill, stroke){
+  poly([{x:cx, y:by - 2*R}, {x:cx - R, y:by}, {x:cx + R, y:by}], fill, stroke, 2.6);
+  ellipse(cx, by, R, R*0.26, fill, stroke, 2.4);
+}
+function drawCyl(cx, by, R, fill, stroke, dash){
+  ctx.save(); if(dash) ctx.setLineDash(dash);
+  if(fill){ ctx.fillStyle = fill; ctx.fillRect(cx - R, by - 2*R, 2*R, 2*R); ellipse(cx, by, R, R*0.26, fill, null); }
+  ctx.strokeStyle = stroke; ctx.lineWidth = 2.4;
+  ctx.beginPath(); ctx.moveTo(cx - R, by - 2*R); ctx.lineTo(cx - R, by); ctx.moveTo(cx + R, by - 2*R); ctx.lineTo(cx + R, by); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(cx, by, R, R*0.26, 0, 0, Math.PI); ctx.stroke();
+  ellipse(cx, by - 2*R, R, R*0.26, fill ? "#ffffff88" : null, stroke, 2.4);
+  ctx.restore();
+}
+
+/* ============================================================
+   ① 1 : 2 : 3
+   ============================================================ */
+const RX = [170, 450, 730], RBY = 400, RR = 82;
+function drawRatio(){
+  const names = ["원뿔", "구", "원기둥"], cols = [ORANGE, BLUE, TEAL];
+  for(let i = 0; i < 3; i++){
+    const cx = RX[i];
+    if(i < 2) drawCyl(cx, RBY, RR, null, "#b8c2d4", [6, 5]);            /* 꼭 맞는 원기둥(점선) */
+    if(i === 0) drawCone(cx, RBY, RR, ORANGE + "40", ORANGE);
+    if(i === 1){ ball(cx, RBY - RR, RR, BLUE, 0.9); ellipse(cx, RBY - RR, RR, RR*0.28, null, "#ffffff99", 1.6); }
+    if(i === 2) drawCyl(cx, RBY, RR, TEAL + "33", TEAL);
+    txt(names[i], cx, RBY + 44, cols[i], 20, true);
+  }
+  /* r 과 2r 표시 */
+  seg({x:RX[1], y:RBY - RR}, {x:RX[1] + RR, y:RBY - RR}, INK, 2, [5, 4]);
+  txt("r", RX[1] + RR/2, RBY - RR - 14, INK, 17, true);
+  const mx = RX[2] + RR + 26;
+  seg({x:mx, y:RBY - 2*RR}, {x:mx, y:RBY}, SUB, 2);
+  seg({x:mx - 6, y:RBY - 2*RR}, {x:mx + 6, y:RBY - 2*RR}, SUB, 2);
+  seg({x:mx - 6, y:RBY}, {x:mx + 6, y:RBY}, SUB, 2);
+  txt("2r", mx + 20, RBY - RR, SUB, 16, true);
+  /* 부피 막대 : 원뿔 부피 한 칸씩 */
+  if(shown){
+    for(let i = 0; i < 3; i++){
+      for(let k = 0; k <= i; k++){
+        const x = RX[i] - 56, w = 112, y = 548 - (k + 1)*26;
+        ctx.fillStyle = ORANGE + (k === 0 && i === 0 ? "ee" : "aa");
+        ctx.fillRect(x, y, w, 22);
+        ctx.strokeStyle = ORANGE; ctx.lineWidth = 1.6; ctx.strokeRect(x, y, w, 22);
+      }
+      txt(String(i + 1), RX[i] + 80, 548 - (i + 1)*13, cols[i], 24, true);
+    }
+    txt("원뿔 부피 한 칸", 450, 568, SUB, 13, true);
+    txt("원뿔 : 구 : 원기둥 = 1 : 2 : 3", 450, 52, OK, 22, true);
+  }else{
+    txt("세 부피의 비는?", 450, 52, INK, 22, true);
+  }
+  $("tip").textContent = shown ? "" : "오른쪽에서 예상을 골라 보세요";
+}
+function paintRatio(){
+  $("vR").textContent = rr + " cm";
+  const r3 = rr*rr*rr;
+  $("ratioCalc").classList.toggle("hidden", !shown);
+  $("ratioLearn").classList.toggle("hidden", !shown);
+  $("ratioCalc").innerHTML =
+    '<span class="step">원뿔 = ' + frac(1, 3) + ' × π' + rr + '² × ' + (2*rr) + '</span><br>' + frac(2*r3, 3) + 'π cm³' +
+    '<br><span class="step">구 = ' + frac(4, 3) + ' × π' + rr + '³</span><br>' + frac(4*r3, 3) + 'π cm³' +
+    '<br><span class="step">원기둥 = π' + rr + '² × ' + (2*rr) + '</span><br>' + (2*r3) + 'π cm³' +
+    '<br><span class="step">원뿔 부피로 나누면</span><br><span class="res">1 : 2 : 3</span>';
+}
+document.querySelectorAll("[data-ratio]").forEach(function(b){
+  b.addEventListener("click", function(){
+    if(ratioDone) return;
+    const ok = b.dataset.ratio === "2";
+    if(!ratioTried && window.MKSCORE) MKSCORE.quiz(ok, "세 부피의 비 예상", false);   /* 점수는 처음 고른 것만 */
+    ratioTried = true;
+    if(ok){
+      ratioDone = true; shown = true;
+      document.querySelectorAll("[data-ratio]").forEach(function(x){ x.disabled = true; });
+      $("ratioFb").innerHTML = '<div class="fb ok">🎉 맞았어요! 원뿔 : 구 : 원기둥 = <b>1 : 2 : 3</b> 이에요.' +
+        ' 구는 원뿔 두 개, 원기둥은 원뿔 세 개만큼이에요.</div>';
+    }else{
+      $("ratioFb").innerHTML = '<div class="fb no">아직이에요. 원뿔은 원기둥의 ' + frac(1, 3) +
+        ' 이라는 걸 떠올려 보세요. 구는 원기둥의 몇 분의 몇이었죠?</div>';
+    }
+    paintRatio(); draw();
+  });
+});
+$("btnShow").addEventListener("click", function(){ shown = true; paintRatio(); draw(); });
+$("rR").addEventListener("input", function(e){ rr = +e.target.value; paintRatio(); draw(); });
+
+/* ============================================================
+   ② 물 넘치기 실험
+   왼쪽 원기둥(받침 위)에 물을 가득 채우고 꼭 맞는 구를 넣는다. 잠긴 부분의 부피
+   π d²(3r − d)/3 만큼 물이 넘쳐 홈통을 따라 오른쪽의 똑같은 원기둥으로 흘러간다.
+   구를 꺼내면 원기둥의 1/3 이 남고, 꼭 맞는 원뿔 한 번이면 다시 가득 찬다.
+   ============================================================ */
+const WR = 84, WH = 2*WR;
+const MX = 390, MBY = 462, MTOP = MBY - WH;             /* 왼쪽 원기둥 */
+const SX = 715, SBY = 528, STOP = SBY - WH;             /* 넘친 물 받는 원기둥 */
+const SPOUT = [{x:MX + WR, y:MTOP + 2}, {x:SX - WR + 34, y:STOP - 26}];
+const C0 = WH + WR + 26;                                /* 처음 구의 중심 높이(왼쪽 밑면에서) */
+const PARK = {x:782, y:150};                            /* 꺼낸 구를 두는 곳 */
+const CN = {x:120, y:MBY - WH};                         /* 원뿔 그릇(꼭짓점이 아래) 가장자리 가운데 */
+const TH = rad(100);
+const CPOUR = {x:MX - 40 - WR*Math.cos(TH), y:MTOP - 18 - WR*Math.sin(TH)};
+const subH = d => d*d*(3*WR - d)/(3*WR*WR);             /* 깊이 d 만큼 잠긴 구의 부피를 원기둥 높이로 */
+function levelWith(c, water){                           /* 구 중심이 c 일 때 물 부피 water(높이 단위)의 수면 */
+  let lo = 0, hi = WH;
+  for(let k = 0; k < 30; k++){
+    const m = (lo + hi)/2, d = Math.max(0, Math.min(2*WR, m - (c - WR)));
+    if(m - subH(d) < water) lo = m; else hi = m;
+  }
+  return (lo + hi)/2;
+}
+function wState(){
+  const u = wAnim ? wT : 0;
+  let ball = {x:MX, y:MBY - C0}, inC = C0, level = WH, side = 0, flow = false, pour = null, coneF = 1;
+  const stage = wAnim ? wStage : wStage;      /* 애니메이션 중에는 wStage 가 '지금 하는 단계 - 1' */
+  if(stage === 0 && !wAnim){ /* 처음 */ }
+  if(stage >= 1 || (wAnim && wStage === 0)){
+    const k = (wAnim && wStage === 0) ? sm(u) : 1;
+    inC = C0 + (WR - C0)*k;
+    const d = Math.max(0, Math.min(2*WR, 3*WR - inC));
+    side = subH(d); flow = wAnim && wStage === 0 && d > 0 && d < 2*WR;
+    ball = {x:MX, y:MBY - inC};
+  }
+  if(stage >= 2 || (wAnim && wStage === 1)){
+    const k = (wAnim && wStage === 1) ? u : 1;
+    const up = sm(k/0.55);
+    inC = WR + (C0 - WR)*up;
+    level = levelWith(inC, WH - 4*WR/3);
+    ball = {x:MX, y:MBY - inC};
+    if(k > 0.55){ const g = sm((k - 0.55)/0.45); ball = {x:MX + (PARK.x - MX)*g, y:(MBY - C0) + (PARK.y - (MBY - C0))*g - 40*Math.sin(Math.PI*g)}; inC = 1e9; }
+    side = 4*WR/3;
+  }
+  if(stage >= 3 || (wAnim && wStage === 2)){
+    inC = 1e9; ball = PARK;
+    let pos = CN, th = 0, f = 1, fl = 0;
+    if(wAnim && wStage === 2){
+      if(u < 0.3){ const k = sm(u/0.3); pos = {x:CN.x + (CPOUR.x - CN.x)*k, y:CN.y + (CPOUR.y - CN.y)*k - 70*Math.sin(Math.PI*k)}; th = TH*k; }
+      else if(u < 0.8){ pos = CPOUR; th = TH; fl = (u - 0.3)/0.5; f = 1 - fl; }
+      else{ const k = sm((u - 0.8)/0.15); pos = {x:CPOUR.x + (CN.x - CPOUR.x)*k, y:CPOUR.y + (CN.y - CPOUR.y)*k - 50*Math.sin(Math.PI*k)}; th = TH*(1 - k); fl = 1; f = 0; }
+    }else{ fl = 1; f = 0; }
+    pour = {pos, th, stream:wAnim && wStage === 2 && u > 0.3 && u < 0.8, u};
+    coneF = f;
+    level = 2*WR/3 + (WH - 2*WR/3)*fl;
+  }
+  return {ball, inC, level, side, flow, pour, coneF};
+}
+function drawConeCup(pos, th, f){
+  const c = Math.cos(th), s = Math.sin(th), W = (x, y) => ({x:pos.x + x*c - y*s, y:pos.y + x*s + y*c});
+  const tri = [W(-WR, 0), W(WR, 0), W(0, WH)];
+  poly(tri, "#fff4e8", null);
+  if(f > 0.001){
+    const want = area(tri)*Math.pow(f, 2/3);                 /* 물 면은 늘 수평 */
+    let lo = Math.min(tri[0].y, tri[1].y, tri[2].y), hi = Math.max(tri[0].y, tri[1].y, tri[2].y);
+    for(let k = 0; k < 28; k++){ const m = (lo + hi)/2; if(area(clipBelow(tri, m)) > want) lo = m; else hi = m; }
+    const yl = (lo + hi)/2;
+    poly(clipBelow(tri, yl), WATER + "cc", null);
+    if(th < 0.02 && f < 0.999) ellipse(pos.x, yl, WR*(tri[2].y - yl)/WH, WR*(tri[2].y - yl)/WH*0.26, WATER, "#1c7ed6", 1.4);
+  }
+  ctx.save(); ctx.translate(pos.x, pos.y); ctx.rotate(th);
+  ctx.strokeStyle = ORANGE; ctx.lineWidth = 2.6; ctx.lineJoin = "round";
+  ctx.beginPath(); ctx.moveTo(-WR, 0); ctx.lineTo(0, WH); ctx.lineTo(WR, 0); ctx.stroke();
+  ellipse(0, 0, WR, WR*0.26, (f >= 0.999 && th < 0.02) ? WATER : "#ffffff66", ORANGE, 2.4);
+  ctx.restore();
+}
+function drawTank(cx, by, level, tickLabel){
+  const top = by - WH;
+  ctx.fillStyle = "#f1f5fb"; ctx.fillRect(cx - WR, top, 2*WR, WH);
+  ellipse(cx, by, WR, WR*0.26, "#f1f5fb", "#7b8aa5", 2.2);
+  if(level > 0.5){
+    const y = by - level;
+    ellipse(cx, by, WR, WR*0.26, WATER + "bb", null);
+    ctx.fillStyle = WATER + "bb"; ctx.fillRect(cx - WR, y, 2*WR, level);
+    ellipse(cx, y, WR, WR*0.26, WATER, "#1c7ed6", 1.4);
+  }
+  if(tickLabel){
+    for(let k = 1; k <= 2; k++){
+      const y = by - WH*k/3;
+      seg({x:cx - WR - 10, y}, {x:cx - WR, y}, SUB, 2);
+      txt(k + "/3", cx - WR - 28, y, SUB, 13, true);
+    }
+  }
+}
+function tankOutline(cx, by, full){
+  const top = by - WH;
+  ctx.strokeStyle = "#7b8aa5"; ctx.lineWidth = 2.6;
+  ctx.beginPath(); ctx.moveTo(cx - WR, top); ctx.lineTo(cx - WR, by); ctx.moveTo(cx + WR, top); ctx.lineTo(cx + WR, by); ctx.stroke();
+  ellipse(cx, top, WR, WR*0.26, full ? null : "#ffffff55", "#7b8aa5", 2.4);
+}
+function drawWater(){
+  const S = wState();
+  /* 받침과 홈통 */
+  ctx.fillStyle = "#e3e8f0"; ctx.fillRect(MX - WR - 18, MBY + 4, 2*WR + 36, SBY - MBY - 4);
+  ctx.strokeStyle = "#b8c2d4"; ctx.lineWidth = 2; ctx.strokeRect(MX - WR - 18, MBY + 4, 2*WR + 36, SBY - MBY - 4);
+  seg({x:SPOUT[0].x - 4, y:SPOUT[0].y + 4}, {x:SPOUT[1].x, y:SPOUT[1].y + 4}, "#9aa7bd", 7);
+
+  /* 원뿔 받침 */
+  const ry = MBY - WH*0.42, rw = WR*0.42;
+  ctx.strokeStyle = "#c3cad8"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(CN.x - rw, ry); ctx.lineTo(CN.x - WR*0.8, SBY); ctx.moveTo(CN.x + rw, ry); ctx.lineTo(CN.x + WR*0.8, SBY); ctx.stroke();
+  ellipse(CN.x, ry, rw, rw*0.28, null, "#c3cad8", 3);
+
+  /* 넘친 물 받는 원기둥 */
+  drawTank(SX, SBY, S.side, true);
+  tankOutline(SX, SBY, false);
+  txt("넘친 물", SX, SBY + 40, INK, 18, true);
+
+  /* 왼쪽 원기둥 + 구 */
+  drawTank(MX, MBY, S.level, true);
+  const sub = S.inC < 1e8;
+  if(sub){
+    ball(S.ball.x, S.ball.y, WR, RED, 0.92);
+    /* 물에 잠긴 부분은 물빛을 덧칠 */
+    ctx.save();
+    ctx.beginPath(); ctx.arc(S.ball.x, S.ball.y, WR, 0, 7); ctx.clip();
+    ctx.fillStyle = WATER + "66"; ctx.fillRect(MX - WR, MBY - S.level, 2*WR, S.level);
+    ctx.restore();
+  }
+  tankOutline(MX, MBY, false);
+  if(!sub) ball(S.ball.x, S.ball.y, WR, RED, 0.92);
+  txt("구를 넣을 원기둥", MX, MBY + 40 + (SBY - MBY), INK, 16, true);
+
+  /* 넘치는 물줄기 */
+  if(S.flow){
+    seg({x:SPOUT[0].x, y:SPOUT[0].y - 2}, SPOUT[1], WATER, 6);
+    seg(SPOUT[1], {x:SPOUT[1].x, y:SBY - S.side}, WATER, 5);
+  }
+  /* 원뿔 그릇 */
+  const P = S.pour;
+  drawConeCup(P ? P.pos : CN, P ? P.th : 0, P ? S.coneF : 1);
+  if(P && P.stream){
+    const lip = {x:CPOUR.x + WR*Math.cos(TH), y:CPOUR.y + WR*Math.sin(TH)};
+    const w = 8*Math.min(1, (0.8 - P.u)/0.08, (P.u - 0.3)/0.04);
+    seg(lip, {x:lip.x, y:MBY - S.level}, WATER, Math.max(2, w));
+  }
+  txt("원뿔", CN.x, SBY + 40, ORANGE, 18, true);
+
+  const msg = ["물이 가득 찬 원기둥에 구를 넣어 볼까요?", "넘친 물 = 원기둥의 2/3 → 구의 부피",
+               "남은 물 = 원기둥의 1/3", "원뿔 한 번으로 가득! → 원뿔 : 구 : 원기둥 = 1 : 2 : 3"][wStage];
+  txt(wAnim ? "…" : msg, 450, 52, wStage === 3 && !wAnim ? OK : INK, 20, true);
+  $("tip").textContent = "";
+}
+function paintWater(){
+  $("btnW1").disabled = wStage !== 0 || !!wAnim;
+  $("btnW2").disabled = wStage !== 1 || !!wAnim;
+  $("btnW3").disabled = wStage !== 2 || !!wAnim;
+  const rows = [
+    ["넘친 물(구의 부피)", wStage >= 1 ? frac(2, 3) + " (원기둥의)" : "?"],
+    ["구를 꺼낸 뒤 남은 물", wStage >= 2 ? frac(1, 3) + " (원기둥의)" : "?"],
+    ["원뿔 한 번 부은 물", wStage >= 3 ? frac(1, 3) + " (원기둥의)" : "?"]
+  ];
+  $("waterCalc").innerHTML = rows.map(r => '<span class="step">' + r[0] + '</span><br>' + r[1]).join("<br>");
+  const fb = [
+    '<div class="fb info">① <b>구 넣기</b> 를 눌러 보세요. 물이 얼마나 넘칠까요?</div>',
+    '<div class="fb info">넘친 물이 옆 원기둥의 <b>' + frac(2, 3) + '</b> 까지 찼어요. 구의 부피는 원기둥의 ' + frac(2, 3) + ' 이에요. 이제 구를 꺼내 보세요.</div>',
+    '<div class="fb info">구를 꺼내니 물이 원기둥의 <b>' + frac(1, 3) + '</b> 만 남았어요. 원뿔에 담은 물로 채워 볼까요?</div>',
+    '<div class="fb ok">🎉 원뿔 한 번으로 원기둥이 다시 가득 찼어요! 원뿔은 원기둥의 1/3, 구는 2/3 — ' +
+      '<b>원뿔 : 구 : 원기둥 = 1 : 2 : 3</b> 이에요.</div>'
+  ];
+  $("waterFb").innerHTML = fb[wStage];
+  if(wStage === 3 && window.MKSCORE) MKSCORE.once("archiWater", 10, "물 넘치기로 1 : 2 : 3 확인");
+}
+function stopWater(){ if(wAnim){ cancelAnimationFrame(wAnim); wAnim = null; } wT = 0; }
+function runWater(from){
+  if(wAnim || wStage !== from) return;
+  const t0 = performance.now(), DUR = from === 2 ? 2800 : 2600;
+  (function step(now){
+    wT = Math.min(1, (now - t0)/DUR);
+    draw();
+    if(wT < 1) wAnim = requestAnimationFrame(step);
+    else{ wAnim = null; wT = 0; wStage = from + 1; paintWater(); draw(); }
+  })(performance.now());
+  paintWater();
+}
+$("btnW1").addEventListener("click", function(){ runWater(0); });
+$("btnW2").addEventListener("click", function(){ runWater(1); });
+$("btnW3").addEventListener("click", function(){ runWater(2); });
+$("btnWReset").addEventListener("click", function(){ stopWater(); wStage = 0; paintWater(); draw(); });
+
+/* ============================================================
+   ③ 단면 비교 — 원기둥 안에 구와 쌍원뿔(꼭짓점이 중심)
+   중심에서 d 만큼 떨어진 곳을 자르면
+     원기둥 πr², 구 π(r² − d²), 원뿔 πd²  →  원기둥 − 구 = 원뿔
+   ============================================================ */
+const KX = 210, KBY = 480, KR = 118;
+function drawCut(){
+  const d = cutH - 10, y = KBY - KR - d/10*KR, hw = Math.abs(d)/10*KR, sw = Math.sqrt(Math.max(0, 100 - d*d))/10*KR;
+  /* 앞에서 본 모습(가운데를 세로로 자른 면) */
+  ctx.fillStyle = TEAL + "22"; ctx.fillRect(KX - KR, KBY - 2*KR, 2*KR, 2*KR);
+  ctx.strokeStyle = TEAL; ctx.lineWidth = 2.6; ctx.strokeRect(KX - KR, KBY - 2*KR, 2*KR, 2*KR);
+  ctx.beginPath(); ctx.arc(KX, KBY - KR, KR, 0, 7); ctx.fillStyle = BLUE + "33"; ctx.fill(); ctx.strokeStyle = BLUE; ctx.stroke();
+  poly([{x:KX - KR, y:KBY - 2*KR}, {x:KX + KR, y:KBY - 2*KR}, {x:KX, y:KBY - KR}], ORANGE + "40", ORANGE, 2.4);
+  poly([{x:KX - KR, y:KBY}, {x:KX + KR, y:KBY}, {x:KX, y:KBY - KR}], ORANGE + "40", ORANGE, 2.4);
+  /* 자르는 면 */
+  seg({x:KX - KR - 24, y}, {x:KX + KR + 24, y}, INK, 2, [7, 5]);
+  seg({x:KX - sw, y}, {x:KX + sw, y}, BLUE, 5);
+  seg({x:KX - hw, y}, {x:KX + hw, y}, ORANGE, 5);
+  txt("d = " + d, KX + KR + 50, y, INK, 15, true);
+  txt("앞에서 자른 모습", KX, KBY + 30, SUB, 15, true);
+
+  /* 단면 : 원기둥 단면에서 구 단면을 뺀 고리 = 원뿔 단면 */
+  const UX = 545, VX = 790, UY = 300, UR = 100;
+  ctx.beginPath(); ctx.arc(UX, UY, UR, 0, 2*Math.PI); ctx.moveTo(UX + sw/KR*UR, UY); ctx.arc(UX, UY, sw/KR*UR, 0, 2*Math.PI, true);
+  ctx.fillStyle = ORANGE + "88"; ctx.fill();
+  ellipse(UX, UY, UR, UR, null, TEAL, 2.6);
+  ellipse(UX, UY, sw/KR*UR, sw/KR*UR, BLUE + "33", BLUE, 2.4);
+  txt("원기둥 − 구", UX, UY + UR + 26, INK, 16, true);
+  txt("= 고리 " + (d*d) + "π", UX, UY + UR + 50, ORANGE, 17, true);
+  txt("=", (UX + VX)/2 + 12, UY, INK, 30, false);
+  if(hw > 0.5) ellipse(VX, UY, hw/KR*UR, hw/KR*UR, ORANGE + "88", ORANGE, 2.4);
+  else{ ctx.beginPath(); ctx.arc(VX, UY, 3, 0, 7); ctx.fillStyle = ORANGE; ctx.fill(); }
+  ellipse(VX, UY, UR, UR, null, "#d6dce7", 1.4);
+  txt("원뿔 단면", VX, UY + UR + 26, INK, 16, true);
+  txt("= " + (d*d) + "π", VX, UY + UR + 50, ORANGE, 17, true);
+  txt("단면 넓이 비교 (반지름 10)", 450, 52, INK, 20, true);
+  $("tip").textContent = "높이 슬라이더를 움직여 보세요";
+}
+function paintCut(){
+  const d = cutH - 10;
+  $("vH").textContent = d;
+  $("cutCalc").innerHTML =
+    '<span class="step">원기둥 단면</span><br>π×10² = 100π' +
+    '<br><span class="step">구 단면 (반지름² = 10² − ' + Math.abs(d) + '²)</span><br>π×' + (100 - d*d) + ' = ' + (100 - d*d) + 'π' +
+    '<br><span class="step">원기둥 − 구</span><br>100π − ' + (100 - d*d) + 'π = ' + (d*d) + 'π' +
+    '<br><span class="step">원뿔 단면 (반지름 ' + Math.abs(d) + ')</span><br><span class="res">π×' + Math.abs(d) + '² = ' + (d*d) + 'π</span>';
+  const n = Object.keys(cutSeen).length;
+  $("cutFb").innerHTML = cutDone
+    ? '<div class="fb ok">🎉 어느 높이에서 잘라도 (원기둥 − 구) 의 단면과 원뿔의 단면이 같아요! 그래서 원기둥 − 구 = 원뿔 두 개예요.</div>'
+    : '<div class="fb info">서로 다른 높이 <b>5곳</b> 이상에서 비교해 보세요. (지금 ' + n + '곳)</div>';
+}
+$("rH").addEventListener("input", function(e){
+  cutH = +e.target.value; cutSeen[cutH] = 1;
+  if(!cutDone && Object.keys(cutSeen).length >= 5){
+    cutDone = true;
+    if(window.MKSCORE) MKSCORE.once("archiCut", 10, "단면으로 원기둥 − 구 = 원뿔 확인");
+  }
+  paintCut(); draw();
+});
+
+/* ============================================================
+   ④ 스스로 풀기
+   ============================================================ */
+const KIND = {cone:"원뿔", sphere:"구", cyl:"원기둥"};
+const VOL = {cone:r => 2*r*r*r/3, sphere:r => 4*r*r*r/3, cyl:r => 2*r*r*r};
+const VFR = {cone:r => frac(2*r*r*r, 3), sphere:r => frac(4*r*r*r, 3), cyl:r => String(2*r*r*r)};
+function drawQuiz(){
+  const xs = {cone:200, sphere:450, cyl:700}, by = 400, R = 78;
+  ["cone", "sphere", "cyl"].forEach(function(k){
+    const cx = xs[k], on = k === Q.ask, gv = k === Q.give;
+    const col = k === "cone" ? ORANGE : k === "sphere" ? BLUE : TEAL;
+    ctx.save(); ctx.globalAlpha = (on || gv || Q.give === "r") ? 1 : 0.35;
+    if(k === "cone") drawCone(cx, by, R, col + "40", col);
+    if(k === "sphere") ball(cx, by - R, R, col, 0.85);
+    if(k === "cyl") drawCyl(cx, by, R, col + "33", col);
+    ctx.restore();
+    txt(KIND[k], cx, by + 40, col, 19, true);
+    if(on) txt("?", cx, by - R, "#fff", 46, false), txt("부피는?", cx, by - 2*R - 26, INK, 18, true);
+    if(gv) txt(fracT(Math.round(VOL[k](Q.r)*3), 3) + "π cm³", cx, by - 2*R - 26, OK, 18, true);
+  });
+  if(Q.give === "r") txt("반지름 " + Q.r + " cm · 높이 " + (2*Q.r) + " cm", 450, 470, INK, 17, true);
+  txt("원뿔 : 구 : 원기둥 = 1 : 2 : 3", 450, 52, SUB, 18, true);
+  $("tip").textContent = "";
+}
+function newQuestion(){
+  const ks = ["cone", "sphere", "cyl"];
+  let guard = 0, give, ask;
+  do{
+    give = Math.random() < 0.35 ? "r" : ks[Math.floor(Math.random()*3)];
+    ask = ks[Math.floor(Math.random()*3)];
+    guard++;
+  }while(guard < 20 && (give === ask || (give === Q.give && ask === Q.ask)));
+  Q.give = give; Q.ask = ask; Q.done = false;
+  Q.r = 1 + Math.floor(Math.random()*6);
+  Q.ans = VOL[ask](Q.r);
+  const what = ask === "cyl" ? '<b>원기둥</b> 의 부피를 구하세요.' : '원기둥에 꼭 맞는 <b>' + KIND[ask] + '</b> 의 부피를 구하세요.';
+  $("ask").innerHTML = give === "r"
+    ? '밑면의 반지름이 <b>' + Q.r + ' cm</b> 이고 높이가 <b>' + (2*Q.r) + ' cm</b> 인 원기둥이 있어요. 이 ' + what
+    : (give === "cyl" ? '<b>원기둥</b>' : '원기둥에 꼭 맞는 <b>' + KIND[give] + '</b>') + ' 의 부피가 <b>' + VFR[give](Q.r) + 'π cm³</b> 예요. 같은 ' + what;
+  const inp = $("ansIn"); inp.value = ""; inp.className = "";
+  $("quizFb").innerHTML = "";
+  draw();
+}
+function parseAns(t){
+  t = String(t).replace(/\s/g, "");
+  if(t === "") return NaN;
+  const m = t.match(/^(-?\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/);
+  if(m) return +m[2] === 0 ? NaN : (+m[1])/(+m[2]);
+  return /^-?\d+(?:\.\d+)?$/.test(t) ? +t : NaN;
+}
+$("btnCheck").addEventListener("click", function(){
+  if(Q.done) return;
+  const inp = $("ansIn"), val = parseAns(inp.value);
+  if(isNaN(val)){ $("quizFb").innerHTML = '<div class="fb warn">숫자 또는 <b>16/3</b> 같은 분수로 적어 주세요.</div>'; return; }
+  const ok = Math.abs(val - Q.ans) < 0.1;
+  Q.done = true; Q.tries++;
+  if(ok){ Q.ok++; Q.streak++; } else Q.streak = 0;
+  inp.className = ok ? "good" : "bad";
+  const part = {cone:1, sphere:2, cyl:3}, r = Q.r;
+  let how;
+  if(Q.give === "r" && Q.ask === "cyl"){
+    how = '원기둥 = π×' + r + '²×' + (2*r) + ' = <b>' + (2*r*r*r) + 'π cm³</b>';
+  }else if(Q.give === "r"){
+    how = '원기둥 = π×' + r + '²×' + (2*r) + ' = ' + (2*r*r*r) + 'π 이고, ' + KIND[Q.ask] + (Q.ask === "sphere" ? "는" : "은") + ' 원기둥의 ' +
+          frac(part[Q.ask], 3) + ' → <b>' + VFR[Q.ask](r) + 'π cm³</b>';
+  }else{
+    how = KIND[Q.give] + ' : ' + KIND[Q.ask] + ' = ' + part[Q.give] + ' : ' + part[Q.ask] + ' 이므로 ' +
+          VFR[Q.give](r) + 'π × ' + frac(part[Q.ask], part[Q.give]) + ' = <b>' + VFR[Q.ask](r) + 'π cm³</b>';
+  }
+  $("quizFb").innerHTML = '<div class="fb ' + (ok ? "ok" : "no") + '">' +
+    (ok ? "🎉 정답! " : '아쉬워요. 답은 <b>' + VFR[Q.ask](r) + 'π cm³</b> (≈ ' + r2(Q.ans) + '). ') + how + '</div>';
+  $("qTry").textContent = Q.tries; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
+  if(window.MKSCORE) MKSCORE.quiz(ok, "아르키메데스 부피 관계");
+});
+$("btnNext").addEventListener("click", newQuestion);
+$("ansIn").addEventListener("keydown", function(e){ if(e.key === "Enter") $("btnCheck").click(); });
+
+/* ============================================================
+   그리기 / 탭
+   ============================================================ */
+function draw(){
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const v = view();
+  ctx.clearRect(0, 0, v.W, v.H);
+  ctx.save();
+  ctx.translate(v.ox, v.oy); ctx.scale(v.s, v.s);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);
+  if(tab === "ratio") drawRatio();
+  else if(tab === "water") drawWater();
+  else if(tab === "cut") drawCut();
+  else drawQuiz();
+  ctx.restore();
+}
+document.querySelectorAll("header nav button").forEach(function(b){
+  b.addEventListener("click", function(){
+    document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    tab = b.dataset.tab;
+    if(wAnim){ stopWater(); paintWater(); }
+    $("pRatio").classList.toggle("hidden", tab !== "ratio");
+    $("pWater").classList.toggle("hidden", tab !== "water");
+    $("pCut")  .classList.toggle("hidden", tab !== "cut");
+    $("pQuiz") .classList.toggle("hidden", tab !== "quiz");
+    draw();
+  });
+});
+function boot(){
+  paintRatio();
+  paintWater();
+  cutSeen[cutH] = 1;
+  paintCut();
+  newQuestion();
+  tab = "ratio";
+  if(window.MK && MK.fit) MK.fit(cv, draw);
+  draw();
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+
+})();
+</script>
+</body>
+</html>
