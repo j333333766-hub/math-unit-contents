@@ -449,27 +449,51 @@
     }, true);
 
     if(!window.MutationObserver) return;
-    var okNow = new WeakSet ? new WeakSet() : null;
+    var SEL = ".fb, .mk-fb, .vd, #banner";
+    /* 새로 끼워 넣은 피드백 칸은 정답이 아닌 안내 문구(예: 슬라이더 값 읽어 주기)일 수도 있어서
+       칭찬·정답을 뜻하는 말이 있을 때만 센다. (대부분의 콘텐츠가 정답 칸을 innerHTML 로 새로 그린다 —
+       예전에는 class 가 바뀌는 것만 봐서 이런 정답이 빠졌다) */
+    var PRAISE = /🎉|정답|성공|완성|잘했|맞았|맞아요|맞혔|찾았|해냈|알아냈|통과|모두 만들었|모두 찾았|성공했/;
+    var okNow = window.WeakSet ? new WeakSet() : null;
+    function count(el, needPraise){
+      var now = Date.now();
+      var text = (el.textContent || "").trim().slice(0,60);
+      if(!text) return;
+      if(needPraise && !PRAISE.test(text)) return;
+      /* 한 번 잘했을 때 배너와 안내문이 함께 켜지므로 몇 초간 하나만 센다 */
+      if(now - lastOk < 2500) return;
+      lastOk = now;
+      push("ok", text);
+    }
     new MutationObserver(function(list){
       for(var i=0;i<list.length;i++){
-        var el = list[i].target;
+        var m = list[i];
+        if(m.type === "childList"){
+          for(var j=0;j<m.addedNodes.length;j++){
+            var nd = m.addedNodes[j];
+            if(!nd || nd.nodeType !== 1) continue;
+            var found = (nd.matches && nd.matches(SEL)) ? [nd] : [];
+            if(nd.querySelectorAll){ var qs = nd.querySelectorAll(SEL); for(var q=0;q<qs.length;q++) found.push(qs[q]); }
+            for(var f=0;f<found.length;f++){
+              if(!found[f].classList.contains("ok")) continue;
+              if(okNow){ if(okNow.has(found[f])) continue; okNow.add(found[f]); }
+              count(found[f], true);
+            }
+          }
+          continue;
+        }
+        var el = m.target;
         if(!el || el.nodeType !== 1 || !el.matches) continue;
-        if(!el.matches(".fb, .mk-fb, .vd, #banner")) continue;
+        if(!el.matches(SEL)) continue;
         var isOk = el.classList.contains("ok");
         if(okNow){
           if(!isOk){ okNow["delete"](el); continue; }
           if(okNow.has(el)) continue;
           okNow.add(el);
         }else if(!isOk) continue;
-        var now = Date.now();
-        var text = (el.textContent || "").trim().slice(0,60);
-        if(!text) continue;
-        /* 한 번 잘했을 때 배너와 안내문이 함께 켜지므로 몇 초간 하나만 센다 */
-        if(now - lastOk < 2500) continue;
-        lastOk = now;
-        push("ok", text);
+        count(el, false);
       }
-    }).observe(document.body, {subtree:true, attributes:true, attributeFilter:["class"]});
+    }).observe(document.body, {subtree:true, childList:true, attributes:true, attributeFilter:["class"]});
   }
 
   /* ---------- 스타일 ---------- */
