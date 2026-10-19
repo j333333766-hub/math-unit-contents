@@ -271,27 +271,39 @@
      현황판의 [📣 불러오기] 가 /mk/current/go 에 {id, href, name, t, to} 를 쓴다.
      · 실시간 연결(EventSource)로 듣는다 — 바뀌면 곧바로 안다. 끊기면 다시 잇고, 25초 신호 때도 한 번 확인한다.
      · 번호를 넣은 학생만, to 가 있으면 그 번호만 옮긴다. 같은 지시(id)는 한 번만 따른다(옮긴 뒤 다시 끌려가지 않게).
-     · 10분 넘은 지시는 무시한다. 수업이 닫히면 /mk/current 가 지워지므로 지시도 함께 사라진다. */
-  var GO_KEY = "mk.go", GO_TTL = 10 * 60 * 1000, ES = null, ES_RETRY = null, GO_BUSY = false;
+     · 10분 넘은 지시는 무시한다. 수업이 닫히면 /mk/current 가 지워지므로 지시도 함께 사라진다.
+     · lock(🔒)이 켜져 있으면 잠긴 동안(최대 90분) 사이트 안의 다른 콘텐츠로 가지 못한다 —
+       다른 화면이 열리면 곧바로 되돌아가고, 다른 콘텐츠로 가는 링크·목차 단추는 눌러도 안내만 뜬다.
+       다른 사이트·다른 탭은 브라우저가 막을 수 없다(현황판에 주황으로 보인다). */
+  var GO_KEY = "mk.go", GO_TTL = 10 * 60 * 1000, LOCK_TTL = 90 * 60 * 1000, ES = null, ES_RETRY = null, GO_BUSY = false, LOCK = null;
   function goSeen(){ try{ return localStorage.getItem(GO_KEY) || ""; }catch(e){ return ""; } }
   function goMark(id){ try{ localStorage.setItem(GO_KEY, id); }catch(e){} }
   function samePage(u){
     var a = u.pathname.replace(/\/index\.html?$/i, "/"), b = location.pathname.replace(/\/index\.html?$/i, "/");
     return a === b && (u.search || "") === (location.search || "");
   }
+  function goName(g){ return String((g && g.name) || "다음 활동").replace(/[<>&]/g, ""); }
   function handleGo(g){
+    LOCK = null;
     if(!g || !g.id || !g.href || !NO || !BASE || GO_BUSY) return;
-    if(goSeen() === g.id) return;
-    var now = Date.now() + SRV_OFF;
-    if(g.t && now - Number(g.t) > GO_TTL) return;
+    var now = Date.now() + SRV_OFF, age = g.t ? now - Number(g.t) : 0;
     var to = g.to;
     if(to && typeof to === "object"){ var arr = [], k; for(k in to) arr.push(Number(to[k])); if(arr.length && arr.indexOf(NO) < 0) return; }
     var url; try{ url = new URL(g.href, BASE); }catch(e){ return; }
     if(url.origin !== location.origin){ goMark(g.id); return; }
+    var locked = !!g.lock && age < LOCK_TTL;
+    if(locked) LOCK = {url:url, name:goName(g)};
+    if(!locked && (goSeen() === g.id || age > GO_TTL)) return;   /* 잠금이 아니면 같은 지시는 한 번만 */
+    var first = goSeen() !== g.id;
     goMark(g.id);
     if(samePage(url)) return;
     GO_BUSY = true;
-    push("go", String(g.name || g.href).slice(0, 60), true);
+    push(first ? "go" : "lock", String(g.name || g.href).slice(0, 60), true);
+    if(!first){   /* 잠긴 중에 다른 화면을 열었다 — 곧바로 되돌린다 */
+      lockToast("🔒 지금은 <b>" + goName(g) + "</b>만 할 수 있어요. 되돌아갑니다.");
+      setTimeout(function(){ flush(true); location.replace(url.href); }, 1200);
+      return;
+    }
     var back = document.createElement("div");
     back.className = "mk-track-back mk-go";
     back.innerHTML = '<div class="mk-track-box mk-go-box"><div class="mk-go-ic">📣</div><h3>선생님이 불러요</h3>' +
@@ -302,6 +314,23 @@
     back.querySelector("#mkGoNow").onclick = go;
     var iv = setInterval(function(){ left--; var e = back.querySelector("#mkGoN"); if(e) e.textContent = String(Math.max(left, 0)); if(left <= 0){ clearInterval(iv); go(); } }, 1000);
   }
+  function lockToast(html){
+    var t = document.querySelector(".mk-lock-toast");
+    if(!t){ t = document.createElement("div"); t.className = "mk-lock-toast"; document.body.appendChild(t); }
+    t.innerHTML = html; t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(function(){ t.classList.remove("on"); }, 2600);
+  }
+  /* 잠긴 동안 다른 콘텐츠로 가는 링크·목차 단추를 누르면 막고 안내한다(잠긴 콘텐츠로 가는 링크는 둔다) */
+  document.addEventListener("click", function(ev){
+    if(!LOCK) return;
+    var a = ev.target && ev.target.closest && ev.target.closest("a[href]");
+    if(!a) return;
+    var u; try{ u = new URL(a.getAttribute("href"), location.href); }catch(e){ return; }
+    if(u.origin !== location.origin) return;
+    var same = function(x, y){ return x.pathname.replace(/\/index\.html?$/i, "/") === y.pathname.replace(/\/index\.html?$/i, "/") && (x.search || "") === (y.search || ""); };
+    if(same(u, LOCK.url) || (u.pathname === location.pathname && u.search === location.search)) return;
+    ev.preventDefault(); ev.stopPropagation();
+    lockToast("🔒 선생님이 잠가 두었어요. 지금은 <b>" + LOCK.name + "</b>만 할 수 있어요.");
+  }, true);
   function pullGo(){
     if(!FIRE || !NO) return;
     token().then(function(t){ return fetch(dbUrl("/mk/current/go", t), {cache:"no-store"}); })
@@ -491,6 +520,11 @@
       ".mk-go-box p{font-size:16px; color:#1d2433;}" +
       ".mk-go-n{font:900 46px 'Pretendard','Malgun Gothic',sans-serif; color:#3e63dd; margin:4px 0 6px;}" +
       ".mk-go .mk-track-btns{justify-content:center;}" +
+      ".mk-lock-toast{position:fixed; left:50%; top:18px; transform:translate(-50%,-140%); z-index:100000;" +
+      "background:#1d2433; color:#fff; font:700 15px 'Pretendard','Malgun Gothic',sans-serif; padding:12px 20px;" +
+      "border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.3); transition:transform .25s; max-width:92vw; text-align:center;}" +
+      ".mk-lock-toast.on{transform:translate(-50%,0);}" +
+      ".mk-lock-toast b{color:#ffd166;}" +
       "@media print{.mk-track-badge{display:none;}}";
     document.head.appendChild(s);
   }

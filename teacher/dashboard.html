@@ -89,6 +89,10 @@
   .callbar .callt{font-size:15px; font-weight:800; color:#b45309;}
   .callbar select, .callbar input{font:700 14px var(--font); padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink);}
   .callbar select{max-width:260px;} .callbar input{width:190px;}
+  .callbar .lockck{display:flex; align-items:center; gap:5px; font-size:13.5px; font-weight:800; color:#7c2d12; cursor:pointer;}
+  .callbar .lockck input{width:auto;}
+  .callbar.locked{background:#fdecec; border-color:#f3a5a5;}
+  .callbar .btn.lockoff{background:#e5484d; border-color:#e5484d; color:#fff;}
   .classbar .btn.go:hover{background:#268253; border-color:#268253; color:#fff;}
   .classbar .btn.stop{background:var(--no); border-color:var(--no); color:#fff;}
   .classbar .btn.stop:hover{background:#c93b3f; border-color:#c93b3f; color:#fff;}
@@ -691,20 +695,25 @@ function paintCallbar(){
       '<optgroup label="목차"><option value="index">목차 (5단원)</option><option value="unit4">목차 (4단원)</option></optgroup>' +
       og("Ⅳ. 도형의 기초", keys.filter(k => /^\d/.test(k))) + og("Ⅴ. 도형의 성질", keys.filter(k => /^ch5-/.test(k))) + '</select>' +
       '<input id="goTo" placeholder="번호(비우면 전체) 예: 3, 7" title="몇 명만 부르려면 번호를 쉼표로">' +
+      '<label class="lockck" title="켜고 불러오면, 잠긴 동안 학생이 사이트 안의 다른 콘텐츠로 가지 못합니다(최대 90분). 다른 사이트·탭은 막을 수 없어 주황으로 보입니다."><input type="checkbox" id="goLock"> 🔒 다른 콘텐츠로 못 가게</label>' +
       '<button class="btn go" id="goBtn">불러오기</button><span class="hint" id="goNote"></span>' +
-      '<span class="sp"></span><button class="btn" id="goClear" title="아직 따라오지 않은(늦게 들어오는) 학생도 부르지 않게 지시를 지운다">지시 지우기</button>';
-    $("goBtn").onclick = callGo; $("goClear").onclick = clearGo;
+      '<span class="sp"></span><button class="btn lockoff" id="goUnlock" style="display:none">🔓 잠금 풀기</button>' +
+      '<button class="btn" id="goClear" title="지시를 지운다(잠금도 풀린다). 늦게 들어오는 학생도 더는 불려 가지 않는다">지시 지우기</button>';
+    $("goBtn").onclick = callGo; $("goClear").onclick = clearGo; $("goUnlock").onclick = unlockGo;
   }
   paintGoNote();
 }
 function paintGoNote(){
   const e = $("goNote"); if(!e) return;
+  const ub = $("goUnlock"), locked = !!(GO && GO.lock && serverNow() - Number(GO.t || 0) < 90 * 60000);
+  if(ub) ub.style.display = locked ? "" : "none";
+  $("callbar").classList.toggle("locked", locked);
   if(!GO || !GO.id){ e.textContent = "번호를 넣고 접속한 학생 화면이 고른 콘텐츠로 옮겨 갑니다."; return; }
   const min = Math.max(0, Math.round((serverNow() - Number(GO.t || 0)) / 60000));
   const to = GO.to ? Object.values(GO.to).join(", ") + "번" : "전체";
   const page = (GO.href || "").replace(/^contents\//, "").replace(/\.html.*$/, "");
   const there = page ? onPage(page) : 0;
-  e.textContent = "최근 지시: " + (GO.name || GO.href) + " · " + to + " · " + (min ? min + "분 전" : "방금") + (page ? " · 지금 이 콘텐츠 " + there + "명" : "");
+  e.textContent = (locked ? "🔒 잠금 중: " : "최근 지시: ") + (GO.name || GO.href) + " · " + to + " · " + (min ? min + "분 전" : "방금") + (page ? " · 지금 이 콘텐츠 " + there + "명" : "");
 }
 function onPage(page){   /* 지금 수업에서 90초 안에 신호가 온 학생 가운데 마지막으로 이 콘텐츠에 있던 학생 수 */
   const evs = (CUR && EV[CUR.ms]) || [], last = {}, now = serverNow();
@@ -717,11 +726,13 @@ async function callGo(){
   const name = slug === "index" ? "목차 (5단원)" : slug === "unit4" ? "목차 (4단원)" : NAMES[slug];
   const go = {id: serverNow().toString(36) + Math.random().toString(36).slice(2, 6), href: contentHref(slug), name, t: serverTimestamp()};
   if(nums.length) go.to = nums;
+  if($("goLock").checked) go.lock = true;
   try{ $("goBtn").disabled = true; await set(ref(db, "mk/current/go"), go); }
   catch(err){ $("goNote").textContent = "보내지 못했습니다: " + (err && err.message ? err.message : err); }
   finally{ $("goBtn").disabled = false; }
 }
 async function clearGo(){ try{ await remove(ref(db, "mk/current/go")); }catch(err){} }
+async function unlockGo(){ try{ await update(ref(db, "mk/current/go"), {lock: false}); }catch(err){} }
 setInterval(paintGoNote, 5000);
 
 async function startClass(g, c){
