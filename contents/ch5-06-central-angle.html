@@ -6,7 +6,7 @@
 <title>중심각과 호 실험실 — 무엇이 정비례할까</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -338,10 +338,13 @@ function paintProp(){
     ? '<div class="fb info">슬라이더를 움직여 중심각을 <b>2배·3배</b> 로 키워 보세요.</div>'
     : '<div class="fb ok">중심각이 <b>' + r1(k) + '배</b> 가 되니 호도 <b>' + r1(k) +
       '배</b>, 넓이도 <b>' + r1(k) + '배</b> 가 되었어요. 세 칸의 수가 똑같죠?</div>';
-  if(kMul >= 2 && window.MKSCORE) MKSCORE.once("prop" + kMul, 5, "중심각 " + kMul + "배 확인");
 }
 $("rBase").addEventListener("input", function(e){ base = +e.target.value; paintProp(); draw(); });
-$("rK").addEventListener("input", function(e){ kMul = +e.target.value; paintProp(); draw(); });
+/* 점수는 학생이 '몇 배' 를 직접 바꿨을 때만 — paintProp 은 처음 열 때도 불려 2배 열쇠를 써 버렸다 */
+$("rK").addEventListener("input", function(e){
+  kMul = +e.target.value; paintProp(); draw();
+  if(kMul >= 2 && window.MKSCORE) MKSCORE.once("prop" + kMul, 5, "중심각 " + kMul + "배 확인");
+});
 
 /* ============================================================
    ② 현은 정비례하지 않는다 (197쪽 생각 쑥)

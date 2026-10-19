@@ -6,7 +6,7 @@
 <title>두더지 잡기 — 동위각과 엇각</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=4" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -653,6 +653,8 @@ function pracClick(i){
         : ` 두 도로 <b>사이</b>에서 엇갈린 자리예요.`) + `</div>`;
     anim.rings[i] = REL_COL[r.kind];
     killMole(r.base);
+    /* 구멍이 8개뿐이라 같은 칭찬 문구가 자주 되풀이된다 — 화면 통로는 같은 문구를 한 번만 세므로 직접 알린다 */
+    if(window.MKLOG && MKLOG.done) MKLOG.done(`연습 정답 · ${r.base+1}번의 ${REL_KO[r.kind]} = ${r.ans+1}번 (${P.ok}번째)`);
     /* 잘 잡았으면 '새 문제' 를 누르지 않아도 곧바로 다음 문제가 나온다.
        (틀렸을 때는 설명을 읽을 시간이 필요하니 그대로 기다린다) */
     const mySeq = r.seq;
@@ -821,6 +823,9 @@ function endGame(){
   if(window.MKLOG && MKLOG.score){
     MKLOG.score(sc, `두더지 잡기 60초 · 정답 ${right} · 오답 ${G.wrong} · 놓침 ${G.miss}`);
   }
+  /* 60초를 끝까지 마쳤으면 '완료'로 남긴다 ('그만'으로 중간에 멈춘 것은 빼고).
+     결과 칸 문구에는 칭찬 낱말이 없어 화면으로는 안 세진다 */
+  if(now() - G.start >= G.time - 200 && window.MKLOG && MKLOG.done) MKLOG.done(`두더지 잡기 60초 끝 · ${sc}점 · 정답 ${right}`);
 
   clearMoles(); anim.rings = {};
   banner(`게임 끝! 점수 ${sc}점`);
@@ -917,6 +922,8 @@ document.querySelectorAll(".choices .btn").forEach(b => {
     $("qFb").innerHTML =
       `<div class="fb ${pick === ans ? "ok" : "no"}">${pick === ans ? "🎉 정답!" : `아쉬워요. 답은 <b>${REL_KO[ans]}</b>!`} ${why}</div>`;
     anim.rings[A] = anim.rings[B] = REL_COL[ans];
+    /* 설명 문구가 몇 가지뿐이라 화면 통로로는 처음 나온 문구만 세진다 — 정답마다 직접 알린다 */
+    if(pick === ans && window.MKLOG && MKLOG.done) MKLOG.done(`관계 맞히기 ${Q.no}번 정답 · ${A+1}번과 ${B+1}번은 ${REL_KO[ans]}`);
     $("btnQNext").classList.remove("hidden");
     $("btnQNext").textContent = Q.no >= Q_TOTAL ? "결과 보기 ▶" : "다음 문제 ▶";
   });
@@ -933,6 +940,8 @@ function quizEnd(){
   $("qDone").innerHTML =
     `<div class="fb ${r >= 7 ? "ok" : "info"}" style="margin-top:9px; font-size:15px;">` +
     `${Q_TOTAL}문제 중 <b>${r}문제</b> 맞혔어요.<br>${msg}</div>`;
+  /* 마지막 정답 바로 뒤에 '결과 보기'를 누르면 화면 통로는 1.5초 규칙에 걸리므로 직접 알린다 */
+  if(r >= 7 && window.MKLOG && MKLOG.done) MKLOG.done(`관계 맞히기 끝 · ${Q_TOTAL}문제 중 ${r}문제`);
   anim.moles = []; anim.rings = {};
   banner(`퀴즈 끝! ${Q_TOTAL}문제 중 ${r}문제`);
   $("btnQNext").classList.add("hidden");

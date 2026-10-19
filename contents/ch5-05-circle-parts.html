@@ -6,7 +6,7 @@
 <title>원의 부분 이름 찾기 — 호·현·할선·부채꼴·활꼴</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -423,10 +423,13 @@ function paintLearn(){
     ? '<div class="fb info">' + on.map(function(k){ return TXT[k]; }).join("<br>") + '</div>'
     : '<div class="fb warn">위 단추를 눌러 보고 싶은 것을 켜 보세요.</div>';
 
-  $("halfFb").innerHTML = xDeg === 180
+  /* 부채꼴·활꼴을 함께 켜고 180° 로 맞췄을 때만 '찾았다' — 슬라이더로 지나치기만 해서는 칭찬하지 않는다 */
+  const found = xDeg === 180 && show.sector && show.segment;
+  $("halfFb").innerHTML = found
     ? '<div class="fb ok">🎉 중심각이 <b>180°</b> 라서 <b>반원</b>이 되었어요.' +
       ' 이때는 <b>부채꼴이면서 동시에 활꼴</b>이에요! (교과서 192쪽 생각 KEY 우기)</div>'
     : '<div class="fb info">중심각을 <b>180°</b> 로 맞추면 무슨 일이 생길까요? 부채꼴 과 활꼴 을 함께 켜고 찾아보세요.</div>';
+  if(found && window.MKSCORE) MKSCORE.once("halfcircle", 10, "반원 = 부채꼴이면서 활꼴 찾기");
 }
 
 $("rX").addEventListener("input", function(e){ xDeg = +e.target.value; paintLearn(); draw(); });
@@ -435,9 +438,7 @@ document.querySelectorAll("#terms .term").forEach(function(b){
     const k = b.dataset.t;
     show[k] = !show[k];
     b.classList.toggle("on", show[k]);
-    paintLearn(); draw();
-    if(show.sector && show.segment && xDeg === 180 && window.MKSCORE)
-      MKSCORE.once("halfcircle", 10, "반원 = 부채꼴이면서 활꼴 찾기");
+    paintLearn(); draw();          /* 반원 찾기 점수는 paintLearn 이 준다(슬라이더로 맞춰도 같게) */
   });
 });
 
@@ -539,6 +540,10 @@ function nextTask(){
   if(tIdx < TASKS.length - 1){
     tIdx++; picked = []; mDone = false;
     $("makeFb").innerHTML = "";
+  }else if(M.ok === 0){
+    /* 하나도 안 풀고 넘기기만 했으면 칭찬·점수 없이 안내만 */
+    $("makeFb").innerHTML =
+      '<div class="fb info">여섯 문제를 모두 넘겼지만 아직 <b>맞힌 문제가 없어요</b>. 이 문제의 점 두 개를 눌러 보세요.</div>';
   }else{
     $("makeFb").innerHTML =
       '<div class="fb ok">🎉 여섯 문제를 모두 봤어요. <b>' + M.ok + '번</b> 맞혔어요!</div>';
@@ -548,6 +553,7 @@ function nextTask(){
 }
 
 $("btnAgain").addEventListener("click", function(){
+  if(mDone) return;               /* 맞힌 문제를 다시 풀어 점수·맞힘 수가 계속 오르던 것을 막는다 */
   picked = []; mDone = false; $("makeFb").innerHTML = ""; paintMake(); draw();
 });
 $("btnSkip").addEventListener("click", nextTask);

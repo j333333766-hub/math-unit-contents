@@ -6,7 +6,7 @@
 <title>다면체 탐구실 — 면·모서리·꼭짓점과 정다면체</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <script src="../assets/vendor/three.min.js"></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
@@ -714,7 +714,7 @@ function paintPlato(){
     '<div class="fb info"><b>' + p.name + '</b> — 한 꼭짓점에 <b>' + p.shape + ' ' + p.meet +
     '개</b> 가 모여요. 모인 각은 ' + inner + '° × ' + p.meet + ' = <b>' + (inner*p.meet) +
     '°</b> 로 360° 보다 작아요.</div>';
-  if(window.MKSCORE) MKSCORE.once("plato" + platN, 3, p.name + " 보기");
+  if(window.MKSCORE) MKSCORE.once("plato" + platN, 3, p.name + " 보기", false);   /* 둘러보기 — ok 로 남기지 않음 */
 }
 document.querySelectorAll("#platBtns button").forEach(function(b){
   b.addEventListener("click", function(){
@@ -729,7 +729,7 @@ $("btnHex").addEventListener("click", function(){
     '<div class="fb warn">정육각형은 한 각이 <b>120°</b> — 세 개를 모으면 <b>120° × 3 = 360°</b> 라서' +
     ' <b>평평하게</b> 펼쳐져요. 그래서 정육각형으로는 정다면체를 만들 수 없어요.' +
     ' (교과서 200쪽 생각 KEY 우기)</div>';
-  if(window.MKSCORE) MKSCORE.once("hex", 10, "정육각형이 안 되는 이유");
+  if(window.MKSCORE) MKSCORE.once("hex", 10, "정육각형이 안 되는 이유", false);   /* 설명 보기 — ok 로 남기지 않음 */
 });
 
 function paintNet(){
@@ -740,6 +740,8 @@ function paintNet(){
     ? '<div class="fb ok">🎉 <b>' + p.name + '</b> 의 전개도 — ' + p.shape + ' <b>' + p.F + '개</b> 가 이어져 있어요.' +
       ' 진한 면이 바닥에 놓였던 면이에요.</div>'
     : '<div class="fb info">[전개도로 펼치기] 를 누르거나 슬라이더를 밀어 보세요.</div>';
+  /* 🎉 가 뜨는 그 순간에 점수(펼친 채 다른 정다면체로 바꿔도 여기서) — 늦게 주면 따로 한 번 더 세진다 */
+  if(netT >= 1 && window.MKSCORE) MKSCORE.once("net" + platN, 3, p.name + " 전개도 펼치기");
 }
 function stopNet(){ if(netAnim){ cancelAnimationFrame(netAnim); netAnim = null; } }
 function playNet(to){
@@ -752,12 +754,10 @@ function playNet(to){
     netAnim = u < 1 ? requestAnimationFrame(step) : null;
     paintNet();
     if(tab === "plato") rebuild();
-    if(u >= 1 && to === 1 && window.MKSCORE) MKSCORE.once("net" + platN, 3, PLAT[platN].name + " 전개도 펼치기");
   })(t0);
 }
 $("rNet").addEventListener("input", function(e){
   stopNet(); netT = +e.target.value/100; paintNet(); rebuild();
-  if(netT >= 1 && window.MKSCORE) MKSCORE.once("net" + platN, 3, PLAT[platN].name + " 전개도 펼치기");
 });
 $("btnUnfold").addEventListener("click", function(){ playNet(1); });
 $("btnRefold").addEventListener("click", function(){ playNet(0); });
@@ -778,6 +778,7 @@ const WCOL = [0xf5820b, 0x3e63dd, 0x2f9e63, 0x8e4ec6, 0xe5484d, 0x0ea5b7, 0xd640
 const OVER = 0xe5484d;
 let wP = 3, wK = 3, wMode = "flat", wT = 0, wAnim = null;
 const found = {};
+let allFound = false;
 
 const rad = d => d*Math.PI/180;
 const innerDeg = n => 180*(n - 2)/n;
@@ -991,6 +992,12 @@ $("btnGrow").addEventListener("click", function(){
     if(window.MKSCORE){
       MKSCORE.once("why" + key, 5, PLAT[SOLID_OF[key]].name + " 접어 만들기");
       if(Object.keys(found).length === 5) MKSCORE.once("whyAll", 10, "정다면체 다섯 가지 모두 찾기");
+    }
+    /* 다섯째 '완성' 표시와 같은 순간이라 1.5초 규칙에 합쳐지므로 '모두 찾기'는 따로 남긴다.
+       화면 표시(완성)가 먼저 세지도록 한 박자 늦게 부른다 */
+    if(Object.keys(found).length === 5 && !allFound){
+      allFound = true;
+      setTimeout(function(){ if(window.MKLOG) MKLOG.done("정다면체 다섯 가지 모두 찾음"); }, 200);
     }
   });
 });

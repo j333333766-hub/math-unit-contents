@@ -442,30 +442,62 @@
        · 헤더의 활동 탭 버튼을 누르면 → 활동 전환
        · 정답·완성일 때 붙는 .ok 표시가 나타나면 → 잘함 신호            */
   var lastOk = 0, lastScoreFlush = 0;
+  /* ---- 잘함(ok) 기록 규칙 (2026-10-20 전체 콘텐츠 점검 뒤 정리) ----
+     · 한 번 잘했을 때 배너·안내문·점수가 함께 움직이므로 OK_GAP(1.5초) 안의 것은 하나로 친다.
+       (예전 2.5초는 두더지 게임처럼 빨리 맞히는 정답까지 버렸다)
+     · 학생이 아직 아무것도 누르지 않았으면 세지 않는다 — 시작할 때 그려지는 표시(원래 단단한 삼각형 등)
+     · 활동 탭 단추를 누른 그 순간에 다시 그려지는 표시는 세지 않는다 — 탭을 다시 열었을 뿐
+     · 한 페이지에서 이미 센 문구는 다시 세지 않는다 — 성공한 채로 끌기·다시 그리기·다시 하기.
+       새 문제의 정답은 문구(숫자)가 달라 세지고, 같은 문구여도 MKSCORE 로 점수가 오르면 점수 통로가 센다.
+     · 콘텐츠가 칸에 again class 를 붙이면 세지 않는다(같은 문제를 다시 성공해 화면만 다시 그릴 때). */
+  var OK_GAP = 1500, touched = false, tabNow = false, seenOk = {};
+  function okPush(text, force){
+    var now = Date.now();
+    if(!force && now - lastOk < OK_GAP) return false;
+    lastOk = now;
+    push("ok", text);
+    return true;
+  }
+  /* 화면 글을 교사가 읽기 좋게: 분수(.frac) → 위/아래, 칸 사이 띄어쓰기, 윗줄 글꼴 글자(Ó) 빼기 */
+  function okText(el){
+    var c = el.cloneNode(true);
+    var fr = c.querySelectorAll(".frac");
+    for(var i=0;i<fr.length;i++){
+      var t = fr[i].querySelector(".top, .num, .n"), b = fr[i].querySelector(".bot, .den, .d");
+      if(t && b) fr[i].textContent = t.textContent + "/" + b.textContent;
+    }
+    var bl = c.querySelectorAll("div, p, li, br, span.t");
+    for(var j=0;j<bl.length;j++) bl[j].appendChild(document.createTextNode(" "));
+    return (c.textContent || "").replace(/Ó/g, "").replace(/\s+/g, " ").trim().slice(0, 80);
+  }
   function watchProgress(){
+    document.addEventListener("pointerdown", function(){ touched = true; }, true);
+    document.addEventListener("keydown", function(){ touched = true; }, true);
     document.addEventListener("click", function(ev){
       var b = ev.target && ev.target.closest && ev.target.closest("header nav button");
-      if(b) push("tab", (b.textContent || "").trim());
+      if(b){ tabNow = true; setTimeout(function(){ tabNow = false; }, 0); push("tab", (b.textContent || "").trim()); }
     }, true);
 
     if(!window.MutationObserver) return;
     var SEL = ".fb, .mk-fb, .vd, #banner";
     /* 새로 끼워 넣은 피드백 칸은 정답이 아닌 안내 문구(예: 슬라이더 값 읽어 주기)일 수도 있어서
-       칭찬·정답을 뜻하는 말이 있을 때만 센다. (대부분의 콘텐츠가 정답 칸을 innerHTML 로 새로 그린다 —
-       예전에는 class 가 바뀌는 것만 봐서 이런 정답이 빠졌다) */
+       칭찬·정답을 뜻하는 말이 있을 때만 센다. (대부분의 콘텐츠가 정답 칸을 innerHTML 로 새로 그린다) */
     var PRAISE = /🎉|정답|성공|완성|잘했|맞았|맞아요|맞혔|찾았|해냈|알아냈|통과|모두 만들었|모두 찾았|성공했/;
     var okNow = window.WeakSet ? new WeakSet() : null;
+    var batch = 0, okBatch = -1;      /* 관찰자 한 번(= 콘텐츠의 처리 한 번)마다 1씩 */
     function count(el, needPraise){
-      var now = Date.now();
-      var text = (el.textContent || "").trim().slice(0,60);
+      if(!touched || tabNow || el.classList.contains("again")) return;
+      var text = okText(el);
       if(!text) return;
       if(needPraise && !PRAISE.test(text)) return;
-      /* 한 번 잘했을 때 배너와 안내문이 함께 켜지므로 몇 초간 하나만 센다 */
-      if(now - lastOk < 2500) return;
-      lastOk = now;
-      push("ok", text);
+      if(seenOk[text]) return;
+      /* 같은 성공에 함께 뜬 표시(같은 처리 안에서 바뀐 것)는 센 것으로 기억하고, 바로 앞의 다른 성공 때문에
+         1.5초 규칙에 걸려 버려진 문구는 기억하지 않아 나중에 다시 해내면 센다 */
+      if(okPush(text)){ seenOk[text] = 1; okBatch = batch; }
+      else if(okBatch === batch) seenOk[text] = 1;
     }
     new MutationObserver(function(list){
+      batch++;
       for(var i=0;i<list.length;i++){
         var m = list[i];
         if(m.type === "childList"){
@@ -494,6 +526,24 @@
         count(el, false);
       }
     }).observe(document.body, {subtree:true, childList:true, attributes:true, attributeFilter:["class"]});
+  }
+
+  /* 점수가 오르는 순간(MKSCORE: 문제 맞힘·미션 성공·완성 보상)도 잘함 신호로 센다.
+     화면 표시를 어떻게 그리든 빠지지 않게 하는 두 번째 통로다. 같은 순간 화면 표시로 이미 셌으면
+     (관찰자가 먼저 돈다) OK_GAP 규칙으로 하나만 남는다. common.js 를 고치지 않으려고 여기서 감싼다.
+     성공이 아닌 둘러보기 점수는 콘텐츠가 마지막 인자에 false 를 넘긴다: MKSCORE.once(열쇠, 3, "보기", false) */
+  function okFromScore(d){
+    if(!touched) return;
+    setTimeout(function(){ okPush(String(d || "정답·완료").slice(0, 80)); }, 80);
+  }
+  function wrapScore(){
+    var S = window.MKSCORE;
+    if(!S || S._mkWrapped) return;
+    S._mkWrapped = true;
+    var q = S.quiz, a = S.add, o = S.once;
+    S.quiz = function(ok, d, tell){ var r = q.apply(S, arguments); if(ok && tell !== false) okFromScore(d); return r; };
+    S.add  = function(p, d, tell){ var r = a.apply(S, arguments); if((Number(p) || 0) > 0 && tell !== false) okFromScore(d); return r; };
+    S.once = function(key, p, d, tell){ var before = S.total(); var r = o.apply(S, arguments); if(S.total() > before && tell !== false) okFromScore(d); return r; };
   }
 
   /* ---------- 스타일 ---------- */
@@ -558,6 +608,7 @@
     styles();
     makeBadge();
     watchProgress();
+    wrapScore();
     /* 번호를 이미 아는 학생만 미리 알아 둔다. 번호를 넣지 않은 브라우저까지
        익명 계정을 만들면 한 반이 같은 학교 IP 로 몰릴 때 가입 한도에 걸린다.
        번호를 넣고 나면 첫 기록을 보낼 때 알아서 확인한다. */
@@ -610,7 +661,7 @@
   /* 콘텐츠에서 직접 신호를 보내고 싶을 때 : MKLOG.step("...") / MKLOG.done("...") */
   window.MKLOG = {
     step: function(d){ push("step", d); },
-    done: function(d){ push("ok", d || "완료", true); },
+    done: function(d){ okPush(String(d || "완료").slice(0, 80), true); flush(false); },   /* 콘텐츠가 직접 알리는 완료는 늘 센다 */
     /* 점수가 나오는 콘텐츠는 끝났을 때 이걸 부른다 — 시트의 '점수' 탭에 쌓이고
        교사 현황판의 점수판·역대 최고에 그대로 나온다.
          MKLOG.score(120, "60초 두더지 잡기 · 정답 9개")                     */

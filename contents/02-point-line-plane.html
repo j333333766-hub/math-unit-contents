@@ -6,7 +6,7 @@
 <title>점·선·면 탐구실</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=4" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <script>
 window.MathJax = {
   tex:{ inlineMath:[["\\(","\\)"]] },
@@ -739,6 +739,9 @@ function autoFit(cv, draw){
     if(v === totalV && e === totalE){
       fb.innerHTML = `🎉 정답! 교점 <b>${totalV}</b>개, 교선 <b>${totalE}</b>개를 모두 찾았어요!`;
       fb.className = "feedback ok";
+      /* .feedback 칸은 track.js 가 보지 않으므로 점수 통로로 알린다 (도형마다 한 번) */
+      const shapeKo = (document.querySelector(`.shapeBtn[data-shape="${currentShape}"]`) || {}).textContent || currentShape;
+      window.MKSCORE && MKSCORE.once("cnt-" + currentShape, 10, `교점·교선 모두 찾기 (${shapeKo})`);
     } else {
       const p = [];
       if(v < totalV) p.push("못 찾은 교점이 있어요"); if(v > totalV) p.push("교점이 너무 많아요");
@@ -1155,6 +1158,7 @@ function autoFit(cv, draw){
   /* ----- 활동 2: 중점 찾기 ----- */
   const cb = $("cv3b"), btx = cb.getContext("2d");
   let abCm = 12, mPos = 0.31, nPos = 0.8, stage = 1, dragTarget = null, foundM = false, foundN = false;
+  let midSeq = 0;   // '새 문제'를 누를 때마다 1씩 — 점수·기록을 문제마다 한 번만
   const lens = [8, 10, 12, 14, 16, 20];
   const bW = () => cb.clientWidth, bH = () => cb.clientHeight;
   function geoB(){
@@ -1221,6 +1225,8 @@ function autoFit(cv, draw){
           fb.innerHTML = `✨ 중점 발견! \\(\\overline{AM}=\\overline{BM}=\\frac{1}{2}\\times ${abCm}=${abCm/2}\\) cm`;
           fb.className = "feedback ok"; TS(fb);
           $("btnStageN").style.display = "inline-flex";
+          /* 문제 번호(midSeq)마다 한 번 — 벗어났다 돌아와도 다시 세지 않는다 */
+          window.MKSCORE && MKSCORE.once("midM" + midSeq, 10, `중점 M 찾기 성공 (AB=${abCm}cm)`);
         }
       } else if(foundM){ foundM = false; fb.textContent = ""; $("btnStageN").style.display = "none"; }
     }
@@ -1234,6 +1240,7 @@ function autoFit(cv, draw){
           foundN = true;
           fb.innerHTML = `🎉 완벽! \\(\\overline{NB}=\\frac{1}{2}\\overline{MB}=\\frac{1}{4}\\overline{AB}=${abCm/4}\\) cm — 반의 반은 \\(\\frac{1}{4}\\)!`;
           fb.className = "feedback ok"; TS(fb);
+          window.MKSCORE && MKSCORE.once("midN" + midSeq, 10, `중점 N(MB의 중점) 찾기 성공 (AB=${abCm}cm)`);
         }
       } else if(foundN){ foundN = false; fb.textContent = ""; }
     }
@@ -1250,7 +1257,7 @@ function autoFit(cv, draw){
   });
   $("btnNewMid").addEventListener("click", () => {
     abCm = lens[Math.floor(Math.random()*lens.length)];
-    mPos = 0.2 + Math.random()*0.25; stage = 1; foundM = foundN = false;
+    mPos = 0.2 + Math.random()*0.25; stage = 1; foundM = foundN = false; midSeq++;
     $("btnStageN").style.display = "none";
     $("hint3b").innerHTML = `파란 점 \\(M\\)을 드래그해서 \\(\\overline{AM}=\\overline{MB}\\)가 되는 자리(중점)에 놓아 보세요.`;
     TS($("hint3b"));
@@ -1261,7 +1268,7 @@ function autoFit(cv, draw){
 
   /* ----- 활동 3: 계산 도전 ----- */
   const cc = $("cv3c"), ctx3 = cc.getContext("2d");
-  let calcAB = 24, cScore = 0, cTries = 0;
+  let calcAB = 24, cScore = 0, cTries = 0, calcDone = false;   // calcDone: 맞힌 문제는 '새 문제' 전까지 다시 채점하지 않는다
   const cW = () => cc.clientWidth, cH = () => cc.clientHeight;
   function drawC(){
     const W = cW(), H = cH(), y = H*0.62, m = 46;
@@ -1281,11 +1288,13 @@ function autoFit(cv, draw){
   function newCalc(){
     const opts = [12, 16, 20, 24, 28, 32, 36, 40];
     calcAB = opts[Math.floor(Math.random()*opts.length)];
+    calcDone = false;
     ["inAM","inMN","inNB"].forEach(id => { $(id).value = ""; $(id).className = ""; });
     $("fb3c").textContent = ""; $("fb3c").className = "feedback";
     drawC();
   }
   $("btnCheckCalc").addEventListener("click", () => {
+    if(calcDone) return;
     const ans = { inAM:calcAB/2, inMN:calcAB/4, inNB:calcAB/4 };
     let allOk = true, anyEmpty = false;
     for(const id in ans){
@@ -1299,7 +1308,7 @@ function autoFit(cv, draw){
     if(anyEmpty){ fb.textContent = "빈칸을 모두 채워 주세요!"; fb.className = "feedback no"; return; }
     cTries++;
     if(allOk){
-      cScore++;
+      cScore++; calcDone = true;
       fb.innerHTML = `🎉 정답! \\(\\overline{AM}=\\frac{1}{2}\\times${calcAB}=${calcAB/2}\\), \\(\\overline{MN}=\\overline{NB}=\\frac{1}{4}\\times${calcAB}=${calcAB/4}\\) (cm)`;
       fb.className = "feedback ok";
     } else {

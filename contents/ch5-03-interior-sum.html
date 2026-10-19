@@ -6,7 +6,7 @@
 <title>내각의 합 조립실 — 다각형의 내각의 크기의 합</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -621,7 +621,9 @@ function runInner(){
     }else{
       innerAnim = null; innerT = -1; innerDone = true;
       draw();
-      if(window.MKSCORE) MKSCORE.once("innerSplit", 5, "가운데 점에서 나누기 보기");
+      /* 장면을 끝까지 본 것은 둘러보기라 점수만 주고 잘함(ok)으로는 세지 않는다
+         — 틀린 보기를 고르면 장면이 저절로 돌아서, 틀린 뒤에 ok 가 남던 문제 */
+      if(window.MKSCORE) MKSCORE.once("innerSplit", 5, "가운데 점에서 나누기 보기", false);
     }
   })(t0);
 }

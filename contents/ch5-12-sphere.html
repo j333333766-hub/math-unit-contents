@@ -6,7 +6,7 @@
 <title>구 실험실 — 겉넓이는 원 4개, 부피는 원기둥의 3분의 2</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -492,7 +492,7 @@ $("btnCheck").addEventListener("click", function(){
     return;
   }
   const r = Q.r;
-  const ok = Math.abs(val - Q.ans) < Math.max(0.05, Q.ans*0.002);
+  const ok = Math.abs(val - Q.ans) < 0.1;   /* 분수 그대로이거나 소수 첫째 자리까지 맞으면 정답(예전엔 큰 답에서 1 넘게 틀려도 정답) */
   Q.done = true; Q.tries++;
   if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
   inp.className = ok ? "good" : "bad";
@@ -552,12 +552,17 @@ function buildOX(){
   box.querySelectorAll("button[data-ox]").forEach(function(b){
     b.addEventListener("click", function(){
       const i = +b.dataset.ox, o = OX[i];
+      if(o.done) return;                 /* 한 문항은 한 번만 채점 — 다시 눌러 점수가 불어나지 않게 */
+      o.done = true;
       const ok = (b.dataset.v === "O") === o.a;
       const row = box.querySelector('.oxrow[data-i="' + i + '"]');
+      row.querySelectorAll("button[data-ox]").forEach(function(x){ x.disabled = true; });
       row.querySelector(".oxfb").innerHTML =
         '<div class="fb ' + (ok ? "ok" : "no") + '">' +
         (ok ? "🎉 맞았어요. " : "아쉬워요. 답은 " + (o.a ? "O" : "X") + " 예요. ") + o.why + '</div>';
-      if(window.MKSCORE) MKSCORE.quiz(ok, "구 개념 OX");
+      /* OX 는 이어서 빨리 풀 수 있어 1.5초 규칙에 묻히지 않게 문항마다 따로 남긴다 */
+      if(window.MKSCORE) MKSCORE.quiz(ok, "구 개념 OX", false);
+      if(ok && window.MKLOG) MKLOG.done("구 개념 OX " + (i + 1) + "번 맞힘");
     });
   });
 }

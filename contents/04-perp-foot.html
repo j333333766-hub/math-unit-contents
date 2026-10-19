@@ -6,7 +6,7 @@
 <title>수선의 발과 거리 — 직교·수직이등분선</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=4" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -293,6 +293,7 @@ let L1 = {A:{x:100, y:365}, B:{x:810, y:300}};   // 직선 l 위의 두 점
 let P1 = {x:400, y:120};                          // 점 P
 let Ht = 0.35;                                    // 직선 위 H 의 위치(0~1)
 let showGraph = false, footDone = false;
+let footSeq = 0;                                  // '다른 문제'마다 1씩 — 점수·기록을 문제마다 한 번만
 
 /* 화면 픽셀을 그대로 보여 주면 수가 너무 크므로 보기 좋은 눈금으로 줄인다 */
 const fmtLen = d => (Math.round(d/10*10)/10).toFixed(1);
@@ -311,7 +312,7 @@ function newFoot(){
   L1 = {A:{x:100, y:y1}, B:{x:810, y:y2}};
   P1 = {x:280 + Math.random()*320, y:95 + Math.random()*60};
   Ht = Math.random() < 0.5 ? 0.12 : 0.85;
-  footDone = false;
+  footDone = false; footSeq++;
   $("footFb").innerHTML = "";
   draw(); updateFoot();
 }
@@ -377,6 +378,8 @@ function updateFoot(){
   $("metLen").classList.toggle("min", good);
   if(good && !footDone){
     footDone = true;
+    /* 칭찬 문구가 문제마다 같아 화면으로는 첫 문제만 세지므로 점수 통로로 알린다 */
+    window.MKSCORE && MKSCORE.once("foot" + footSeq, 5, "수선의 발 찾기 (" + (footSeq + 1) + "번째 문제)");
     $("footFb").innerHTML =
       `<div class="fb ok">🎉 찾았어요! 이때 <b>PH ⊥ <i>l</i></b> 이고, 점 H 를 ` +
       `<b>점 P 에서 직선 <i>l</i> 에 내린 수선의 발</b>이라고 해요. ` +
@@ -393,7 +396,7 @@ function updateFoot(){
    ============================================================ */
 const G = {x0:120, y0:70, cell:44, nx:16, ny:11};
 const gpt = (c, r) => ({x:G.x0 + c*G.cell, y:G.y0 + r*G.cell});
-let Q = {horiz:true, at:0, pts:[], sel:0, tries:0, ok:0, streak:0, done:false};
+let Q = {horiz:true, at:0, pts:[], sel:0, tries:0, ok:0, streak:0, done:false, answered:{}};
 
 function newGrid(){
   Q.horiz = Math.random() < 0.5;
@@ -411,7 +414,7 @@ function newGrid(){
     used.add(key);
     Q.pts.push({c, r, n:names[Q.pts.length]});
   }
-  Q.sel = 0; Q.done = false;
+  Q.sel = 0; Q.done = false; Q.answered = {};
   renderPick();
   askGrid();
   const inp = $("gridIn"); inp.value = ""; inp.className = "";
@@ -425,7 +428,7 @@ function renderPick(){
     b.className = "btn sm" + (i === Q.sel ? " on" : "");
     b.textContent = "점 " + p.n;
     b.addEventListener("click", () => {
-      Q.sel = i; Q.done = false;
+      Q.sel = i; Q.done = !!Q.answered[i];          // 이미 답한 점은 다시 채점하지 않는다
       renderPick(); askGrid();
       const inp = $("gridIn"); inp.value = ""; inp.className = "";
       $("gridFb").innerHTML = "";
@@ -485,6 +488,7 @@ function drawGrid(){
    ============================================================ */
 const SB = {A:{x:220, y:400}, B:{x:680, y:400}};
 let bis = {px:340, deg:60};                     // 직선 l 이 지나는 x 위치와 기울기
+let bisSeq = 0, bisQSeq = 0;                    // '다시'·'새 문제'마다 1씩 — 점수·기록을 한 번만
 let B2 = {given:0, tries:0, ok:0, streak:0, done:false};
 
 function bisState(){
@@ -526,13 +530,14 @@ function updateBisect(){
   $("cond2").className = "cond " + (s.perp ? "ok" : "off");
   $("cond1").querySelector(".mark").textContent = s.throughMid ? "✓" : "1";
   $("cond2").querySelector(".mark").textContent = s.perp ? "✓" : "2";
+  if(s.done && window.MKSCORE) MKSCORE.once("bis" + bisSeq, 5, "수직이등분선 만들기" + (bisSeq ? " (" + (bisSeq + 1) + "번째)" : ""));
   $("bisFb").innerHTML = s.done
     ? `<div class="fb ok">🎉 완성! 직선 <i>l</i> 은 선분 AB 의 <b>수직이등분선</b>이에요. ` +
       `기호로는 <b>AB ⊥ <i>l</i></b> 이고, 중점 M 에 대해 <b>AM = BM</b> 이에요.</div>`
     : `<div class="fb info">두 조건을 모두 만족해야 수직이등분선이에요.</div>`;
 }
 function newBisQ(){
-  B2.done = false;
+  B2.done = false; bisQSeq++;
   B2.given = 2*(3 + Math.floor(Math.random()*11));         // 6 ~ 26 (짝수)
   $("bisAsk").innerHTML =
     `직선 CD 가 선분 AB 의 <b>수직이등분선</b>이고, 중점을 M 이라 할 때 ` +
@@ -611,7 +616,7 @@ $("btnGridCheck").addEventListener("click", () => {
   if(inp.value === ""){ $("gridFb").innerHTML = `<div class="fb warn">답을 적어 주세요.</div>`; return; }
   const want = gridAnswer();
   const ok = Math.abs(+inp.value - want) < 0.001;
-  Q.done = true; Q.tries++;
+  Q.done = true; Q.tries++; Q.answered[Q.sel] = true;
   if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
   inp.className = ok ? "good" : "bad";
   const p = Q.pts[Q.sel];
@@ -626,7 +631,7 @@ $("btnGridNext").addEventListener("click", newGrid);
 $("gridIn").addEventListener("keydown", e => { if(e.key === "Enter") $("btnGridCheck").click(); });
 
 $("btnBisReset").addEventListener("click", () => {
-  bis = {px:300 + Math.random()*160, deg:35 + Math.random()*40};
+  bis = {px:300 + Math.random()*160, deg:35 + Math.random()*40}; bisSeq++;
   updateBisect(); draw();
 });
 $("btnBisCheck").addEventListener("click", () => {
@@ -640,6 +645,8 @@ $("btnBisCheck").addEventListener("click", () => {
   $("bisQFb").innerHTML =
     `<div class="fb ${ok ? "ok" : "no"}">${ok ? "🎉 정답! " : `아쉬워요. 답은 <b>${B2.given} cm</b>. `}` +
     `M 은 AB 의 중점이므로 <b>AB = 2 × AM = 2 × ${B2.given/2} = ${B2.given}</b> (cm).</div>`;
+  /* 같은 길이가 다시 나오면 문구가 같아 화면으로는 안 세지므로 점수 통로로 알린다 */
+  if(ok && window.MKSCORE) MKSCORE.once("bisq" + bisQSeq, 5, "수직이등분선 문제 (AB = " + B2.given + " cm)");
 });
 $("btnBisNext").addEventListener("click", newBisQ);
 $("bisIn").addEventListener("keydown", e => { if(e.key === "Enter") $("btnBisCheck").click(); });

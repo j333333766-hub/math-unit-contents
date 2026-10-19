@@ -6,7 +6,7 @@
 <title>가상 작도판 — 눈금 없는 자와 컴퍼스</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=4" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -767,6 +767,9 @@ const TASKS = [
     done:"🎉 한 변과 <b>그 양 끝 각</b>이 주어지면 삼각형은 하나로 정해져요 (ASA)."
   }
 ];
+/* 선분 기호: 원고의 'ABÓ' 표기를 글자마다 윗줄(U+0305)을 얹은 A̅B̅ 로 바꿔 보여 준다 */
+const ov = s => s.replace(/([A-Z]+)Ó/g, (_, w) => w.replace(/./g, "$&̅"));
+TASKS.forEach(t => { t.goal = ov(t.goal); t.done = ov(t.done); t.steps.forEach(st => { st.say = ov(st.say); }); });
 
 /* ============================================================
    7. 따라 하기 모드
@@ -815,7 +818,7 @@ function checkGuide(){
       doneSet[t.key] = true; renderTaskList();
       $("guideFb").innerHTML = `<div class="fb ok">${t.done}</div>`;
     }else{
-      $("guideFb").innerHTML = `<div class="fb ok">잘했어요! 다음 단계로 가 볼까요?</div>`;
+      $("guideFb").innerHTML = `<div class="fb ok">좋아요! 다음 단계로 가 볼까요?</div>`;
     }
   }
 }
@@ -854,7 +857,7 @@ $("btnCheckFree").addEventListener("click", () => {
   let k = 0;
   while(k < t.steps.length && t.steps[k].check()) k++;
   $("freeFb").innerHTML = (k >= t.steps.length)
-    ? `<div class="fb ok">${t.done}</div>`
+    ? `<div class="fb ok"><b>스스로 완성!</b> ${t.done}</div>`
     : `<div class="fb warn">아직 완성되지 않았어요. <b>${k} / ${t.steps.length}</b> 단계까지 되었습니다.
        막히면 [따라 하기] 탭에서 순서를 확인해 보세요.</div>`;
   draw();

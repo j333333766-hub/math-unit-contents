@@ -6,7 +6,7 @@
 <title>흔들리지 않는 삼각형 — 트러스 구조</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=4" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -527,6 +527,7 @@ function updatePush(){
     ? "대각선을 넣으니 <b>삼각형 두 개</b>가 되었어요. 이제 사각형 틀도 버팁니다."
     : "삼각형은 밀어도 그대로지요? 사각형에 <b>대각선</b>을 넣어 보세요.";
 }
+const minDone = {};              /* 최소 개수로 이미 성공한 과제 */
 function updatePoly(){
   const d = S.bars.filter(b => b.kind === "brace").length;
   const need = S.n - 3;
@@ -539,8 +540,9 @@ function updatePoly(){
     fb.innerHTML = (d === need)
       ? "고정되었어요! <b>가장 적은 개수</b>인 " + need + "개로 성공했습니다."
       : "고정되었어요. 그런데 " + need + "개로도 될까요? 대각선을 지워 보세요.";
-    if(d === need) window.MKSCORE && MKSCORE.once("poly" + S.n + "-min", 20, S.n + "각형 최소 개수로 고정");
-    else           window.MKSCORE && MKSCORE.once("poly" + S.n, 10, S.n + "각형 고정");
+    /* 최소 개수로 성공한 뒤 대각선을 더 넣는 것은 새 성공이 아니다(점수를 부풀리지 않게) */
+    if(d === need){ minDone["poly" + S.n] = 1; window.MKSCORE && MKSCORE.once("poly" + S.n + "-min", 20, S.n + "각형 최소 개수로 고정"); }
+    else if(!minDone["poly" + S.n]) window.MKSCORE && MKSCORE.once("poly" + S.n, 10, S.n + "각형 고정");
     $("banner").className = "ok"; $("banner").textContent = "흔들리지 않아요!";
   }else{
     fb.className = "fb no";
@@ -558,8 +560,8 @@ function updateQuake(){
     fb.innerHTML = (used === GM)
       ? "완벽해요! <b>보강재 " + GM + "개</b>로 흔들리지 않는 건물을 만들었습니다. 지진을 눌러 확인해 보세요."
       : "흔들리지 않는 건물이에요. 보강재를 <b>" + GM + "개</b>까지 줄일 수 있을까요?";
-    if(used === GM) window.MKSCORE && MKSCORE.once("quake-min", 30, "내진 설계 최소 보강재로 성공");
-    else            window.MKSCORE && MKSCORE.once("quake", 10, "내진 설계 고정 성공");
+    if(used === GM){ minDone.quake = 1; window.MKSCORE && MKSCORE.once("quake-min", 30, "내진 설계 최소 보강재로 성공"); }
+    else if(!minDone.quake) window.MKSCORE && MKSCORE.once("quake", 10, "내진 설계 고정 성공");
     $("banner").className = "ok"; $("banner").textContent = "흔들리지 않아요!";
   }else{
     fb.className = "fb no";
@@ -583,7 +585,8 @@ function loop(){
     project(S, 60, null);
     if(quake.t > quake.dur + 90){
       quake = null;
-      $("banner").className = dofOf(S) === 0 ? "ok" : "no";
+      /* 버티는 건물은 이미 보강할 때 성공으로 셌다 — 지진 결과는 다시 세지 않는다 */
+      $("banner").className = dofOf(S) === 0 ? "ok again" : "no";
       $("banner").textContent = dofOf(S) === 0 ? "끄떡없어요!" : "찌그러졌어요…";
     }
   }

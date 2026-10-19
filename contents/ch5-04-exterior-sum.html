@@ -6,7 +6,7 @@
 <title>외각 360° 모으기 — 드론으로 보기와 거북이 코딩</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -429,7 +429,9 @@ function flyTo(target){
     if(u < 1) droneAnim = requestAnimationFrame(step);
     else{
       droneAnim = null;
-      if(target >= 500 && window.MKSCORE) MKSCORE.once("drone" + n, 5, nameOf(n) + " 드론으로 외각 모으기");
+      /* 잘함(ok)은 위 칭찬 칸(droneFb)이 변의 개수마다 한 번 센다 — 슬라이더로 올려도 세지도록.
+         여기서도 세면 슬라이더로 먼저 본 뒤 단추로 또 띄울 때 같은 성공이 두 번 남는다 */
+      if(target >= 500 && window.MKSCORE) MKSCORE.once("drone" + n, 5, nameOf(n) + " 드론으로 외각 모으기", false);
     }
   })(t0);
 }
@@ -444,6 +446,8 @@ $("btnDown").addEventListener("click", function(){ flyTo(10); });
    ============================================================ */
 const STEP_LEN_MAX = 400;
 let prog = [];                 /* [{kind:'move'|'turn'|'repeat', v, body?}] */
+/* 교과서 190쪽 예시 코드 — 처음 화면과 '예시 넣기' 에 쓰고, 그대로 실행했는지 견줄 때도 쓴다 */
+const SAMPLE = () => [{kind:"repeat", v:3, body:[{kind:"move", v:1}, {kind:"turn", v:120}]}];
 let speed = 1;
 let run = null;
 let turtleAnim = null;
@@ -815,7 +819,12 @@ function finishTurtle(){
   draw();
 
   const m = moves.length, a = turns.length ? Math.abs(turns[0].v) : 0;
-  $("turtleFb").innerHTML = regular
+  /* 처음부터 들어 있는 예시를 그대로 실행한 것은 스스로 만든 것이 아니므로 칭찬·점수 없이 안내만 */
+  const sample = regular && JSON.stringify(prog) === JSON.stringify(SAMPLE());
+  $("turtleFb").innerHTML = sample
+    ? '<div class="fb info">예시 코드로 <b>정삼각형</b>을 그렸어요. 회전한 각 120°가 <b>한 외각</b>이에요.' +
+      ' 이제 숫자를 바꿔 <b>정사각형·정오각형</b>도 만들어 보세요.</div>'
+    : regular
     ? '<div class="fb ok">🎉 <b>정' + nameOf(m) + '</b>이 그려졌어요! 회전한 각 ' + a +
       '°는 정' + nameOf(m) + '의 <b>한 외각</b>이고, ' + m + '번 돌아 ' + Math.abs(total) + '° = 한 바퀴예요.</div>'
     : closed
@@ -823,7 +832,7 @@ function finishTurtle(){
         Math.abs(total) + '°</b> 예요. <b>이동·회전을 반복 안에 넣고, 회전각 = 360 ÷ 반복 횟수</b> 로 맞춰 보세요.</div>'
       : '<div class="fb no">제자리로 돌아오지 않았어요. 회전한 각을 모두 더하면 <b>' + Math.abs(total) +
         '°</b> 라서 한 바퀴(360°)가 되지 않아요.</div>';
-  if(regular && window.MKSCORE) MKSCORE.once("turtle" + m, 10, "거북이로 정" + nameOf(m) + " 그리기");
+  if(regular && !sample && window.MKSCORE) MKSCORE.once("turtle" + m, 10, "거북이로 정" + nameOf(m) + " 그리기");
   paintTurtleInfo();
 }
 
@@ -849,7 +858,7 @@ $("btnEmpty").addEventListener("click", function(){
 });
 $("btnSample").addEventListener("click", function(){
   stopTurtle();
-  prog = [{kind:"repeat", v:3, body:[{kind:"move", v:1}, {kind:"turn", v:120}]}];
+  prog = SAMPLE();
   renderProg();
   $("turtleFb").innerHTML =
     '<div class="fb info">교과서 190쪽의 코드예요. ▶ 실행 을 눌러 보고, 숫자를 바꿔 정오각형도 만들어 보세요.</div>';
@@ -983,7 +992,7 @@ document.querySelectorAll("header nav button").forEach(function(b){
 function boot(){
   paintDrone();
   buildPalette();
-  prog = [{kind:"repeat", v:3, body:[{kind:"move", v:1}, {kind:"turn", v:120}]}];
+  prog = SAMPLE();
   renderProg();
   $("prog").addEventListener("pointerdown", function(ev){
     const el = ev.target.closest(".bk");

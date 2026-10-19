@@ -6,7 +6,7 @@
 <title>각도 실험실 — 각, 평각, 맞꼭지각</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=4" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -446,9 +446,14 @@ function newFlat(hard){
     $("flatUnit").textContent = "°";
   }else{
     /* 도전형 : x, 2x, ... 꼴 */
-    const coef = [];
-    for(let i = 0; i < n; i++) coef.push(1 + Math.floor(Math.random()*3));
-    const sum = coef.reduce((a,b) => a+b, 0);
+    /* 계수의 합이 180 의 약수일 때만 낸다 (합이 7·8 이면 x 가 자연수가 아니어서
+       반올림한 답과 'kx = 180°' 풀이가 서로 맞지 않았다) */
+    let coef, sum;
+    do{
+      coef = [];
+      for(let i = 0; i < n; i++) coef.push(1 + Math.floor(Math.random()*3));
+      sum = coef.reduce((a,b) => a+b, 0);
+    }while(180 % sum !== 0);
     const k = Math.round(180/sum);
     F.coef = coef; F.k = k;
     F.parts = coef.map(c => c*k);

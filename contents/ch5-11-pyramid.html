@@ -6,7 +6,7 @@
 <title>뿔 실험실 — 겉넓이와 3분의 1 부피</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -342,8 +342,10 @@ function paintNet(){
     '<br><span class="step">부채꼴의 중심각 = 360° × r / l</span><br>' +
     '360° × ' + frac(rr, ll) + ' = ' + r2(360*rr/ll) + '°';
   $("netFb").innerHTML = tOpen > 0.9
-    ? '<div class="fb ok">🎉 옆면을 펼치니 <b>부채꼴</b> 이에요. 반지름은 <b>모선 ' + ll +
-      ' cm</b>, 호의 길이는 <b>밑면의 둘레 ' + (2*rr) + 'π cm</b> 예요.</div>'
+    /* 칭찬 칸에는 값을 넣지 않는다 — 펼친 채 r·l 을 끌 때마다 새 정답으로 세지므로 값은 아래 안내 칸에 */
+    ? '<div class="fb ok">🎉 원뿔의 옆면을 펼치니 <b>부채꼴</b> 이에요. 반지름은 <b>모선</b>,' +
+      ' 호의 길이는 <b>밑면의 둘레</b> 예요.</div>' +
+      '<div class="fb info">반지름 = 모선 <b>' + ll + ' cm</b>, 호의 길이 = 밑면의 둘레 <b>' + (2*rr) + 'π cm</b></div>'
     : '<div class="fb info"><b>펼치기</b> 를 끝까지 밀어 보세요.</div>';
   if(tOpen > 0.9 && window.MKSCORE) MKSCORE.once("coneNet", 5, "원뿔 전개도 펼치기");
 }
@@ -427,7 +429,7 @@ function paintPour(){
     '<span class="frac"><span class="top">1</span><span class="bot">3</span></span>' +
     ' × (밑넓이) × (높이)';
   $("pourFb").innerHTML = poured >= 3
-    ? '<div class="fb ok">🎉 <b>세 번</b> 만에 가득 찼어요. 그래서 뿔의 부피는 기둥의' +
+    ? '<div class="fb ok">🎉 <b>' + (shape === "cone" ? "원뿔" : "사각뿔") + '</b>로 <b>세 번</b> 만에 가득 찼어요. 그래서 뿔의 부피는 기둥의' +
       ' <b>1/3</b> 이에요. (교과서 213쪽)</div>'
     : '<div class="fb info">뿔에 모래를 가득 담아 기둥에 부어 보세요. 몇 번에 찰까요?</div>';
   $("btnPour").disabled = (poured >= 3);

@@ -6,7 +6,7 @@
 <title>기둥 펼치기 — 겉넓이와 부피</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -265,7 +265,7 @@ function frac(n, d){
    ============================================================ */
 let tab = "net";
 let kind = "cyl", rr = 2, hh = 6, tOpen = 0, openAnim = null;   /* ① */
-let base = 12, vh = 5, stack = 0, stackAnim = null;              /* ② */
+let base = 12, vh = 5, stack = 0, stackAnim = null, stackSeen = false;   /* ② */
 let Q = {kind:"cylS", r:0, h:0, a:0, b:0, ans:0, pi:false, done:false, tries:0, ok:0, streak:0};
 
 /* ============================================================
@@ -376,7 +376,7 @@ function paintNet(){
     '<br><span class="step">겉넓이 = 밑넓이 × 2 + 옆넓이</span><br>' +
     '<span class="res">' + info.surf + ' ' + u + '</span>';
   $("netFb").innerHTML = tOpen > 0.9
-    ? '<div class="fb ok">🎉 펼쳤더니 <b>밑면 2개 + 옆면</b> 이 보이죠? 옆면의 가로는 <b>밑면의 둘레</b>,' +
+    ? '<div class="fb ok">🎉 <b>' + info.name + '</b>' + ((info.name.charCodeAt(info.name.length - 1) - 0xAC00) % 28 ? '을' : '를') + ' 펼쳤더니 <b>밑면 2개 + 옆면</b> 이 보이죠? 옆면의 가로는 <b>밑면의 둘레</b>,' +
       ' 세로는 <b>높이</b> 예요.</div>'
     : '<div class="fb info"><b>펼치기</b> 를 끝까지 밀어 전개도를 만들어 보세요.</div>';
   if(tOpen > 0.9 && window.MKSCORE) MKSCORE.once("net" + kind, 5, info.name + " 전개도 펼치기");
@@ -445,8 +445,11 @@ function paintVol(){
   $("volCalc").innerHTML =
     '<span class="step">기둥의 부피</span><br>(밑넓이) × (높이) = ' + base + ' × ' + vh +
     ' = <span class="res">' + (base*vh) + ' cm³</span>';
+  /* 두 번째부터 다 쌓은 것은 again — 다시 해 본 것이라 정답·완료로 또 세지 않는다 */
+  const again = stackSeen;
+  if(stack >= vh) stackSeen = true;
   $("volFb").innerHTML = stack >= vh
-    ? '<div class="fb ok">🎉 밑면을 <b>' + vh + '층</b> 쌓았어요. 부피는 <b>' + base + ' × ' + vh +
+    ? '<div class="fb ok' + (again ? ' again' : '') + '">🎉 밑면을 <b>' + vh + '층</b> 쌓았어요. 부피는 <b>' + base + ' × ' + vh +
       ' = ' + (base*vh) + ' cm³</b> 예요.</div>'
     : '<div class="fb info"><b>한 층씩 쌓기</b> 를 눌러 보세요.</div>';
   if(stack >= vh && window.MKSCORE) MKSCORE.once("stack", 5, "기둥 부피 쌓기");

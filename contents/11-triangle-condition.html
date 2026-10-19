@@ -6,7 +6,7 @@
 <title>삼각형 결정 조건 — 될까? 하나로 정해질까?</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=4" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -481,6 +481,8 @@ function caseSliders(){
     inp.addEventListener("input", e => {
       const key = e.target.id.slice(2);
       U2[key] = +e.target.value;
+      /* 함께하기 1: 삼각형이 두 개 되는 순간을 찾으면 미션 성공 */
+      if(cs === "ssa" && ssaSolve().sols.length === 2) window.MKSCORE && MKSCORE.once("ssa2", 10, "SSA 삼각형 두 개 찾기");
       $("v_" + key).textContent = e.target.value;
       $("caseDesc").innerHTML = caseDescHTML() + ssaExtra();
       draw();

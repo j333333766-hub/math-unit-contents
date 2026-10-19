@@ -6,7 +6,7 @@
 <title>합동 포개기 — SSS·SAS·ASA</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=4" defer></script>
-<script src="../assets/track.js?v=9" defer></script>
+<script src="../assets/track.js?v=10" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -220,7 +220,7 @@
       <div class="blk">
         <h2>기억할 것</h2>
         <p><b>△ABC ≡ △DEF</b> 라고 쓰면 A↔D, B↔E, C↔F 가 대응해요.
-           그래서 <b>ABÓ = DEÓ</b>, <b>∠B = ∠E</b> 처럼 짝을 바로 찾을 수 있어요.</p>
+           그래서 <b>A̅B̅ = D̅E̅</b>, <b>∠B = ∠E</b> 처럼 짝을 바로 찾을 수 있어요.</p>
       </div>
     </section>
   </aside>
@@ -310,6 +310,7 @@ const CEN1 = {x:270, y:290};
    (기준이 늘 0°·뒤집기 없음이면 답이 항상 같아져 버린다) */
 let R1 = {rot:0, flip:false};
 let T = {pos:{x:660, y:270}, rot:0, flip:false, done:false};
+let stackNo = 0;                 // 문제 번호 — 문제마다 한 번씩 포개기 성공을 센다
 
 function xform(p, rotDeg, flip){
   const q = flip ? {x:-p.x, y:p.y} : p;
@@ -344,7 +345,7 @@ function newStack(){
   do { T.rot = Math.floor(Math.random()*8)*45; } while(T.rot === R1.rot);
   T.flip = Math.random() < 0.35 ? R1.flip : !R1.flip;
   T.pos = {x:640 + Math.random()*90, y:200 + Math.random()*160};
-  T.done = false;
+  T.done = false; stackNo++;
   $("rRot").value = T.rot; $("vRot").textContent = T.rot + "°";
   $("btnFlip").classList.toggle("on", T.flip);
   $("stackFb").innerHTML = "";
@@ -366,6 +367,8 @@ function update(){
         dx += P[j].x - Q[i].x; dy += P[j].y - Q[i].y;
       }
       T.pos.x += dx/3; T.pos.y += dy/3;
+      /* 새 문제도 칭찬 문구가 같아 화면으로는 한 번만 세지므로 문제마다 점수로 센다 */
+      window.MKSCORE && MKSCORE.once("stack" + stackNo, 10, "합동 포개기 성공");
     }
     b.textContent = "완전히 겹쳤어요 — 합동!"; b.className = "ok";
     const names = ["D", "E", "F"];
@@ -475,6 +478,8 @@ $("btnCondNext").addEventListener("click", newCond);
    ③ 대응 관계
    ============================================================ */
 let R = {sides:{}, angs:{}, ask:null, tries:0, ok:0, streak:0, done:false};
+/* 선분 기호: 'DEÓ' 표기를 글자마다 윗줄(U+0305)을 얹은 D̅E̅ 로 바꿔 보여 준다 */
+const ov = s => s.replace(/([A-Z]+)Ó/g, (_, w) => w.replace(/./g, "$&̅"));
 function newCorr(){
   const ab = 4 + Math.floor(Math.random()*6);
   const bc = 5 + Math.floor(Math.random()*6);
@@ -492,6 +497,7 @@ function newCorr(){
     {q:"∠F 의 크기", lab:"∠F =", unit:"°", ans:R.angs.C, why:`∠F 는 <b>∠C</b> 와 대응해요. ∠C = 180° − ${a1}° − ${a2}° = <b>${R.angs.C}°</b>.`}
   ];
   R.ask = kinds[Math.floor(Math.random()*kinds.length)];
+  ["q", "lab", "why"].forEach(k => { R.ask[k] = ov(R.ask[k]); });
   R.done = false;
   $("corrAsk").innerHTML =
     `아래 그림에서 <b>△ABC ≡ △DEF</b> 일 때, <b>${R.ask.q}</b> 를 구하세요.`;
