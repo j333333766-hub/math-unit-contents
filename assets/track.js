@@ -47,6 +47,26 @@
   var FIRE = !!(FB.databaseURL && FB.apiKey);
   /* 사이트 맨 위 주소(assets/ 의 한 단계 위) — 불러오기 주소를 여기에 붙인다 */
   var BASE = (function(){ try{ var s = document.currentScript; return s && s.src ? new URL("../", s.src).href : null; }catch(e){ return null; } })();
+  /* 교사가 현황판에서 콘텐츠를 미리 볼 때는 기록하지 않는다(번호도 묻지 않는다).
+     현황판 안의 창으로 열렸거나, 주소에 ?mkview=1 을 붙여 새 탭으로 연 경우.
+     새 탭은 목차로 옮겨 다녀도 그 탭이 닫힐 때까지 미리보기로 남는다. */
+  var VIEW = (function(){
+    try{
+      if(/[?&]mkview=1/.test(location.search)) sessionStorage.setItem("mk.view", "1");
+      if(sessionStorage.getItem("mk.view") === "1") return true;
+    }catch(e){}
+    try{ return window.top !== window && /\/teacher\//.test(window.top.location.pathname); }catch(e){ return false; }
+  })();
+  if(VIEW){
+    var showView = function(){
+      var b = document.createElement("div");
+      b.textContent = "👁 교사 미리보기 · 기록 안 남음";
+      b.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:9999;font:700 12px/1 sans-serif;color:#fff;background:#475569cc;padding:7px 11px;border-radius:99px;pointer-events:none;";
+      document.body.appendChild(b);
+    };
+    if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", showView); else showView();
+    return;
+  }
   if((!FIRE && !ENDPOINT) || location.protocol === "file:") return;   /* 주소 미설정·로컬 파일이면 조용히 끔 */
 
   /* ---------- 페이지 이름 ---------- */

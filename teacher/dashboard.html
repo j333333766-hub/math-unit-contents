@@ -140,6 +140,22 @@
     .btn{padding:6px 7px;} select,.inp{padding:5px 6px;}
   }
 
+  /* 👁 콘텐츠 보기 : 오른쪽에 학생 화면 그대로 띄운다(학생 칸은 왼쪽으로 줄어든다) */
+  :root{--pvw:56vw;}
+  .pv{position:fixed; top:8px; right:10px; bottom:10px; width:var(--pvw); z-index:30; display:none; flex-direction:column;
+      background:var(--panel); border:1px solid #c7d2fe; border-radius:14px; overflow:hidden; box-shadow:0 12px 36px rgba(29,36,51,.18);}
+  body.pvon .pv{display:flex;}
+  body.pvon #app{padding-right:calc(var(--pvw) + 18px);}
+  body.pvon.pvfull #app{padding-right:10px;}
+  .pv .ph{display:flex; align-items:center; gap:6px; padding:6px 8px; background:linear-gradient(90deg,#eef2ff,#f5f7ff); border-bottom:1px solid #dbe2fb;}
+  .pv .ph .t{font-size:14px; font-weight:800; color:#3730a3; white-space:nowrap;}
+  .pv .ph select{flex:1; max-width:260px;}
+  .pv .ph .note{font-size:11.5px; font-weight:700; color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0;}
+  .pv iframe{flex:1; width:100%; border:0; background:#fff;}
+  .s .pg[data-p]{cursor:pointer;}
+  .s .pg[data-p]:hover{color:var(--accent); text-decoration:underline;}
+  @media (max-width:640px){ :root{--pvw:calc(100vw - 20px);} body.pvon #app{padding-right:10px;} .pv .ph .note,.pv .ph .tx,#pvW,#bView .lt{display:none;} }
+
   /* 로그인 화면 */
   #gate{position:fixed; inset:0; background:var(--bg); display:flex; align-items:center;
         justify-content:center; padding:20px; z-index:50;}
@@ -176,6 +192,7 @@
   <select id="blkSel" title="볼 수업"></select>
   <div class="stats" id="stats"></div>
   <div class="sp"></div>
+  <button class="btn" id="bView" title="콘텐츠를 학생 화면 그대로 열어 봅니다(기록은 남지 않습니다)">👁<span class="lt"> 콘텐츠 보기</span></button>
   <details class="more" id="more"><summary class="btn">⋯</summary>
     <div class="menu">
       <label>표시할 번호 수 <input id="cap" class="inp" type="number" min="1" max="45" value="30"></label>
@@ -189,6 +206,18 @@
   <div class="callbar" id="callbar" style="display:none"></div>
 </div>
 <div id="wrap"></div>
+</div>
+
+<div class="pv" id="pv">
+  <div class="ph">
+    <span class="t">👁<span class="tx"> 콘텐츠 보기</span></span>
+    <select id="pvSel" title="볼 콘텐츠"></select>
+    <span class="note">학생 화면 그대로 · 기록 안 남음</span>
+    <button class="btn" id="pvW" title="창 너비 바꾸기(반 · 넓게 · 전체)">↔</button>
+    <a class="btn" id="pvTab" target="_blank" rel="noopener" title="새 탭에서 크게 열기">새 탭 ↗</a>
+    <button class="btn" id="pvX" title="닫기 (Esc)">✕</button>
+  </div>
+  <iframe id="pvF" title="콘텐츠 미리보기"></iframe>
 </div>
 
 <script type="module">
@@ -669,6 +698,12 @@ async function ask(fn, msg){
    수업이 열려 있을 때만 보인다. 수업을 닫거나 새로 열면 지시도 사라진다. */
 let GO = null, CALLSIG = "";
 function contentHref(slug){ return slug === "index" ? "index.html" : slug === "unit4" ? "index.html?unit=4" : "contents/" + slug + ".html"; }
+function contentOptions(){
+  const keys = Object.keys(NAMES).filter(k => k !== "index");
+  const og = (lab, ks) => '<optgroup label="' + lab + '">' + ks.map(k => '<option value="' + k + '">' + NAMES[k] + '</option>').join("") + '</optgroup>';
+  return '<optgroup label="목차"><option value="index">목차 (5단원)</option><option value="unit4">목차 (4단원)</option></optgroup>' +
+    og("Ⅳ. 도형의 기초", keys.filter(k => /^\d/.test(k))) + og("Ⅴ. 도형의 성질", keys.filter(k => /^ch5-/.test(k)));
+}
 function paintCallbar(){
   const bar = $("callbar");
   if(!CUR){ bar.style.display = "none"; CALLSIG = ""; return; }
@@ -676,18 +711,16 @@ function paintCallbar(){
   const sig = String(CUR.ms);
   if(sig !== CALLSIG){
     CALLSIG = sig;
-    const keys = Object.keys(NAMES).filter(k => k !== "index");
-    const og = (lab, ks) => '<optgroup label="' + lab + '">' + ks.map(k => '<option value="' + k + '">' + NAMES[k] + '</option>').join("") + '</optgroup>';
     bar.innerHTML = '<span class="callt">📣<span class="tx"> 불러오기</span></span>' +
-      '<select id="goSel"><option value="">콘텐츠 고르기</option>' +
-      '<optgroup label="목차"><option value="index">목차 (5단원)</option><option value="unit4">목차 (4단원)</option></optgroup>' +
-      og("Ⅳ. 도형의 기초", keys.filter(k => /^\d/.test(k))) + og("Ⅴ. 도형의 성질", keys.filter(k => /^ch5-/.test(k))) + '</select>' +
+      '<select id="goSel"><option value="">콘텐츠 고르기</option>' + contentOptions() + '</select>' +
+      '<button class="btn" id="goView" title="고른 콘텐츠를 먼저 열어 보기(학생에게는 보내지 않음)">👁</button>' +
       '<input id="goTo" class="inp" placeholder="번호(전체)" title="몇 명만 부르려면 번호를 쉼표로(예: 3, 7). 비우면 전체">' +
       '<label class="lockck" title="켜고 불러오면, 잠긴 동안 학생이 사이트 안의 다른 콘텐츠로 가지 못합니다(최대 90분). 다른 사이트·탭은 막을 수 없어 주황으로 보입니다."><input type="checkbox" id="goLock">🔒 잠금</label>' +
       '<button class="btn go" id="goBtn">불러오기</button><span class="note" id="goNote"></span>' +
       '<button class="btn lockoff" id="goUnlock" style="display:none">🔓 풀기</button>' +
       '<button class="btn" id="goClear" title="지시를 지운다(잠금도 풀린다). 늦게 들어오는 학생도 더는 불려 가지 않는다">지우기</button>';
     $("goBtn").onclick = callGo; $("goClear").onclick = clearGo; $("goUnlock").onclick = unlockGo;
+    $("goView").onclick = () => { const v = $("goSel").value; if(v) openView(v); else $("goNote").textContent = "볼 콘텐츠를 먼저 고르세요."; };
   }
   paintGoNote();
 }
@@ -827,7 +860,7 @@ function paint(){
         '<span title="다른 탭으로 나간 횟수">↗' + a.hidden + '</span><span title="연 콘텐츠 수">📄' + a.pageCount + '</span>';
     cells += '<div class="s ' + cls + (notHere ? " nothere" : "") + '" title="' + i + '번 · ' + tag + (pg ? " · " + esc(pg) : "") + (tabTxt ? " · " + esc(tabTxt) : "") + '">' +
       '<div class="hd"><span class="no">' + i + '</span><span class="chip">' + tag + (extra ? ' · ' + extra : '') + '</span>' + (notHere ? '<span class="call" title="불러온 콘텐츠로 아직 오지 않았어요">📣 안 옴</span>' : '') + '</div>' +
-      '<div class="pg">' + esc(pg) + '</div>' +
+      '<div class="pg"' + (a.page && (NAMES[a.page] || a.page === "unit4") ? ' data-p="' + esc(a.page) + '" title="눌러서 이 콘텐츠 보기"' : '') + '>' + esc(pg) + '</div>' +
       (tabTxt ? '<div class="tb">▸ ' + esc(tabTxt) + '</div>' : '<div class="tb mut">▸ 활동 탭 기록 없음</div>') +
       '<div class="okl">' + okTxt + '</div>' +
       (a.recent && a.recent.length ? '<div class="log">' + a.recent.map((e) => {
@@ -882,7 +915,39 @@ function fitGrid(n){
   g.classList.toggle("r6", rows >= 5.6 && rows < 6.6);
   g.classList.toggle("r7", rows >= 6.6 && rows < 8.6);   /* 이보다 크면 최근 활동 기록까지 보인다 */
 }
-window.addEventListener("resize", () => { if(DATA) paint(); });
+window.addEventListener("resize", () => { if(document.body.classList.contains("pvon")) pvSize(); if(DATA) paint(); });
+
+/* ---------- 👁 콘텐츠 보기 ----------
+   현황판 안의 창으로 열면 track.js 가 알아보고 기록하지 않는다(번호도 묻지 않는다).
+   새 탭은 주소 끝 ?mkview=1 로 같은 일을 한다. */
+const PVW = ["56vw", "72vw", "full"];
+let pvW = 0;
+try{ pvW = Math.max(0, PVW.indexOf(localStorage.getItem("dash.pvw") || "")); }catch(e){}
+$("pvSel").innerHTML = contentOptions();
+function pvSize(){
+  const w = PVW[pvW], full = w === "full" || matchMedia("(max-width:640px)").matches;   /* 휴대폰은 늘 전체 */
+  document.documentElement.style.setProperty("--pvw", full ? "calc(100vw - 20px)" : w);
+  document.body.classList.toggle("pvfull", full);
+}
+function openView(slug){
+  if(!slug) return;
+  const href = "../" + contentHref(slug);
+  $("pvSel").value = slug;
+  $("pvTab").href = href + (href.includes("?") ? "&" : "?") + "mkview=1";
+  if($("pvF").dataset.slug !== slug){ $("pvF").dataset.slug = slug; $("pvF").src = href; }
+  pvSize();
+  if(!document.body.classList.contains("pvon")){ document.body.classList.add("pvon"); if(DATA) paint(); }
+}
+function closeView(){
+  document.body.classList.remove("pvon");
+  if(DATA) paint();
+}
+$("bView").onclick = () => document.body.classList.contains("pvon") ? closeView() : openView($("pvF").dataset.slug || "index");
+$("pvSel").onchange = () => openView($("pvSel").value);
+$("pvX").onclick = closeView;
+$("pvW").onclick = () => { pvW = (pvW + 1) % PVW.length; try{ localStorage.setItem("dash.pvw", PVW[pvW]); }catch(e){} pvSize(); if(DATA) paint(); };
+$("wrap").addEventListener("click", (e) => { const t = e.target.closest && e.target.closest(".pg[data-p]"); if(t) openView(t.dataset.p); });
+document.addEventListener("keydown", (e) => { if(e.key === "Escape" && document.body.classList.contains("pvon")) closeView(); });
 
 /* ---------- 오래된 기록 지우기 ---------- */
 $("bClean").onclick = async () => {

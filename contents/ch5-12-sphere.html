@@ -6,7 +6,7 @@
 <title>구 실험실 — 겉넓이는 원 4개, 부피는 원기둥의 3분의 2</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
-<script src="../assets/track.js?v=10" defer></script>
+<script src="../assets/track.js?v=11" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -132,7 +132,7 @@
     <section id="pSkin">
       <div class="blk">
         <h2><span class="tag">활동 1</span> 구 껍질을 원에 붙여 보세요</h2>
-        <p>구의 겉면을 잘게 잘라 <b>반지름이 같은 원</b>에 빈틈없이 붙이면 <b>몇 장</b>이 채워질까요?
+        <p>귤껍질을 벗기듯 구의 겉면을 잘게 잘라 <b>반지름이 같은 원</b>에 빈틈없이 붙이면 <b>몇 장</b>이 채워질까요?
            (교과서 216쪽 발견하기)</p>
         <div class="slider">
           <label><span>반지름 <span class="it">r</span></span><span class="v" id="vR">3 cm</span></label>
@@ -219,7 +219,6 @@ const DW = 900, DH = 600;
 const INK = "#1d2433", SUB = "#68738a";
 const BLUE = "#3e63dd", RED = "#e5484d", OK = "#2f9e63", ORANGE = "#f5820b", PURPLE = "#8e4ec6";
 const SAND = "#f0b429";
-const SKIN = ["#5aa9e6", "#7fc8f8", "#3e8ed0", "#a5d8ff"];
 const rad = d => d*Math.PI/180;
 const clamp01 = v => Math.max(0, Math.min(1, v));
 
@@ -263,47 +262,165 @@ let poured = 0, pourAnim = null, pourT = 0;              /* ② */
 let Q = {kind:"S", r:0, ans:0, done:false, tries:0, ok:0, streak:0};
 
 /* ============================================================
-   ① 겉넓이 = 원 4개
+   ① 겉넓이 = 원 4개  (귤껍질 붙이기)
+   구 겉면을 경도 90° 씩 네 조각으로 나눈다. 한 조각의 넓이는 4πr² ÷ 4 = πr²,
+   곧 반지름이 같은 원 한 장이다. 조각마다 위도 12 × 경도 3 칸으로 쪼개
+   한 칸씩 벗겨 원으로 날려 붙인다.
    ============================================================ */
-const SR = 96;
+const SR = 96, LAT = 12, LON = 3, PATCH = LAT*LON;
+const PEEL = ["#f7820b", "#fa9a1e", "#ef6a12", "#fbb02a"];      /* 조각마다 조금 다른 귤색 */
+const PULP = "#fff3d4", PITH = "#f1d9a6";
+const TILT = rad(22);                                          /* 위에서 살짝 내려다본다 */
+const luneSpin = k => -rad(90*k + 45);                         /* k 번째 조각이 정면에 오는 회전 */
+let spin = luneSpin(0), spinFrom = spin, dragX = null;
+function hash(a, b){ const s = Math.sin(a*127.1 + b*311.7)*43758.5453; return s - Math.floor(s); }
+function sp(lat, lon){
+  const a = rad(lat), b = rad(lon) + spin;
+  const x = Math.cos(a)*Math.sin(b), y = Math.sin(a), z = Math.cos(a)*Math.cos(b);
+  return {x, y:y*Math.cos(TILT) - z*Math.sin(TILT), z:y*Math.sin(TILT) + z*Math.cos(TILT)};
+}
+/* 원 안의 껍질 자리 : 안쪽부터 채운다 */
+const CELL = 27;
+const CELLS = (function(){
+  const out = [];
+  for(let v = -5; v <= 5; v++) for(let u = -5; u <= 5; u++){
+    const x = (u + (v & 1 ? 0.5 : 0))*CELL, y = v*CELL*0.9;
+    if(Math.hypot(x, y) < SR + CELL*0.25) out.push({x, y});
+  }
+  out.sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y));
+  out.forEach((c, i) => {
+    c.pts = [[-1,-1],[1,-1],[1,1],[-1,1]].map(([dx, dy], q) =>
+      [dx*CELL*0.66 + (hash(i, q) - 0.5)*7, dy*CELL*0.6 + (hash(q, i) - 0.5)*7]);
+    c.rot = (hash(i, 9) - 0.5)*0.5;
+  });
+  return out;
+})();
+const NC = CELLS.length;
+const fragPatch = i => Math.floor(i*PATCH/NC);
+const T_ROT = 0.18, T_GO = 0.55, T_FLY = 0.27;                 /* 돌리기 → 벗겨 날리기 (한 단계 = 1) */
+const fragStart = i => T_ROT + T_GO*i/NC;
+function circlePos(i){ return {x:560 + (i % 2)*216, y:200 + Math.floor(i/2)*212}; }
+function shade(hex, f){
+  const n = parseInt(hex.slice(1), 16), c = s => Math.max(0, Math.min(255, Math.round(((n >> s) & 255)*f)));
+  return "rgb(" + c(16) + "," + c(8) + "," + c(0) + ")";
+}
+function piece(c, x, y, s, r, col, k){
+  ctx.save(); ctx.translate(x, y); ctx.rotate(r); ctx.scale(s, s);
+  ctx.beginPath(); c.pts.forEach((p, q) => q ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
+  ctx.fillStyle = shade(col, 0.92 + hash(k, c.x)*0.16); ctx.fill();
+  ctx.strokeStyle = "rgba(150,70,0,.35)"; ctx.lineWidth = 1.2/s; ctx.stroke();
+  ctx.fillStyle = "rgba(160,70,0,.28)";
+  for(let d = 0; d < 3; d++){ ctx.beginPath(); ctx.arc((hash(d, c.y + k) - 0.5)*CELL*0.8, (hash(c.y, d + k) - 0.5)*CELL*0.7, 1.3, 0, 7); ctx.fill(); }
+  ctx.restore();
+}
+/* 지금 단계에서 구에서 벗겨진 칸 수 / 원에 닿은 껍질 수 */
+function stepState(){
+  if(!peelAnim) return {gone:0, landed:0};
+  let launched = 0, landed = 0;
+  for(let i = 0; i < NC; i++){ if(peelT >= fragStart(i)) launched++; if(peelT >= fragStart(i) + T_FLY) landed++; }
+  return {gone: launched ? fragPatch(launched - 1) + 1 : 0, landed};
+}
+function patchPoly(k, i, j){
+  const la0 = 90 - i*180/LAT, la1 = 90 - (i + 1)*180/LAT, lo0 = 90*k + j*90/LON, lo1 = lo0 + 90/LON;
+  const pts = [];
+  for(let t = 0; t <= 2; t++) pts.push(sp(la0, lo0 + (lo1 - lo0)*t/2));
+  for(let t = 0; t <= 2; t++) pts.push(sp(la0 + (la1 - la0)*t/2, lo1));
+  for(let t = 2; t >= 0; t--) pts.push(sp(la1, lo0 + (lo1 - lo0)*t/2));
+  for(let t = 2; t >= 0; t--) pts.push(sp(la0 + (la1 - la0)*t/2, lo0));
+  return {pts, c:sp((la0 + la1)/2, (lo0 + lo1)/2)};
+}
+function drawSphere(cx, cy, st){
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, SR, 0, 7); ctx.clip();
+  ctx.fillStyle = PULP; ctx.fillRect(cx - SR, cy - SR, 2*SR, 2*SR);
+  for(let k = 0; k < 4; k++) for(let i = 0; i < LAT; i++) for(let j = 0; j < LON; j++){
+    const P = patchPoly(k, i, j);
+    if(P.c.z <= 0) continue;
+    const bare = k < pasted || (peelAnim && k === pasted && i*LON + j < st.gone);
+    ctx.beginPath();
+    P.pts.forEach((p, q) => { const X = cx + SR*p.x, Y = cy - SR*p.y; q ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); });
+    ctx.closePath();
+    if(bare){ ctx.fillStyle = PULP; ctx.fill(); ctx.strokeStyle = PITH; ctx.lineWidth = 1; ctx.stroke(); }
+    else{
+      ctx.fillStyle = PEEL[k]; ctx.fill();
+      ctx.strokeStyle = "rgba(170,80,0,.22)"; ctx.lineWidth = 0.8; ctx.stroke();
+      if(P.c.z > 0.25){
+        ctx.fillStyle = "rgba(150,60,0,.25)";
+        ctx.beginPath(); ctx.arc(cx + SR*P.c.x, cy - SR*P.c.y, 1.4, 0, 7); ctx.fill();
+      }
+    }
+  }
+  /* 칼집 : 네 조각의 경계 */
+  ctx.strokeStyle = "rgba(120,50,0,.55)"; ctx.lineWidth = 1.6; ctx.setLineDash([5, 4]);
+  for(let k = 0; k < 4; k++){
+    ctx.beginPath(); let pen = false;
+    for(let la = -90; la <= 90; la += 6){
+      const p = sp(la, 90*k);
+      if(p.z < 0){ pen = false; continue; }
+      const X = cx + SR*p.x, Y = cy - SR*p.y;
+      pen ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); pen = true;
+    }
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  /* 둥근 느낌 : 빛과 그늘 */
+  const g = ctx.createRadialGradient(cx - SR*0.38, cy - SR*0.42, SR*0.05, cx, cy, SR*1.02);
+  g.addColorStop(0, "rgba(255,255,255,.55)"); g.addColorStop(0.35, "rgba(255,255,255,0)");
+  g.addColorStop(0.8, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(80,30,0,.28)");
+  ctx.fillStyle = g; ctx.fillRect(cx - SR, cy - SR, 2*SR, 2*SR);
+  /* 벗긴 조각에 몇 번째 장인지 */
+  for(let k = 0; k < pasted; k++){
+    const p = sp(0, 90*k + 45);
+    if(p.z > 0.35) txt((k + 1) + "장", cx + SR*p.x, cy - SR*p.y, "#b45309", 17, true);
+  }
+  ctx.restore();
+  ellipse(cx, cy, SR, SR, null, "#b85c00", 2.6);
+}
 function drawSkin(){
-  /* 왼쪽 : 구 */
-  const cx = 230, cy = 300;
-  ellipse(cx, cy, SR, SR, "#dbeafe", "#2d6bb5", 3);
-  ellipse(cx, cy, SR, SR*0.32, null, "#89b4e0", 1.8);
+  /* 왼쪽 : 구 (귤) */
+  const cx = 230, cy = 300, st = stepState();
+  if(peelAnim){
+    const e = clamp01(peelT/T_ROT), ease = e*e*(3 - 2*e);
+    spin = spinFrom + (luneSpin(pasted) - spinFrom)*ease;
+  }
+  drawSphere(cx, cy, st);
   seg({x:cx, y:cy}, {x:cx + SR, y:cy}, INK, 2.2, [6, 5]);
   txt(rr + " cm", cx + SR/2, cy - 16, INK, 16, true);
   txt("구", cx, cy + SR + 30, INK, 19, true);
-  /* 벗겨지는 느낌 : 붙인 장수만큼 구를 옅게 */
-  if(pasted > 0){
-    ctx.save();
-    ctx.globalAlpha = 0.18*pasted;
-    ellipse(cx, cy, SR, SR, "#ffffff", null, 0);
-    ctx.restore();
-  }
 
-  /* 오른쪽 : 원 4개 */
-  const ox = 560, oy = 200, gap = 216, R = 86;
+  /* 오른쪽 : 반지름이 같은 원 4개 */
   for(let i = 0; i < 4; i++){
-    const x = ox + (i % 2)*gap, y = oy + Math.floor(i/2)*212;
-    const filled = i < pasted || (peelAnim && i === pasted);
-    const p = (peelAnim && i === pasted) ? peelT : (i < pasted ? 1 : 0);
-    ellipse(x, y, R, R, "#f3f6fb", "#9fb0c9", 2);
-    if(p > 0){
-      /* 채워지는 부분을 아래에서 위로 */
+    const {x, y} = circlePos(i);
+    const n = i < pasted ? NC : (peelAnim && i === pasted ? st.landed : 0);
+    ellipse(x, y, SR, SR, "#f3f6fb", "#9fb0c9", 2);
+    if(n > 0){
       ctx.save();
-      ctx.beginPath(); ctx.ellipse(x, y, R, R, 0, 0, 7); ctx.clip();
-      ctx.fillStyle = SKIN[i % SKIN.length] + "cc";
-      ctx.fillRect(x - R, y + R - 2*R*p, 2*R, 2*R*p);
+      ctx.beginPath(); ctx.ellipse(x, y, SR, SR, 0, 0, 7); ctx.clip();
+      for(let c = 0; c < n; c++) piece(CELLS[c], x + CELLS[c].x, y + CELLS[c].y, 1, CELLS[c].rot, PEEL[i], i);
       ctx.restore();
-      ellipse(x, y, R, R, null, "#2d6bb5", 2.4);
+      ellipse(x, y, SR, SR, null, "#b85c00", 2.4);
     }
-    txt((i + 1) + "장", x, y, p > 0.5 ? "#ffffff" : "#9fb0c9", 20, p <= 0.5);
+    txt((i + 1) + "장", x, y, n === NC ? "#ffffff" : "#9fb0c9", 20, n !== NC);
+  }
+  /* 날아가는 껍질 */
+  if(peelAnim){
+    const to = circlePos(pasted);
+    for(let i = 0; i < NC; i++){
+      const t = (peelT - fragStart(i))/T_FLY;
+      if(t < 0 || t >= 1) continue;
+      const f = fragPatch(i), P = patchPoly(pasted, Math.floor(f/LON), f % LON);
+      const a = {x:cx + SR*P.c.x, y:cy - SR*P.c.y}, b = {x:to.x + CELLS[i].x, y:to.y + CELLS[i].y};
+      const m = {x:(a.x + b.x)/2, y:Math.min(a.y, b.y) - 90};
+      const e = t*t*(3 - 2*t), u = 1 - e;
+      const X = u*u*a.x + 2*u*e*m.x + e*e*b.x, Y = u*u*a.y + 2*u*e*m.y + e*e*b.y;
+      piece(CELLS[i], X, Y, 0.55 + 0.45*e, CELLS[i].rot + (1 - e)*2.4, PEEL[pasted], pasted);
+    }
   }
   txt(pasted >= 4 ? "구의 겉넓이 = 원 4장 = 4 × " + (rr*rr) + "π = " + (4*rr*rr) + "π cm²"
                   : "붙인 원 " + pasted + "장",
-      560 + gap/2, 66, pasted >= 4 ? OK : INK, 21, true);
-  $("tip").textContent = "‘한 장씩 붙이기’ 를 눌러 보세요";
+      560 + 216/2, 66, pasted >= 4 ? OK : INK, 21, true);
+  $("tip").textContent = peelAnim ? "" : pasted >= 4 ? "구를 끌어 돌려 보세요"
+                       : "‘한 장씩 붙이기’ 를 눌러 보세요 · 구를 끌면 돌아가요";
 }
 function paintSkin(){
   $("vR").textContent = rr + " cm";
@@ -322,7 +439,8 @@ function stopPeel(){ if(peelAnim){ cancelAnimationFrame(peelAnim); peelAnim = nu
 $("rR").addEventListener("input", function(e){ stopPeel(); rr = +e.target.value; paintSkin(); draw(); });
 $("btnPeel").addEventListener("click", function(){
   if(pasted >= 4 || peelAnim) return;
-  const t0 = performance.now(), DUR = 1100;
+  const t0 = performance.now(), DUR = 2600;
+  spinFrom = spin;
   (function step(now){
     peelT = Math.min(1, (now - t0)/DUR);
     draw();
@@ -330,7 +448,11 @@ $("btnPeel").addEventListener("click", function(){
     else{ peelAnim = null; peelT = 0; pasted++; paintSkin(); draw(); }
   })(performance.now());
 });
-$("btnPeelReset").addEventListener("click", function(){ stopPeel(); pasted = 0; paintSkin(); draw(); });
+$("btnPeelReset").addEventListener("click", function(){ stopPeel(); pasted = 0; spin = luneSpin(0); paintSkin(); draw(); });
+/* 구를 좌우로 끌어 돌려 본다 */
+cv.addEventListener("pointerdown", function(e){ if(tab !== "skin" || peelAnim) return; dragX = e.clientX; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointermove", function(e){ if(dragX === null || peelAnim) return; spin += (e.clientX - dragX)*0.012; dragX = e.clientX; draw(); });
+["pointerup", "pointercancel"].forEach(function(t){ cv.addEventListener(t, function(){ dragX = null; }); });
 
 /* ============================================================
    ② 부피 = 원기둥의 2/3
