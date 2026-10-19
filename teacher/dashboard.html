@@ -85,6 +85,10 @@
   .classbar .runon{font-size:15px; font-weight:800; color:var(--ok);}
   .classbar .runoff{font-size:15px; font-weight:800; color:var(--accent);}
   .classbar .btn.go{background:var(--ok); border-color:var(--ok); color:#fff;}
+  .callbar{background:#fff8ec; border-color:#f5c27a;}
+  .callbar .callt{font-size:15px; font-weight:800; color:#b45309;}
+  .callbar select, .callbar input{font:700 14px var(--font); padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink);}
+  .callbar select{max-width:260px;} .callbar input{width:190px;}
   .classbar .btn.go:hover{background:#268253; border-color:#268253; color:#fff;}
   .classbar .btn.stop{background:var(--no); border-color:var(--no); color:#fff;}
   .classbar .btn.stop:hover{background:#c93b3f; border-color:#c93b3f; color:#fff;}
@@ -190,6 +194,7 @@
 <div class="daybar" id="daybar"></div>
 <div class="blocks" id="blocks"></div>
 <div class="classbar" id="classbar" style="display:none"></div>
+<div class="classbar callbar" id="callbar" style="display:none"></div>
 
 <div class="sum">
   <div class="card g"><div class="v" id="cOn">0</div><div class="l">화면 보는 중</div></div>
@@ -224,7 +229,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getDatabase, ref, onValue, onChildAdded, query, limitToLast, update, remove }
+import { getDatabase, ref, onValue, onChildAdded, query, limitToLast, update, remove, set, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 /* ===========================================================
@@ -345,8 +350,10 @@ function listen(){
   onValue(ref(db, "mk/current"), (s) => {
     const v = s.val();
     CUR = (v && v.ms) ? {ms:Number(v.ms), g:Number(v.g)||0, c:Number(v.c)||0} : null;
+    GO = (v && v.go) ? v.go : null;
     syncSubs();
     draw();
+    paintCallbar();
   });
   onValue(ref(db, "mk/names"), (s) => { LEARNED = s.val() || {}; draw(); });
 
@@ -664,6 +671,58 @@ async function ask(fn, msg){
   render();
   paintClassbar(true);
 }
+
+/* ---------- 📣 불러오기 : 고른 콘텐츠로 접속한 학생 화면을 옮긴다 ----------
+   /mk/current/go 에 {id, href, name, t, to} 를 쓴다. 학생 track.js 가 실시간으로 듣고 옮겨 간다.
+   수업이 열려 있을 때만 보인다. 수업을 닫거나 새로 열면 지시도 사라진다. */
+let GO = null, CALLSIG = "";
+function contentHref(slug){ return slug === "index" ? "index.html" : slug === "unit4" ? "index.html?unit=4" : "contents/" + slug + ".html"; }
+function paintCallbar(){
+  const bar = $("callbar");
+  if(!CUR){ bar.style.display = "none"; CALLSIG = ""; return; }
+  bar.style.display = "flex";
+  const sig = String(CUR.ms);
+  if(sig !== CALLSIG){
+    CALLSIG = sig;
+    const keys = Object.keys(NAMES).filter(k => k !== "index");
+    const og = (lab, ks) => '<optgroup label="' + lab + '">' + ks.map(k => '<option value="' + k + '">' + NAMES[k] + '</option>').join("") + '</optgroup>';
+    bar.innerHTML = '<span class="callt">📣 불러오기</span>' +
+      '<select id="goSel"><option value="">— 콘텐츠 고르기 —</option>' +
+      '<optgroup label="목차"><option value="index">목차 (5단원)</option><option value="unit4">목차 (4단원)</option></optgroup>' +
+      og("Ⅳ. 도형의 기초", keys.filter(k => /^\d/.test(k))) + og("Ⅴ. 도형의 성질", keys.filter(k => /^ch5-/.test(k))) + '</select>' +
+      '<input id="goTo" placeholder="번호(비우면 전체) 예: 3, 7" title="몇 명만 부르려면 번호를 쉼표로">' +
+      '<button class="btn go" id="goBtn">불러오기</button><span class="hint" id="goNote"></span>' +
+      '<span class="sp"></span><button class="btn" id="goClear" title="아직 따라오지 않은(늦게 들어오는) 학생도 부르지 않게 지시를 지운다">지시 지우기</button>';
+    $("goBtn").onclick = callGo; $("goClear").onclick = clearGo;
+  }
+  paintGoNote();
+}
+function paintGoNote(){
+  const e = $("goNote"); if(!e) return;
+  if(!GO || !GO.id){ e.textContent = "번호를 넣고 접속한 학생 화면이 고른 콘텐츠로 옮겨 갑니다."; return; }
+  const min = Math.max(0, Math.round((serverNow() - Number(GO.t || 0)) / 60000));
+  const to = GO.to ? Object.values(GO.to).join(", ") + "번" : "전체";
+  const page = (GO.href || "").replace(/^contents\//, "").replace(/\.html.*$/, "");
+  const there = page ? onPage(page) : 0;
+  e.textContent = "최근 지시: " + (GO.name || GO.href) + " · " + to + " · " + (min ? min + "분 전" : "방금") + (page ? " · 지금 이 콘텐츠 " + there + "명" : "");
+}
+function onPage(page){   /* 지금 수업에서 90초 안에 신호가 온 학생 가운데 마지막으로 이 콘텐츠에 있던 학생 수 */
+  const evs = (CUR && EV[CUR.ms]) || [], last = {}, now = serverNow();
+  for(const e of evs){ if(!e || !e.n) continue; if(!last[e.n] || e.t >= last[e.n].t) last[e.n] = e; }
+  return Object.values(last).filter(e => e.p === page && now - e.t < GONE_MS && e.k !== "bye").length;
+}
+async function callGo(){
+  const slug = $("goSel").value; if(!slug){ $("goNote").textContent = "콘텐츠를 먼저 고르세요."; return; }
+  const nums = ($("goTo").value.match(/\d+/g) || []).map(Number).filter(n => n >= 1 && n <= 45);
+  const name = slug === "index" ? "목차 (5단원)" : slug === "unit4" ? "목차 (4단원)" : NAMES[slug];
+  const go = {id: serverNow().toString(36) + Math.random().toString(36).slice(2, 6), href: contentHref(slug), name, t: serverTimestamp()};
+  if(nums.length) go.to = nums;
+  try{ $("goBtn").disabled = true; await set(ref(db, "mk/current/go"), go); }
+  catch(err){ $("goNote").textContent = "보내지 못했습니다: " + (err && err.message ? err.message : err); }
+  finally{ $("goBtn").disabled = false; }
+}
+async function clearGo(){ try{ await remove(ref(db, "mk/current/go")); }catch(err){} }
+setInterval(paintGoNote, 5000);
 
 async function startClass(g, c){
   const ms  = serverNow();

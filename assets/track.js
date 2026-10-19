@@ -45,6 +45,8 @@
   var MAX_NO   = 45;
 
   var FIRE = !!(FB.databaseURL && FB.apiKey);
+  /* 사이트 맨 위 주소(assets/ 의 한 단계 위) — 불러오기 주소를 여기에 붙인다 */
+  var BASE = (function(){ try{ var s = document.currentScript; return s && s.src ? new URL("../", s.src).href : null; }catch(e){ return null; } })();
   if((!FIRE && !ENDPOINT) || location.protocol === "file:") return;   /* 주소 미설정·로컬 파일이면 조용히 끔 */
 
   /* ---------- 페이지 이름 ---------- */
@@ -265,6 +267,59 @@
     });
   }
 
+  /* ---------- 선생님이 부르면 그 콘텐츠로 옮겨 가기 (파이어베이스만) ----------
+     현황판의 [📣 불러오기] 가 /mk/current/go 에 {id, href, name, t, to} 를 쓴다.
+     · 실시간 연결(EventSource)로 듣는다 — 바뀌면 곧바로 안다. 끊기면 다시 잇고, 25초 신호 때도 한 번 확인한다.
+     · 번호를 넣은 학생만, to 가 있으면 그 번호만 옮긴다. 같은 지시(id)는 한 번만 따른다(옮긴 뒤 다시 끌려가지 않게).
+     · 10분 넘은 지시는 무시한다. 수업이 닫히면 /mk/current 가 지워지므로 지시도 함께 사라진다. */
+  var GO_KEY = "mk.go", GO_TTL = 10 * 60 * 1000, ES = null, ES_RETRY = null, GO_BUSY = false;
+  function goSeen(){ try{ return localStorage.getItem(GO_KEY) || ""; }catch(e){ return ""; } }
+  function goMark(id){ try{ localStorage.setItem(GO_KEY, id); }catch(e){} }
+  function samePage(u){
+    var a = u.pathname.replace(/\/index\.html?$/i, "/"), b = location.pathname.replace(/\/index\.html?$/i, "/");
+    return a === b && (u.search || "") === (location.search || "");
+  }
+  function handleGo(g){
+    if(!g || !g.id || !g.href || !NO || !BASE || GO_BUSY) return;
+    if(goSeen() === g.id) return;
+    var now = Date.now() + SRV_OFF;
+    if(g.t && now - Number(g.t) > GO_TTL) return;
+    var to = g.to;
+    if(to && typeof to === "object"){ var arr = [], k; for(k in to) arr.push(Number(to[k])); if(arr.length && arr.indexOf(NO) < 0) return; }
+    var url; try{ url = new URL(g.href, BASE); }catch(e){ return; }
+    if(url.origin !== location.origin){ goMark(g.id); return; }
+    goMark(g.id);
+    if(samePage(url)) return;
+    GO_BUSY = true;
+    push("go", String(g.name || g.href).slice(0, 60), true);
+    var back = document.createElement("div");
+    back.className = "mk-track-back mk-go";
+    back.innerHTML = '<div class="mk-track-box mk-go-box"><div class="mk-go-ic">📣</div><h3>선생님이 불러요</h3>' +
+      '<p><b>' + String(g.name || "다음 활동").replace(/[<>&]/g, "") + '</b>(으)로 이동합니다.</p>' +
+      '<div class="mk-go-n" id="mkGoN">3</div><div class="mk-track-btns"><button type="button" class="go" id="mkGoNow">지금 이동</button></div></div>';
+    document.body.appendChild(back);
+    var left = 3, go = function(){ flush(true); location.assign(url.href); };
+    back.querySelector("#mkGoNow").onclick = go;
+    var iv = setInterval(function(){ left--; var e = back.querySelector("#mkGoN"); if(e) e.textContent = String(Math.max(left, 0)); if(left <= 0){ clearInterval(iv); go(); } }, 1000);
+  }
+  function pullGo(){
+    if(!FIRE || !NO) return;
+    token().then(function(t){ return fetch(dbUrl("/mk/current/go", t), {cache:"no-store"}); })
+      .then(function(r){ return r.json(); }).then(handleGo)["catch"](function(){});
+  }
+  function listenGo(){
+    if(!FIRE || !NO || !window.EventSource || ES) return;
+    token().then(function(t){
+      if(ES) return;
+      ES = new EventSource(dbUrl("/mk/current/go", t));
+      var onData = function(){ pullGo(); };
+      ES.addEventListener("put", onData); ES.addEventListener("patch", onData);
+      var again = function(){ if(ES){ try{ ES.close(); }catch(e){} ES = null; } clearTimeout(ES_RETRY); ES_RETRY = setTimeout(listenGo, 4000); };
+      ES.addEventListener("auth_revoked", again); ES.addEventListener("cancel", again);
+      ES.onerror = function(){ if(ES && ES.readyState === 2) again(); };
+    })["catch"](function(){ clearTimeout(ES_RETRY); ES_RETRY = setTimeout(listenGo, 8000); });
+  }
+
   /* ---------- 화면 구석의 번호 단추 ---------- */
   var badge;
   function paintBadge(){
@@ -343,6 +398,7 @@
       close();
       if(changed) SID = Math.random().toString(36).slice(2, 10);   /* 사람이 바뀌면 새 세션 */
       push("open", document.title, true);
+      listenGo(); pullGo();
     }
     back.querySelector("#mkOk").onclick = ok;
     if(manual) back.querySelector("#mkCancel").onclick = close;
@@ -430,6 +486,11 @@
       ".mk-track-btns button{font:700 14px 'Pretendard','Malgun Gothic',sans-serif; padding:10px 18px;" +
       "border-radius:10px; border:1px solid #e3e8f0; background:#fff; color:#1d2433; cursor:pointer;}" +
       ".mk-track-btns .go{background:#3e63dd; border-color:#3e63dd; color:#fff;}" +
+      ".mk-go-box{text-align:center;}" +
+      ".mk-go-ic{font-size:44px; line-height:1; margin-bottom:6px;}" +
+      ".mk-go-box p{font-size:16px; color:#1d2433;}" +
+      ".mk-go-n{font:900 46px 'Pretendard','Malgun Gothic',sans-serif; color:#3e63dd; margin:4px 0 6px;}" +
+      ".mk-go .mk-track-btns{justify-content:center;}" +
       "@media print{.mk-track-badge{display:none;}}";
     document.head.appendChild(s);
   }
@@ -443,6 +504,7 @@
        익명 계정을 만들면 한 반이 같은 학교 IP 로 몰릴 때 가입 한도에 걸린다.
        번호를 넣고 나면 첫 기록을 보낼 때 알아서 확인한다. */
     if(FIRE && NO) pullCurrent();
+    if(FIRE && NO){ listenGo(); pullGo(); }
     if(NO) push("open", document.title, true);
     else askNo(false);
 
@@ -450,6 +512,7 @@
       if(!NO) return;
       push("beat", "");
       flush(false);
+      if(!ES || ES.readyState !== 1) pullGo();   /* 실시간 연결이 없으면 신호 때 확인 */
     }, BEAT_MS);
 
     document.addEventListener("visibilitychange", function(){
