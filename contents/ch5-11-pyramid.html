@@ -266,62 +266,95 @@ let Q = {kind:"coneV", r:0, h:0, l:0, b:0, ans:0, pi:false, done:false, tries:0,
 
 /* ============================================================
    ① 원뿔 펼치기
+   옆면을 모선 하나를 따라 자른 뒤, 모선 l 은 그대로 두고 꼭짓점의 반각을
+   asin(r/l) 에서 90° 까지 벌린다. 종이는 늘어나지 않으므로 호의 길이 2πr 이
+   반지름 l sinα 인 원을 2πr/(l sinα) 만큼만 감싸고, 90° 가 되면 평평한 부채꼴이 된다.
+   밑면은 앞쪽 모선 끝에 경첩처럼 붙어 아래로 젖혀지며 부채꼴 옆에 눕는다.
+   보는 각도도 옆(16°)에서 위(90°)로 함께 돌린다.
    ============================================================ */
-/* 1 cm 를 몇 px 로 그릴지 — 모선이 길어져도 전개도가 캔버스를 넘지 않도록 맞춘다 */
-function coneScale(){
-  const half = Math.PI*rr/ll;                                  /* 부채꼴 중심각의 절반 */
-  const hwPer = (half >= Math.PI/2) ? ll : ll*Math.sin(half);  /* SC 1 당 부채꼴 가로 반지름 */
-  return Math.max(9, Math.min(30, 235/ll, 140/rr, 840/(2*hwPer + 2*rr)));
+const NS = 6, NP = 40;                                   /* 옆면을 모선 방향 6칸 × 둘레 40칸으로 */
+function netGeom(t){
+  const a0 = Math.asin(rr/ll), al = a0 + (Math.PI/2 - a0)*t;
+  return {al, wrap:2*Math.PI*rr/(ll*Math.sin(al)), be:Math.PI*t, pitch:rad(16) + rad(74)*t};
+}
+/* s : 꼭짓점에서 모선을 따라 0~1, psi : 자른 곳에서 -1/2 ~ 1/2 (0 이 정면) */
+function sheetPt(G, s, psi){
+  const R = s*ll*Math.sin(G.al), f = psi*G.wrap;
+  return {x:R*Math.sin(f), y:-R*Math.cos(f), z:-s*ll*Math.cos(G.al)};
+}
+function diskPt(G, gam, k){
+  const P0 = sheetPt(G, 1, 0), dy = Math.cos(G.be), dz = -Math.sin(G.be);
+  const c = {x:P0.x, y:P0.y + rr*dy, z:P0.z + rr*dz}, q = k*rr*Math.sin(gam);
+  return {x:c.x + k*rr*Math.cos(gam), y:c.y + q*dy, z:c.z + q*dz};
+}
+function prj(G, p){
+  const sp = Math.sin(G.pitch), cp = Math.cos(G.pitch);
+  return {x:p.x, y:-(p.y*sp + p.z*cp), d:p.y*cp - p.z*sp};
+}
+function netBox(t){
+  const G = netGeom(t), b = {x0:1e9, x1:-1e9, y0:1e9, y1:-1e9};
+  const add = p => { const q = prj(G, p); b.x0 = Math.min(b.x0, q.x); b.x1 = Math.max(b.x1, q.x); b.y0 = Math.min(b.y0, q.y); b.y1 = Math.max(b.y1, q.y); };
+  for(let j = 0; j <= NP; j++) add(sheetPt(G, 1, j/NP - 0.5));
+  add(sheetPt(G, 0, 0));
+  for(let j = 0; j < 24; j++) add(diskPt(G, j/24*2*Math.PI, 1));
+  return b;
 }
 function drawNet(){
-  const t = clamp01(tOpen);
-  const SC = coneScale();
-  const R = rr*SC, L = ll*SC;
-  const cx = 250 + 200*(1 - t), cy = 330;   /* 접혀 있을 땐 가운데, 펼치면 왼쪽으로 */
+  const u = clamp01(tOpen), t = u*u*(3 - 2*u);
+  const G = netGeom(t);
+  /* 1 cm 의 크기 : 원뿔일 때와 다 펼쳤을 때 모두 캔버스 안에 들어가게 (r·l 이 바뀔 때만 달라진다) */
+  const B0 = netBox(0), B1 = netBox(1);
+  const SC = Math.min(30, 760/Math.max(B0.x1 - B0.x0, B1.x1 - B1.x0), 420/Math.max(B0.y1 - B0.y0, B1.y1 - B1.y0));
+  const B = netBox(t), OX = 450 - (B.x0 + B.x1)/2*SC, OY = 330 - (B.y0 + B.y1)/2*SC;
+  const S = p => { const q = prj(G, p); return {x:OX + q.x*SC, y:OY + q.y*SC, d:q.d}; };
+  const vy = Math.cos(G.pitch), vz = -Math.sin(G.pitch);           /* 보는 방향 */
+  const L = {x:-0.3, y:-0.5, z:0.81};
 
-  /* 부채꼴 중심각 = 360 × r/l */
-  const ang = 360*rr/ll;
-
-  if(t < 0.98){
-    /* 원뿔 그림 (접힌 쪽) */
-    const h = Math.sqrt(Math.max(1, L*L - R*R));
-    const apex = {x:cx, y:cy - h/2};
-    const bl = {x:cx - R, y:cy + h/2}, br = {x:cx + R, y:cy + h/2};
-    poly([apex, bl, br], BLUE + ("" + Math.round((1 - t)*60).toString(16)).padStart(2, "0") + "", BLUE, 2.6);
-    ellipse(cx, cy + h/2, R, R*0.3, ORANGE + "44", ORANGE, 2.4);
-    seg(apex, br, RED, 2.4);
-    txt(ll + " cm", (apex.x + br.x)/2 + 26, (apex.y + br.y)/2, RED, 16, true);
-    txt(rr + " cm", cx + R/2, cy + h/2 + 22, ORANGE, 16, true);
+  const faces = [];
+  for(let i = 0; i < NS; i++) for(let j = 0; j < NP; j++){
+    const s0 = i/NS, s1 = (i + 1)/NS, p0 = j/NP - 0.5, p1 = (j + 1)/NP - 0.5;
+    const W = [sheetPt(G, s0, p0), sheetPt(G, s1, p0), sheetPt(G, s1, p1), sheetPt(G, s0, p1)];
+    /* 바깥쪽 법선 = (모선 방향) × (둘레 방향) */
+    const a = {x:W[1].x - W[0].x, y:W[1].y - W[0].y, z:W[1].z - W[0].z}, b = {x:W[2].x - W[1].x, y:W[2].y - W[1].y, z:W[2].z - W[1].z};   /* 꼭짓점 칸은 W0=W3 이라 아래 둘레를 쓴다 */
+    let n = {x:a.y*b.z - a.z*b.y, y:a.z*b.x - a.x*b.z, z:a.x*b.y - a.y*b.x};
+    const nl = Math.hypot(n.x, n.y, n.z) || 1; n = {x:n.x/nl, y:n.y/nl, z:n.z/nl};
+    const out = (n.y*vy + n.z*vz) < 0;                              /* 바깥 면이 보이는가 */
+    const lit = 0.62 + 0.38*Math.abs(n.x*L.x + n.y*L.y + n.z*L.z);
+    const P = W.map(S);
+    faces.push({P, d:(P[0].d + P[1].d + P[2].d + P[3].d)/4, kind:"side", out, lit});
   }
-  if(t > 0.02){
-    /* 펼친 부채꼴 */
-    const half = ang/2;
-    const hw = (half >= 90) ? L : L*Math.sin(rad(half));   /* 부채꼴의 가로 반지름 */
-    /* 부채꼴 + 밑면 원을 한 덩어리로 보고 캔버스 가운데에 놓는다 */
-    const oy = 370, ox = 470 - (2*hw + 2*R + 46)/2 + hw;
-    const a0 = 90 + ang/2, a1 = 90 - ang/2;
-    ctx.globalAlpha = t;
-    ctx.beginPath();
-    ctx.moveTo(ox, oy);
-    /* 캔버스는 y 가 아래로 가므로 수학 각이 줄어드는 방향(a0 → a1)은 시계 방향이다.
-       anticlockwise 를 true 로 두면 남은 쪽(우각)이 칠해진다. */
-    ctx.arc(ox, oy, L, -rad(a0), -rad(a1), false);
-    ctx.closePath();
-    ctx.fillStyle = BLUE + "33"; ctx.fill();
-    ctx.strokeStyle = BLUE; ctx.lineWidth = 2.6; ctx.stroke();
-    const A = {x:ox + Math.cos(rad(a0))*L, y:oy - Math.sin(rad(a0))*L};
-    txt(ll + " cm", (ox + A.x)/2 - 16, (oy + A.y)/2, RED, 16, true);
-    txt("호 = 2π×" + rr + " = " + (2*rr) + "π cm",
-        ox + Math.cos(rad(90))*(L + 30), oy - Math.sin(rad(90))*(L + 30), BLUE, 17, true);
-    txt(Math.round(ang) + "°", ox, oy - 30, BLUE, 16, true);
-    /* 밑면 원 — 부채꼴 오른쪽 옆에 */
-    const bcx = ox + hw + R + 46, bcy = oy - L/2;
-    ellipse(bcx, bcy, R, R, ORANGE + "44", ORANGE, 2.4);
-    seg({x:bcx, y:bcy}, {x:bcx + R, y:bcy}, ORANGE, 2, [6, 5]);
-    txt(rr + " cm", bcx, bcy + R + 18, ORANGE, 16, true);
-    ctx.globalAlpha = 1;
+  const DP = [];
+  for(let j = 0; j < 48; j++) DP.push(S(diskPt(G, j/48*2*Math.PI, 1)));
+  faces.push({P:DP, d:S(diskPt(G, 0, 0)).d, kind:"disk"});
+  faces.sort((A, B2) => B2.d - A.d);
+  for(const f of faces){
+    if(f.kind === "disk"){ poly(f.P, "#fde3c4", ORANGE, 2.4); continue; }
+    const base = f.out ? [88, 128, 236] : [196, 212, 250];
+    ctx.beginPath(); f.P.forEach((p, q) => q ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath();
+    ctx.fillStyle = "rgb(" + base.map(c => Math.round(Math.min(255, c*f.lit + (f.out ? 0 : 20)))).join(",") + ")";
+    ctx.fill(); ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 0.8; ctx.stroke();   /* 칸 사이 틈 메우기 */
   }
-  txt(t > 0.9 ? "전개도 — 옆면은 부채꼴!" : (t < 0.1 ? "원뿔" : "펼치는 중…"),
+  /* 테두리 : 자른 모선 두 개와 밑면 둘레(호) */
+  const edge = (fn, n, color, w) => { ctx.beginPath(); for(let k = 0; k <= n; k++){ const p = fn(k/n); k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); } ctx.strokeStyle = color; ctx.lineWidth = w; ctx.stroke(); };
+  if(t > 0.01){
+    edge(k => S(sheetPt(G, k, -0.5)), 1, BLUE, 2.4);
+    edge(k => S(sheetPt(G, k, 0.5)), 1, BLUE, 2.4);
+  }
+  edge(k => S(sheetPt(G, 1, k - 0.5)), NP, BLUE, 2.6);
+  /* 모선 하나를 빨갛게 — 다 펼치면 부채꼴의 반지름 */
+  const m0 = S(sheetPt(G, 0, -0.25)), m1 = S(sheetPt(G, 1, -0.25));
+  seg(m0, m1, RED, 2.6);
+  txt(ll + " cm", (m0.x + m1.x)/2 - 26, (m0.y + m1.y)/2, RED, 16, true);
+  /* 밑면 반지름 */
+  const dc = S(diskPt(G, 0, 0)), dr = S(diskPt(G, 0, 1));
+  seg(dc, dr, ORANGE, 2, [6, 5]);
+  txt(rr + " cm", (dc.x + dr.x)/2, (dc.y + dr.y)/2 + 15, ORANGE, 16, true);
+  if(t > 0.9){
+    const ang = 360*rr/ll, a = S(sheetPt(G, 0.2, 0)), arc = S(sheetPt(G, 1.2, 0.36));
+    txt(Math.round(ang) + "°", a.x, a.y, BLUE, 16, true);
+    txt("호 = 2π×" + rr + " = " + (2*rr) + "π cm", arc.x + 70, arc.y, BLUE, 17, true);
+  }
+  txt(t > 0.9 ? "전개도 — 옆면은 부채꼴!" : (t < 0.02 ? "원뿔" : "펼치는 중…"),
       450, 52, t > 0.9 ? OK : INK, 21, true);
   $("tip").textContent = "펼치기 슬라이더를 밀어 보세요";
 }
@@ -355,7 +388,7 @@ $("rL").addEventListener("input", function(e){ ll = +e.target.value; paintNet();
 $("rT").addEventListener("input", function(e){ stopOpen(); tOpen = +e.target.value/100; paintNet(); draw(); });
 $("btnOpen").addEventListener("click", function(){
   stopOpen();
-  const from = tOpen, t0 = performance.now(), DUR = 2000;
+  const from = tOpen, t0 = performance.now(), DUR = 3200;
   (function step(now){
     const u = Math.min(1, (now - t0)/DUR);
     tOpen = from + (1 - from)*u;
@@ -368,59 +401,116 @@ $("btnClose").addEventListener("click", function(){ stopOpen(); tOpen = 0; $("rT
 
 /* ============================================================
    ② 세 번 부으면 — 뿔 → 기둥
+   뿔 그릇(꼭짓점이 아래)을 들어 기둥 위에서 기울여 붓고, 제자리로 돌아와 다시 채운다.
+   뿔 안 모래의 높이는 부피의 세제곱근으로 줄고(닮음비), 기둥은 부피만큼 곧게 오른다.
    ============================================================ */
-const PCX = 235, PPX = 640, PBY = 500, PH = 300, PR = 108;
-function drawVessel(cx, isCone, fillRatio){
+const PCX = 230, PPX = 640, PBY = 520, PH = 230, PR = 84;
+const REST = {x:PCX, y:PBY - PH}, TH = rad(100);             /* 그릇 위 가장자리의 가운데 / 붓는 각 */
+const POUR = {x:PPX - 35 - PR*Math.cos(TH), y:PBY - PH - 18 - PR*Math.sin(TH)};   /* 아랫입술이 기둥 위에 오도록 */
+function rim(cx, cy, w, sq, fill, stroke, lw){
+  if(!sq){ ellipse(cx, cy, w, w*0.28, fill, stroke, lw); return; }
+  poly([{x:cx - w, y:cy}, {x:cx - w*0.45, y:cy - w*0.3}, {x:cx + w, y:cy}, {x:cx + w*0.45, y:cy + w*0.3}], fill, stroke, lw);
+}
+function clipBelow(P, yl){                                   /* 다각형에서 y ≥ yl 인 부분(아래쪽) */
+  const out = [];
+  for(let i = 0; i < P.length; i++){
+    const a = P[i], b = P[(i + 1) % P.length], ia = a.y >= yl, ib = b.y >= yl;
+    if(ia) out.push(a);
+    if(ia !== ib){ const k = (yl - a.y)/(b.y - a.y); out.push({x:a.x + (b.x - a.x)*k, y:yl}); }
+  }
+  return out;
+}
+function area(P){ let s = 0; for(let i = 0; i < P.length; i++){ const a = P[i], b = P[(i + 1) % P.length]; s += a.x*b.y - b.x*a.y; } return Math.abs(s)/2; }
+function drawCup(pos, th, f, sq){
+  const c = Math.cos(th), s = Math.sin(th), W = (x, y) => ({x:pos.x + x*c - y*s, y:pos.y + x*s + y*c});
+  const tri = [W(-PR, 0), W(PR, 0), W(0, PH)];
+  poly(tri, "#eef2f9", null);
+  if(f > 0.001){
+    /* 모래 면은 늘 수평 — 옆모습 넓이가 부피^(2/3) 이 되는 높이를 찾는다 */
+    const want = area(tri)*Math.pow(f, 2/3);
+    let lo = Math.min(tri[0].y, tri[1].y, tri[2].y), hi = Math.max(tri[0].y, tri[1].y, tri[2].y);
+    for(let k = 0; k < 28; k++){ const m = (lo + hi)/2; if(area(clipBelow(tri, m)) > want) lo = m; else hi = m; }
+    const yl = (lo + hi)/2;
+    poly(clipBelow(tri, yl), SAND + "dd", null);
+    if(th < 0.02 && f < 0.999) rim(pos.x, yl, PR*(tri[2].y - yl)/PH, sq, SAND, "#c9871a", 1.4);
+  }
+  ctx.save(); ctx.translate(pos.x, pos.y); ctx.rotate(th);
+  ctx.strokeStyle = "#7b8aa5"; ctx.lineWidth = 2.6; ctx.lineJoin = "round";
+  ctx.beginPath(); ctx.moveTo(-PR, 0); ctx.lineTo(0, PH); ctx.lineTo(PR, 0); ctx.stroke();
+  if(sq){ ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(PR*0.45, PR*0.3); ctx.lineTo(0, PH); ctx.stroke(); }
+  rim(0, 0, PR, sq, (f >= 0.999 && th < 0.02) ? SAND : "#ffffff66", "#7b8aa5", 2.4);
+  ctx.restore();
+}
+function drawBox(cx, fill, sq){
   const top = PBY - PH;
-  if(isCone){
-    poly([{x:cx, y:top}, {x:cx - PR, y:PBY}, {x:cx + PR, y:PBY}], "#eef2f9", "#7b8aa5", 2.6);
-    ellipse(cx, PBY, PR, PR*0.28, "#eef2f9", "#7b8aa5", 2.4);
-    /* 모래 : 아래에서 차오른다(원뿔은 위가 넓은 그릇이 아니라 뒤집힌 모양으로 그린다) */
-    if(fillRatio > 0){
-      const yh = PH*fillRatio;
-      const yTop = PBY - yh;
-      const wAt = PR*(1 - yh/PH);       /* 꼭짓점이 위이므로 위로 갈수록 좁아진다 */
-      poly([{x:cx - PR, y:PBY}, {x:cx + PR, y:PBY}, {x:cx + wAt, y:yTop}, {x:cx - wAt, y:yTop}],
-           SAND + "cc", "#c9871a", 1.6);
-      ellipse(cx, yTop, wAt, wAt*0.28, SAND, "#c9871a", 1.6);
-    }
+  ctx.beginPath(); ctx.rect(cx - PR, top, 2*PR, PH);
+  ctx.fillStyle = "#eef2f9"; ctx.fill();
+  rim(cx, PBY, PR, sq, "#eef2f9", "#7b8aa5", 2.4);
+  if(fill > 0){
+    const yTop = PBY - PH*fill;
+    ctx.beginPath(); ctx.rect(cx - PR, yTop, 2*PR, PBY - yTop);
+    ctx.fillStyle = SAND + "cc"; ctx.fill();
+    rim(cx, PBY, PR, sq, SAND + "cc", "#c9871a", 1.6);
+    rim(cx, yTop, PR, sq, SAND, "#c9871a", 1.6);
+  }
+  ctx.strokeStyle = "#7b8aa5"; ctx.lineWidth = 2.6;
+  ctx.beginPath(); ctx.moveTo(cx - PR, top); ctx.lineTo(cx - PR, PBY); ctx.moveTo(cx + PR, top); ctx.lineTo(cx + PR, PBY); ctx.stroke();
+  if(sq){ ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(cx + PR*0.45, top + PR*0.3); ctx.lineTo(cx + PR*0.45, PBY + PR*0.3); ctx.stroke(); }
+  rim(cx, top, PR, sq, "#ffffff55", "#7b8aa5", 2.4);
+}
+/* 뿔 그릇 받침 */
+function drawStand(front){
+  const ry = PBY - PH*0.42, rw = PR*0.42;
+  if(!front){
+    ctx.strokeStyle = "#a8b3c7"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(PCX - rw, ry); ctx.lineTo(PCX - PR*0.8, PBY + 8); ctx.moveTo(PCX + rw, ry); ctx.lineTo(PCX + PR*0.8, PBY + 8); ctx.stroke();
+    ellipse(PCX, PBY + 8, PR*0.8, PR*0.16, "#e7ebf3", "#a8b3c7", 2);
+    ellipse(PCX, ry, rw, rw*0.28, null, "#a8b3c7", 3);
   }else{
-    ctx.beginPath(); ctx.rect(cx - PR, top, 2*PR, PH);
-    ctx.fillStyle = "#eef2f9"; ctx.fill();
-    ctx.strokeStyle = "#7b8aa5"; ctx.lineWidth = 2.6; ctx.stroke();
-    ellipse(cx, PBY, PR, PR*0.28, "#eef2f9", "#7b8aa5", 2.4);
-    if(fillRatio > 0){
-      const yh = PH*fillRatio, yTop = PBY - yh;
-      ctx.beginPath(); ctx.rect(cx - PR, yTop, 2*PR, yh);
-      ctx.fillStyle = SAND + "cc"; ctx.fill();
-      ctx.strokeStyle = "#c9871a"; ctx.lineWidth = 1.6; ctx.stroke();
-      ellipse(cx, yTop, PR, PR*0.28, SAND, "#c9871a", 1.6);
-    }
-    ellipse(cx, top, PR, PR*0.28, "#ffffffcc", "#7b8aa5", 2.4);
+    ctx.strokeStyle = "#8d99b0"; ctx.lineWidth = 3.4;
+    ctx.beginPath(); ctx.ellipse(PCX, ry, rw, rw*0.28, 0, 0, Math.PI); ctx.stroke();
   }
 }
 function drawPour(){
-  const isCone = (shape === "cone");
-  /* 왼쪽 : 뿔 (붓는 동안 비워진다) */
-  const coneFill = pourAnim ? (1 - pourT) : (poured >= 3 ? 0 : 1);
-  drawVessel(PCX, true, coneFill);
-  txt(isCone ? "원뿔" : "사각뿔", PCX, PBY + 46, INK, 19, true);
-
-  /* 오른쪽 : 기둥 */
-  const cylFill = Math.min(1, poured/3 + (pourAnim ? pourT/3 : 0));
-  drawVessel(PPX, false, cylFill);
-  txt(isCone ? "원기둥" : "사각기둥", PPX, PBY + 46, INK, 19, true);
-
-  /* 붓는 줄기 */
-  if(pourAnim && pourT > 0.05 && pourT < 0.95){
-    seg({x:PCX + 40, y:PBY - PH*0.8}, {x:PPX - 70, y:PBY - PH*cylFill - 6}, SAND, 7);
+  const isCone = (shape === "cone"), sq = !isCone;
+  const u = pourT, sm = x => { x = clamp01(x); return x*x*(3 - 2*x); };
+  let pos = REST, th = 0, f = poured >= 3 ? 0 : 1, flow = 0;
+  if(pourAnim){
+    if(u < 0.3){                                   /* 들어 올려 기둥 위로 옮기며 기울인다 */
+      const k = sm(u/0.3);
+      pos = {x:REST.x + (POUR.x - REST.x)*k, y:REST.y + (POUR.y - REST.y)*k - 70*Math.sin(Math.PI*k)};
+      th = TH*k;
+    }else if(u < 0.8){                             /* 붓는다 */
+      pos = POUR; th = TH; flow = (u - 0.3)/0.5; f = 1 - flow;
+    }else{                                         /* 제자리로 돌아와 다시 채운다(마지막 번은 빈 채로) */
+      const k = sm((u - 0.8)/0.12);
+      pos = {x:POUR.x + (REST.x - POUR.x)*k, y:POUR.y + (REST.y - POUR.y)*k - 50*Math.sin(Math.PI*k)};
+      th = TH*(1 - k); flow = 1;
+      f = (poured + 1 < 3) ? sm((u - 0.92)/0.08) : 0;
+    }
   }
+  const cylFill = Math.min(1, (poured + flow)/3);
+
+  drawStand(false);
+  drawBox(PPX, cylFill, sq);
+  txt(isCone ? "원기둥" : "사각기둥", PPX, PBY + 46, INK, 19, true);
+  /* 모래 줄기 : 아랫입술에서 기둥 모래 면까지 곧게 떨어진다 */
+  if(pourAnim && u > 0.3 && u < 0.8){
+    const lip = {x:POUR.x + PR*Math.cos(TH), y:POUR.y + PR*Math.sin(TH)}, yEnd = PBY - PH*cylFill;
+    const w = 9*Math.min(1, (0.8 - u)/0.08, (u - 0.3)/0.04);
+    seg(lip, {x:lip.x, y:yEnd}, SAND, Math.max(2, w));
+    ctx.fillStyle = "#c9871a";
+    for(let k = 0; k < 6; k++){ const yy = lip.y + ((u*900 + k*37) % (yEnd - lip.y)); ctx.beginPath(); ctx.arc(lip.x + (k % 2 ? 3 : -3), yy, 1.6, 0, 7); ctx.fill(); }
+  }
+  drawCup(pos, th, f, sq);
+  drawStand(true);
+  txt(isCone ? "원뿔" : "사각뿔", PCX, PBY + 46, INK, 19, true);
 
   txt(poured >= 3 ? "세 번 부으니 가득! 뿔의 부피는 기둥의 1/3"
                   : "부은 횟수 " + poured + "번 — 기둥의 " + Math.round(cylFill*100) + "%",
       450, 52, poured >= 3 ? OK : INK, 21, true);
   txt("밑면이 합동이고 높이가 같아요", 450, 86, SUB, 16, true);
-  $("tip").textContent = "‘한 번 붓기’ 를 눌러 보세요";
+  $("tip").textContent = pourAnim ? "" : "‘한 번 붓기’ 를 눌러 보세요";
 }
 function paintPour(){
   $("pourCalc").innerHTML =
@@ -445,7 +535,7 @@ document.querySelectorAll("[data-shape]").forEach(function(b){
 });
 $("btnPour").addEventListener("click", function(){
   if(poured >= 3 || pourAnim) return;
-  const t0 = performance.now(), DUR = 1400;
+  const t0 = performance.now(), DUR = 2800;
   (function step(now){
     pourT = Math.min(1, (now - t0)/DUR);
     draw();
