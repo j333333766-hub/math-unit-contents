@@ -279,20 +279,20 @@ function sp(lat, lon){
   const x = Math.cos(a)*Math.sin(b), y = Math.sin(a), z = Math.cos(a)*Math.cos(b);
   return {x, y:y*Math.cos(TILT) - z*Math.sin(TILT), z:y*Math.sin(TILT) + z*Math.cos(TILT)};
 }
-/* 원 안의 껍질 자리 : 안쪽부터 채운다 */
-const CELL = 27;
+/* 원 안의 껍질 자리 : 원을 겹치지 않게 나눈 칸(가로줄마다 너비가 조금씩 다른 직사각형,
+   가장자리 칸은 원 둘레로 잘린다). 안쪽부터 채운다 */
+const ROW = 24;
 const CELLS = (function(){
   const out = [];
-  for(let v = -5; v <= 5; v++) for(let u = -5; u <= 5; u++){
-    const x = (u + (v & 1 ? 0.5 : 0))*CELL, y = v*CELL*0.9;
-    if(Math.hypot(x, y) < SR + CELL*0.25) out.push({x, y});
+  for(let j = 0; j < 2*SR/ROW; j++){
+    const ya = -SR + j*ROW, yb = ya + ROW, ym = (ya < 0 && yb > 0) ? 0 : Math.min(Math.abs(ya), Math.abs(yb));
+    const half = Math.sqrt(SR*SR - ym*ym), n = Math.max(1, Math.round(2*half/30));
+    const wt = []; for(let q = 0; q < n; q++) wt.push(0.75 + hash(j, q)*0.5);
+    const sum = wt.reduce((u, v) => u + v, 0);
+    let x = -half;
+    wt.forEach(v => { const w = 2*half*v/sum; out.push({x:x + w/2, y:ya + ROW/2, w, h:ROW}); x += w; });
   }
   out.sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y));
-  out.forEach((c, i) => {
-    c.pts = [[-1,-1],[1,-1],[1,1],[-1,1]].map(([dx, dy], q) =>
-      [dx*CELL*0.66 + (hash(i, q) - 0.5)*7, dy*CELL*0.6 + (hash(q, i) - 0.5)*7]);
-    c.rot = (hash(i, 9) - 0.5)*0.5;
-  });
   return out;
 })();
 const NC = CELLS.length;
@@ -306,11 +306,12 @@ function shade(hex, f){
 }
 function piece(c, x, y, s, r, col, k){
   ctx.save(); ctx.translate(x, y); ctx.rotate(r); ctx.scale(s, s);
-  ctx.beginPath(); c.pts.forEach((p, q) => q ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
+  ctx.beginPath(); ctx.arc(-c.x, -c.y, SR, 0, 7); ctx.clip();          /* 붙을 자리의 원 둘레로 잘린 모양 */
+  ctx.beginPath(); ctx.rect(-c.w/2, -c.h/2, c.w, c.h);
   ctx.fillStyle = shade(col, 0.92 + hash(k, c.x)*0.16); ctx.fill();
-  ctx.strokeStyle = "rgba(150,70,0,.35)"; ctx.lineWidth = 1.2/s; ctx.stroke();
+  ctx.strokeStyle = "rgba(150,70,0,.4)"; ctx.lineWidth = 1/s; ctx.stroke();
   ctx.fillStyle = "rgba(160,70,0,.28)";
-  for(let d = 0; d < 3; d++){ ctx.beginPath(); ctx.arc((hash(d, c.y + k) - 0.5)*CELL*0.8, (hash(c.y, d + k) - 0.5)*CELL*0.7, 1.3, 0, 7); ctx.fill(); }
+  for(let d = 0; d < 3; d++){ ctx.beginPath(); ctx.arc((hash(d, c.y + k) - 0.5)*c.w*0.8, (hash(c.x, d + k) - 0.5)*c.h*0.7, 1.3, 0, 7); ctx.fill(); }
   ctx.restore();
 }
 /* 지금 단계에서 구에서 벗겨진 칸 수 / 원에 닿은 껍질 수 */
@@ -396,7 +397,7 @@ function drawSkin(){
     if(n > 0){
       ctx.save();
       ctx.beginPath(); ctx.ellipse(x, y, SR, SR, 0, 0, 7); ctx.clip();
-      for(let c = 0; c < n; c++) piece(CELLS[c], x + CELLS[c].x, y + CELLS[c].y, 1, CELLS[c].rot, PEEL[i], i);
+      for(let c = 0; c < n; c++) piece(CELLS[c], x + CELLS[c].x, y + CELLS[c].y, 1, 0, PEEL[i], i);
       ctx.restore();
       ellipse(x, y, SR, SR, null, "#b85c00", 2.4);
     }
@@ -413,7 +414,7 @@ function drawSkin(){
       const m = {x:(a.x + b.x)/2, y:Math.min(a.y, b.y) - 90};
       const e = t*t*(3 - 2*t), u = 1 - e;
       const X = u*u*a.x + 2*u*e*m.x + e*e*b.x, Y = u*u*a.y + 2*u*e*m.y + e*e*b.y;
-      piece(CELLS[i], X, Y, 0.55 + 0.45*e, CELLS[i].rot + (1 - e)*2.4, PEEL[pasted], pasted);
+      piece(CELLS[i], X, Y, 0.55 + 0.45*e, (1 - e)*2.4*(i % 2 ? 1 : -1), PEEL[pasted], pasted);
     }
   }
   txt(pasted >= 4 ? "구의 겉넓이 = 원 4장 = 4 × " + (rr*rr) + "π = " + (4*rr*rr) + "π cm²"
