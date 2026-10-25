@@ -80,6 +80,10 @@
   .found.seven{grid-template-columns:repeat(2,1fr);}
   .legend{font-size:12.5px; color:var(--sub); margin-top:8px; line-height:1.7;}
   .legend i{display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-1px; margin-right:4px;}
+  #cmpLabels{position:absolute; inset:0; pointer-events:none;}
+  .cmpL{position:absolute; transform:translate(-50%, 0); text-align:center; font-weight:800; font-size:14px; white-space:nowrap;
+    background:#ffffffe0; padding:4px 11px; border-radius:10px; border:1px solid var(--line);}
+  .cmpL b{display:block; font-size:26px; line-height:1.1; color:var(--accent);}
   .dot{display:inline-block; width:11px; height:11px; border-radius:50%; vertical-align:-1px; margin:0 3px 0 6px;}
 
   .slider{margin-top:11px;}
@@ -146,6 +150,7 @@
     <div class="stage">
       <canvas id="gl"></canvas>
       <div id="caption"></div>
+      <div id="cmpLabels" style="display:none"><div class="cmpL" id="cmpL0"></div><div class="cmpL" id="cmpL1"></div><div class="cmpL" id="cmpL2"></div></div>
     </div>
     <div id="tip"></div>
   </div>
@@ -198,6 +203,24 @@
           <tr><td id="cName">–</td><td id="cF">–</td><td id="cE">–</td><td id="cV">–</td></tr>
         </table>
         <div id="countFb"></div>
+      </div>
+      <div class="blk">
+        <h2>셋을 나란히 — 모서리·꼭짓점 세기</h2>
+        <p>같은 <span style="font-family:'Times New Roman',serif;font-style:italic">n</span>으로 각기둥·각뿔·각뿔대를 나란히 놓고,
+           부분마다 색을 칠하며 함께 세어 봐요. 위 슬라이더로 <span style="font-family:'Times New Roman',serif;font-style:italic">n</span>을 바꿀 수 있어요.</p>
+        <div class="row" id="cmpBtns" style="margin-top:10px;">
+          <button class="btn sm primary" data-w="edge">▶ 모서리 세기</button>
+          <button class="btn sm primary" data-w="vert">▶ 꼭짓점 세기</button>
+        </div>
+        <div id="cmpBox" hidden>
+          <div class="legend" id="cmpLegend"></div>
+          <table class="meas">
+            <tr><th></th><th>각기둥</th><th>각뿔</th><th>각뿔대</th></tr>
+            <tr><th id="cmpHead">모서리</th><td id="cmpC0">–</td><td id="cmpC1">–</td><td id="cmpC2">–</td></tr>
+          </table>
+          <div id="cmpFb"></div>
+          <button class="btn sm" id="btnCmpOff" style="margin-top:10px;">↩ 하나씩 보기로</button>
+        </div>
       </div>
       <div class="blk">
         <h2>알게 된 것</h2>
@@ -398,7 +421,7 @@ window.addEventListener("pointermove", function(e){
 });
 canvas.addEventListener("wheel", function(e){
   e.preventDefault();
-  distCam = Math.max(5, Math.min(16, distCam + (e.deltaY > 0 ? 0.6 : -0.6)));
+  distCam = Math.max(5, Math.min(cmp ? 30 : 16, distCam + (e.deltaY > 0 ? 0.6 : -0.6)));
 }, {passive:false});
 
 /* 캔버스가 아니라 바깥 상자를 잰다 (pitfalls #5) */
@@ -696,7 +719,7 @@ function buildPlato(){
 
 function rebuild(){
   if(tab === "find") buildFind();
-  else if(tab === "count") buildCount();
+  else if(tab === "count"){ if(cmp) buildCmp(); else buildCount(); }
   else if(tab === "plato") buildPlato();
   else if(tab === "arch") buildArch();
   else buildWhy();
@@ -759,10 +782,16 @@ document.querySelectorAll("#kindBtns button").forEach(function(b){
     document.querySelectorAll("#kindBtns button").forEach(function(x){ x.classList.remove("on"); });
     b.classList.add("on");
     kind = b.dataset.k;
+    if(cmp){ setCmp(false); }
     paintCount(); rebuild();
   });
 });
-$("rN").addEventListener("input", function(e){ nSide = +e.target.value; paintCount(); rebuild(); });
+$("rN").addEventListener("input", function(e){
+  nSide = +e.target.value; paintCount();
+  if(cmp){ cmpDone = true; cmpTick.last = null; }        /* 나란히 보는 중이면 다 센 모습으로 바로 */
+  rebuild();
+  if(cmp) cmpFinish();
+});
 function toggleBtn(id, get, set){
   $(id).addEventListener("click", function(){
     set(!get());
@@ -773,6 +802,194 @@ function toggleBtn(id, get, set){
 toggleBtn("btnFace", function(){ return showFace; }, function(v){ showFace = v; });
 toggleBtn("btnEdge", function(){ return showEdge; }, function(v){ showEdge = v; });
 toggleBtn("btnVert", function(){ return showVert; }, function(v){ showVert = v; });
+
+/* ---------- ② 나란히 비교: 각기둥·각뿔·각뿔대를 함께 두고 모서리·꼭짓점을 차례로 센다 ----------
+   부분(밑면 둘레 → 윗면 둘레 → 옆 모서리 / 밑면 꼭짓점 → 윗면 꼭짓점·꼭대기)마다 색을 정해,
+   세 입체가 같은 부분을 같은 때 함께 센다. 각뿔은 윗면이 없어 그 차례에 0 으로 기다린다. */
+let cmp = false, cmpWhat = null, cmpT0 = 0, cmpDone = true, cmpSubs = [], cmpItems = [], cmpPlan = null, cmpSavedDist = null;
+const CMP_KINDS = ["prism", "pyramid", "frustum"];
+const CMP_GAP = 4.3, CMP_R = 1.45, CMP_H = 2.5, CMP_STEP = 0.34, CMP_PAUSE = 0.7;
+const PART = {
+  bottom:{col:0x3e63dd, e:"밑면 둘레",  v:"밑면 꼭짓점"},
+  top:   {col:0x2f9e63, e:"윗면 둘레",  v:"윗면 꼭짓점"},
+  side:  {col:0xf5820b, e:"옆 모서리"},
+  apex:  {col:0xe5484d, v:"꼭대기"}
+};
+const PHASES = {edge:["bottom", "top", "side"], vert:["bottom", "top"]};   /* vert 의 top 차례에 각뿔은 꼭대기(apex) */
+function cmpName(kind){ const k = (KNUM[nSide] || nSide) + "각"; return k + (kind === "prism" ? "기둥" : kind === "pyramid" ? "뿔" : "뿔대"); }
+function cmpModel(kind, n){
+  const topR = kind === "prism" ? CMP_R : kind === "frustum" ? CMP_R*0.55 : 0;
+  const ring = function(r, y){
+    const a = [];
+    for(let i = 0; i < n; i++){ const t = 2*Math.PI*i/n + Math.PI/n; a.push(new THREE.Vector3(r*Math.sin(t), y, r*Math.cos(t))); }
+    return a;
+  };
+  const B = ring(CMP_R, -CMP_H/2), T = topR ? ring(topR, CMP_H/2) : [new THREE.Vector3(0, CMP_H/2, 0)];
+  const edge = [], vert = [], faces = [B, topR ? T : null].filter(Boolean);
+  B.forEach(function(p, i){ edge.push({a:p, b:B[(i + 1)%n], part:"bottom"}); });
+  if(topR) T.forEach(function(p, i){ edge.push({a:p, b:T[(i + 1)%n], part:"top"}); });
+  B.forEach(function(p, i){
+    edge.push({a:p, b:topR ? T[i] : T[0], part:"side"});
+    faces.push(topR ? [p, B[(i + 1)%n], T[(i + 1)%n], T[i]] : [p, B[(i + 1)%n], T[0]]);
+  });
+  B.forEach(function(p){ vert.push({p:p, part:"bottom"}); });
+  T.forEach(function(p){ vert.push({p:p, part:topR ? "top" : "apex"}); });
+  return {edge:edge, vert:vert, faces:faces};
+}
+/* 시간표: 차례(phase)마다 세 입체 중 가장 많은 쪽에 맞춰 길이를 잡는다 */
+function cmpSchedule(models){
+  const plan = {start:{}, end:0};
+  let t = 0.3;
+  PHASES[cmpWhat].forEach(function(ph){
+    plan.start[ph] = t;
+    let most = 0;
+    models.forEach(function(m){
+      most = Math.max(most, m[cmpWhat].filter(function(it){ return it.part === ph || (ph === "top" && it.part === "apex"); }).length);
+    });
+    t += most*CMP_STEP + CMP_PAUSE;
+  });
+  plan.end = t;
+  return plan;
+}
+function buildCmp(){
+  cmpSubs.forEach(function(sub){ sub.traverse(function(o){ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); });
+  clearGroup();
+  cmpSubs = []; cmpItems = [];
+  const models = CMP_KINDS.map(function(k){ return cmpModel(k, nSide); });
+  if(cmpWhat) cmpPlan = cmpSchedule(models);
+  models.forEach(function(m, si){
+    const sub = new THREE.Group();
+    sub.position.x = (si - 1)*CMP_GAP;
+    const pos = [];
+    m.faces.forEach(function(f){
+      for(let j = 1; j < f.length - 1; j++) [f[0], f[j], f[j + 1]].forEach(function(q){ pos.push(q.x, q.y, q.z); });
+    });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    sub.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({color:COL.face, transparent:true, opacity:0.22,
+      side:THREE.DoubleSide, depthWrite:false})));
+    m.edge.forEach(function(e){
+      sub.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([e.a, e.b]),
+        new THREE.LineBasicMaterial({color:cmpWhat === "edge" ? 0xb9c3d8 : COL.edge})));
+    });
+    /* 셀 것 — 처음엔 숨겨 두고 차례가 오면 자라나거나(모서리) 톡 튀어나온다(꼭짓점) */
+    if(cmpWhat){
+      const seen = {};
+      m[cmpWhat].forEach(function(it){
+        const ph = it.part === "apex" ? "top" : it.part;
+        const k = seen[ph] = (seen[ph] || 0) + 1;
+        const start = cmpPlan.start[ph] + (k - 1)*CMP_STEP;
+        let obj;
+        if(cmpWhat === "edge"){
+          const len = it.a.distanceTo(it.b), dir = new THREE.Vector3().subVectors(it.b, it.a).normalize();
+          obj = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 1, 10), new THREE.MeshBasicMaterial({color:PART[it.part].col}));
+          obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+          obj.userData = {a:it.a, dir:dir, len:len};
+        }else{
+          obj = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 12), new THREE.MeshBasicMaterial({color:PART[it.part].col}));
+          obj.position.copy(it.p);
+        }
+        obj.visible = false;
+        sub.add(obj);
+        cmpItems.push({obj:obj, start:start, sub:si, part:it.part});
+      });
+    }
+    group.add(sub); cmpSubs.push(sub);
+  });
+  $("caption").textContent = cmpWhat ? (cmpWhat === "edge" ? "모서리를 세어 봐요" : "꼭짓점을 세어 봐요") : "나란히 비교";
+  $("tip").textContent = "끌어서 돌려 보세요";
+  cmpTick(true);
+}
+/* 매 장면마다: 시간에 맞춰 보이기·자라기, 개수 세기 */
+function cmpTick(force){
+  if(!cmpWhat) return;
+  const t = cmpDone ? Infinity : (performance.now() - cmpT0)/1000;
+  const cnt = [{}, {}, {}];
+  cmpItems.forEach(function(it){
+    const u = Math.max(0, Math.min(1, (t - it.start)/0.28));
+    it.obj.visible = u > 0;
+    if(u > 0) cnt[it.sub][it.part] = (cnt[it.sub][it.part] || 0) + 1;
+    if(cmpWhat === "edge"){
+      const d = it.obj.userData, L = d.len*u;
+      it.obj.scale.set(1, Math.max(L, 1e-4), 1);
+      it.obj.position.copy(d.a).addScaledVector(d.dir, L/2);
+    }else{
+      const s = u < 1 ? 1.5*Math.sin(u*Math.PI/2) - 0.5*u*u : 1;   /* 살짝 크게 튀었다 제자리 */
+      it.obj.scale.setScalar(Math.max(s, 1e-4));
+    }
+  });
+  if(!cmpDone && t > cmpPlan.end){ cmpDone = true; cmpFinish(); }
+  const key = JSON.stringify(cnt);
+  if(!force && key === cmpTick.last) return;
+  cmpTick.last = key;
+  cmpPaint(cnt);
+}
+function cmpBreak(c, parts){
+  const used = parts.filter(function(p){ return c[p]; });
+  const sum = used.reduce(function(s, p){ return s + c[p]; }, 0);
+  if(!used.length) return "<b>0</b>";
+  const terms = used.map(function(p){ return '<span style="color:' + hex(PART[p].col) + ';font-weight:800">' + c[p] + '</span>'; });
+  return (used.length > 1 ? terms.join(" + ") + " = " : "") + "<b>" + sum + "</b>";
+}
+function cmpPaint(cnt){
+  const parts = cmpWhat === "edge" ? ["bottom", "top", "side"] : ["bottom", "top", "apex"];
+  CMP_KINDS.forEach(function(k, i){
+    $("cmpC" + i).innerHTML = cmpBreak(cnt[i], parts);
+    const sum = parts.reduce(function(s, p){ return s + (cnt[i][p] || 0); }, 0);
+    $("cmpL" + i).innerHTML = cmpName(k) + "<b>" + sum + "</b>";
+  });
+}
+function cmpFinish(){
+  const n = nSide;
+  $("cmpFb").innerHTML = cmpWhat === "edge"
+    ? '<div class="fb ok">🎉 모서리 — ' + cmpName("prism") + ' <b>' + 3*n + '</b>(= 3×' + n + '), ' + cmpName("pyramid") + ' <b>' + 2*n +
+      '</b>(= 2×' + n + '), ' + cmpName("frustum") + ' <b>' + 3*n + '</b>(= 3×' + n + ')<br>각뿔은 <b>윗면 둘레가 없어서</b> 밑면 둘레 + 옆 모서리뿐이에요.</div>'
+    : '<div class="fb ok">🎉 꼭짓점 — ' + cmpName("prism") + ' <b>' + 2*n + '</b>(= 2×' + n + '), ' + cmpName("pyramid") + ' <b>' + (n + 1) +
+      '</b>(= ' + n + '+1), ' + cmpName("frustum") + ' <b>' + 2*n + '</b>(= 2×' + n + ')<br>각뿔은 윗면 대신 <b>꼭대기 하나</b>로 모여요.</div>';
+  if(window.MKSCORE) MKSCORE.once("cmp" + cmpWhat + n, 3, "나란히 " + (cmpWhat === "edge" ? "모서리" : "꼭짓점") + " 세기 (n=" + n + ")", false);
+}
+function cmpFit(){                                /* 세 입체가 화면 폭에 다 들어오게 카메라를 뒤로 */
+  const aspect = VW && VH ? VW/VH : 1.5, tn = Math.tan(20*Math.PI/180);
+  distCam = Math.min(30, Math.max(9, (CMP_GAP + CMP_R + 0.6)/(tn*aspect) + 1.5, 3.3/tn));
+}
+let cmpSavedRot = null;
+function cmpRestoreView(){
+  if(cmpSavedDist != null) distCam = cmpSavedDist;
+  if(cmpSavedRot){ rot.th = cmpSavedRot.th; rot.ph = cmpSavedRot.ph; }
+}
+function setCmp(on, what){
+  if(on && !cmp){ cmpSavedDist = distCam; cmpSavedRot = {th:rot.th, ph:rot.ph}; cmpFit(); rot.th = 0; rot.ph = 0.3; }   /* 정면에서 — 비스듬하면 셋의 크기가 달라 보인다 */
+  if(!on && cmp) cmpRestoreView();
+  cmp = on;
+  $("cmpBox").hidden = !on;
+  document.querySelectorAll("#cmpBtns button").forEach(function(b){ b.classList.toggle("on", on && b.dataset.w === what); });
+  if(on && innerWidth <= 900) document.querySelector(".board-wrap").scrollIntoView({block:"start", behavior:"smooth"});   /* 좁은 화면: 패널이 아래라 입체 쪽으로 올려 준다 */
+  if(on){
+    cmpWhat = what; cmpDone = false; cmpT0 = performance.now(); cmpTick.last = null;
+    $("cmpFb").innerHTML = "";
+    $("cmpHead").innerHTML = what === "edge" ? "모서리" : "꼭짓점";
+    $("cmpLegend").innerHTML = (what === "edge" ? ["bottom", "top", "side"] : ["bottom", "top", "apex"]).map(function(p){
+      return '<span class="dot" style="background:' + hex(PART[p].col) + '"></span>' + PART[p][what === "edge" ? "e" : "v"];
+    }).join(" ");
+  }
+  rebuild();
+}
+document.querySelectorAll("#cmpBtns button").forEach(function(b){
+  b.addEventListener("click", function(){ setCmp(true, b.dataset.w); });
+});
+$("btnCmpOff").addEventListener("click", function(){ setCmp(false); });
+const cmpLabels = $("cmpLabels");
+function cmpLabelPos(){
+  const show = tab === "count" && cmp;
+  cmpLabels.style.display = show ? "" : "none";
+  if(!show) return;
+  cmpSubs.forEach(function(sub, i){
+    const p = new THREE.Vector3(sub.position.x, -CMP_H/2 - 0.75, 0).project(camera);
+    const el = $("cmpL" + i);
+    el.style.left = ((p.x + 1)/2*VW) + "px";
+    el.style.top = ((1 - p.y)/2*VH) + "px";
+  });
+}
 
 /* ============================================================
    ③ 정다면체
@@ -1485,6 +1702,10 @@ document.querySelectorAll("header nav button").forEach(function(b){
     $("pWhy")  .classList.toggle("hidden", tab !== "why");
     $("pArch") .classList.toggle("hidden", tab !== "arch");
     if(tab !== "arch") stopArch();
+    if(cmp && tab !== "count"){                 /* 나란히 보기는 ② 탭에서만 — 카메라 거리도 되돌린다 */
+      cmpRestoreView(); cmp = false; $("cmpBox").hidden = true;
+      document.querySelectorAll("#cmpBtns button").forEach(function(x){ x.classList.remove("on"); });
+    }
     if(tab === "why") rot.ph = 0.8;           /* 펼친 모양이 잘 보이게 위에서 내려다본다 */
     else group.position.y = 0;
     rebuild();
@@ -1493,7 +1714,12 @@ document.querySelectorAll("header nav button").forEach(function(b){
 
 function render(){
   placeCamera();
-  group.rotation.y += 0.0016;                 /* 천천히 도는 느낌 */
+  if(tab === "count" && cmp){                 /* 나란히: 셋이 각자 제자리에서 돈다 */
+    group.rotation.y = 0;
+    cmpSubs.forEach(function(sub){ sub.rotation.y += 0.004; });
+    cmpTick();
+  }else group.rotation.y += 0.0016;           /* 천천히 도는 느낌 */
+  cmpLabelPos();
   renderer.render(scene, camera);
   requestAnimationFrame(render);
 }
