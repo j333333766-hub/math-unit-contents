@@ -230,23 +230,6 @@
         <div id="platoFb"></div>
       </div>
       <div class="blk">
-        <h2>헷갈리는 예 — 정다면체일까?</h2>
-        <p>면이 모두 <b>합동인 정다각형</b>이어도, 꼭짓점마다 모인 면의 개수가 <b>다르면</b> 정다면체가 아니에요.
-           눌러서 꼭짓점 구슬의 색을 비교해 보세요. 같은 색 = 모인 면의 개수가 같아요.</p>
-        <div class="plat conf" id="confBtns">
-          <button class="btn sm" data-c="tri">삼각쌍뿔<small>정사면체 두 개를 붙이면?</small></button>
-          <button class="btn sm" data-c="pent">오각쌍뿔<small>정삼각형 10개</small></button>
-          <button class="btn sm" data-c="gyro">정삼각형 16개 다면체<small>사각뿔 + 엇갈린 띠 + 사각뿔</small></button>
-          <button class="btn sm" data-c="sq">사각쌍뿔<small>정사각뿔 두 개를 붙이면?</small></button>
-          <button class="btn sm" data-c="cubo">육팔면체<small>정육면체를 모서리 가운데까지 깎기</small></button>
-        </div>
-        <table class="meas" id="confTable" hidden>
-          <tr><th>면의 모양</th><th>면이 모두<br>합동?</th><th>꼭짓점에 모인 면의 개수</th></tr>
-          <tr><td id="cfShape">–</td><td id="cfSame">–</td><td id="cfMeet">–</td></tr>
-        </table>
-        <div id="confFb"></div>
-      </div>
-      <div class="blk">
         <h2>전개도로 펼쳐 보기</h2>
         <p>모서리를 따라 잘라 바닥에 펼치면 <b>전개도</b>가 돼요. 펼친 뒤 면의 개수를 세어 보세요. (교과서 200쪽)</p>
         <div class="slider">
@@ -268,6 +251,26 @@
           <button class="btn sm primary" id="btnGoWhy">④ 직접 접어 보기 ▶</button>
         </div>
         <div id="hexFb"></div>
+      </div>
+      <div class="blk">
+        <button class="btn sm" id="btnConfOpen" style="width:100%">🤔 헷갈리는 예</button>
+        <div id="confBody" hidden>
+        <h2 style="margin-top:11px">헷갈리는 예 — 정다면체일까?</h2>
+        <p>면이 모두 <b>합동인 정다각형</b>이어도, 꼭짓점마다 모인 면의 개수가 <b>다르면</b> 정다면체가 아니에요.
+           눌러서 꼭짓점 구슬의 색을 비교해 보세요. 같은 색 = 모인 면의 개수가 같아요.</p>
+        <div class="plat conf" id="confBtns">
+          <button class="btn sm" data-c="tri">삼각쌍뿔<small>정사면체 두 개를 붙이면?</small></button>
+          <button class="btn sm" data-c="pent">오각쌍뿔<small>정삼각형 10개</small></button>
+          <button class="btn sm" data-c="gyro">정삼각형 16개 다면체<small>사각뿔 + 엇갈린 띠 + 사각뿔</small></button>
+          <button class="btn sm" data-c="sq">사각쌍뿔<small>정사각뿔 두 개를 붙이면?</small></button>
+          <button class="btn sm" data-c="cubo">육팔면체<small>정육면체를 모서리 가운데까지 깎기</small></button>
+        </div>
+        <table class="meas" id="confTable" hidden>
+          <tr><th>면의 모양</th><th>면이 모두<br>합동?</th><th>꼭짓점에 모인 면의 개수</th></tr>
+          <tr><td id="cfShape">–</td><td id="cfSame">–</td><td id="cfMeet">–</td></tr>
+        </table>
+        <div id="confFb"></div>
+        </div>
       </div>
     </section>
 
@@ -948,6 +951,14 @@ function clearConf(){
   document.querySelectorAll("#confBtns button").forEach(function(x){ x.classList.remove("on"); });
   document.querySelectorAll("#platBtns button").forEach(function(x){ x.classList.toggle("on", +x.dataset.p === platN); });
 }
+/* 기본은 [헷갈리는 예] 단추만 — 누르면 펼치고, 다시 누르면 접으며 정다면체 화면으로 돌아간다 */
+$("btnConfOpen").addEventListener("click", function(){
+  const open = $("confBody").hidden;
+  $("confBody").hidden = !open;
+  $("btnConfOpen").classList.toggle("on", open);
+  if(open) $("btnConfOpen").scrollIntoView({block:"start", behavior:"smooth"});
+  else if(confKey){ clearConf(); $("confTable").hidden = true; $("confFb").innerHTML = ""; rebuild(); }
+});
 document.querySelectorAll("#confBtns button").forEach(function(b){
   b.addEventListener("click", function(){
     stopNet(); netT = 0; paintNet();
