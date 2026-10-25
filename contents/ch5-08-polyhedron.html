@@ -232,7 +232,7 @@
           <button class="btn sm" data-c="pent">오각쌍뿔<small>정삼각형 10개</small></button>
           <button class="btn sm" data-c="gyro">정삼각형 16개 다면체<small>사각뿔 + 엇갈린 띠 + 사각뿔</small></button>
           <button class="btn sm" data-c="sq">사각쌍뿔<small>정사각뿔 두 개를 붙이면?</small></button>
-          <button class="btn sm" data-c="cubo">깎은 정육면체<small>모서리 가운데까지 깎기</small></button>
+          <button class="btn sm" data-c="cubo">육팔면체<small>정육면체를 모서리 가운데까지 깎기</small></button>
         </div>
         <table class="meas" id="confTable" hidden>
           <tr><th>면의 모양</th><th>면이 모두<br>합동?</th><th>꼭짓점에 모인 면의 개수</th></tr>
@@ -806,7 +806,7 @@ const CONF = {
          say:"면 16개가 모두 합동인 정삼각형이지만, 맨 위·아래 꼭짓점에는 면이 <b>4개</b>, 나머지 꼭짓점에는 <b>5개</b>가 모여요."},
   sq:   {name:"사각쌍뿔", pts:ring(4, R4, 0, 0).concat([[0, R4, 0], [0, -R4, 0]]),
          say:"정사각뿔 두 개를 붙였더니 모든 꼭짓점에 면이 <b>4개</b>씩 모여요. 이건 <b>정팔면체</b>예요! 쌍뿔이라고 다 아닌 건 아니에요."},
-  cubo: {name:"깎은 정육면체", pts:[[1,1,0],[1,-1,0],[-1,1,0],[-1,-1,0],[1,0,1],[1,0,-1],[-1,0,1],[-1,0,-1],[0,1,1],[0,1,-1],[0,-1,1],[0,-1,-1]]
+  cubo: {name:"육팔면체", pts:[[1,1,0],[1,-1,0],[-1,1,0],[-1,-1,0],[1,0,1],[1,0,-1],[-1,0,1],[-1,0,-1],[0,1,1],[0,1,-1],[0,-1,1],[0,-1,-1]]
            .map(function(p){ return p.map(function(v){ return v*Math.SQRT1_2; }); }),
          say:"꼭짓점마다 면이 <b>4개</b>씩 똑같이 모이지만, 면이 정삼각형과 정사각형으로 <b>합동이 아니에요</b>. 두 조건을 모두 맞춰야 정다면체예요."}
 };
@@ -854,7 +854,7 @@ function buildConf(){
   clearGroup();
   const h = confOf(confKey), s = h.scale;
   const P = h.V.map(function(v){ return v.clone().multiplyScalar(s); });
-  const pos = {};                                        /* 면 모양(변의 수)마다 색을 달리한다 — 깎은 정육면체의 정사각형이 드러나게 */
+  const pos = {};                                        /* 면 모양(변의 수)마다 색을 달리한다 — 육팔면체의 정사각형이 드러나게 */
   h.faces.forEach(function(f){
     const arr = pos[f.length] || (pos[f.length] = []);
     for(let j = 1; j < f.length - 1; j++) [P[f[0]], P[f[j]], P[f[j + 1]]].forEach(function(q){ arr.push(q.x, q.y, q.z); });
