@@ -72,6 +72,10 @@
 
   .kinds{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px;}
   .plat{display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px;}
+  .conf .btn{line-height:1.35; text-align:left;}
+  .conf .btn small{display:block; font-size:11px; font-weight:600; color:var(--sub);}
+  #pPlato.conf-on #platoTbl, #pPlato.conf-on #platoFb{opacity:.35;}   /* 헷갈리는 예를 보는 동안 위 정다면체 표는 흐리게 */
+  .dot{display:inline-block; width:11px; height:11px; border-radius:50%; vertical-align:-1px; margin:0 3px 0 6px;}
 
   .slider{margin-top:11px;}
   .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:5px;}
@@ -213,11 +217,28 @@
           <button class="btn sm" data-p="12">정십이면체</button>
           <button class="btn sm" data-p="20">정이십면체</button>
         </div>
-        <table class="meas">
+        <table class="meas" id="platoTbl">
           <tr><th>면의 모양</th><th>한 꼭짓점에<br>모인 면</th><th>면</th><th>모서리</th><th>꼭짓점</th></tr>
           <tr><td id="pShape">–</td><td id="pMeet">–</td><td id="pF">–</td><td id="pE">–</td><td id="pV">–</td></tr>
         </table>
         <div id="platoFb"></div>
+      </div>
+      <div class="blk">
+        <h2>헷갈리는 예 — 정다면체일까?</h2>
+        <p>면이 모두 <b>합동인 정다각형</b>이어도, 꼭짓점마다 모인 면의 개수가 <b>다르면</b> 정다면체가 아니에요.
+           눌러서 꼭짓점 구슬의 색을 비교해 보세요. 같은 색 = 모인 면의 개수가 같아요.</p>
+        <div class="plat conf" id="confBtns">
+          <button class="btn sm" data-c="tri">삼각쌍뿔<small>정사면체 두 개를 붙이면?</small></button>
+          <button class="btn sm" data-c="pent">오각쌍뿔<small>정삼각형 10개</small></button>
+          <button class="btn sm" data-c="gyro">정삼각형 16개 다면체<small>사각뿔 + 엇갈린 띠 + 사각뿔</small></button>
+          <button class="btn sm" data-c="sq">사각쌍뿔<small>정사각뿔 두 개를 붙이면?</small></button>
+          <button class="btn sm" data-c="cubo">깎은 정육면체<small>모서리 가운데까지 깎기</small></button>
+        </div>
+        <table class="meas" id="confTable" hidden>
+          <tr><th>면의 모양</th><th>면이 모두<br>합동?</th><th>꼭짓점에 모인 면의 개수</th></tr>
+          <tr><td id="cfShape">–</td><td id="cfSame">–</td><td id="cfMeet">–</td></tr>
+        </table>
+        <div id="confFb"></div>
       </div>
       <div class="blk">
         <h2>전개도로 펼쳐 보기</h2>
@@ -592,6 +613,7 @@ function netOf(k){
   return (netCache[k] = {faces:faces, tree:tree, Q:Q, c:c, fit:Math.min(1, 3.0/rad)});
 }
 function buildPlato(){
+  if(confKey){ buildConf(); return; }
   clearGroup();
   const net = netOf(platN), t = netT;
   const M = netFrames(net, net.tree, t);
@@ -721,6 +743,7 @@ document.querySelectorAll("#platBtns button").forEach(function(b){
     document.querySelectorAll("#platBtns button").forEach(function(x){ x.classList.remove("on"); });
     b.classList.add("on");
     platN = +b.dataset.p;
+    clearConf();
     paintPlato(); paintNet(); rebuild();
   });
 });
@@ -757,10 +780,134 @@ function playNet(to){
   })(t0);
 }
 $("rNet").addEventListener("input", function(e){
-  stopNet(); netT = +e.target.value/100; paintNet(); rebuild();
+  clearConf(); stopNet(); netT = +e.target.value/100; paintNet(); rebuild();
 });
-$("btnUnfold").addEventListener("click", function(){ playNet(1); });
-$("btnRefold").addEventListener("click", function(){ playNet(0); });
+$("btnUnfold").addEventListener("click", function(){ clearConf(); playNet(1); });
+$("btnRefold").addEventListener("click", function(){ clearConf(); playNet(0); });
+
+/* ---------- 헷갈리는 예: 면은 모두 정다각형인데 정다면체가 아닌(또는 맞는) 다면체 ----------
+   꼭짓점만 주고 볼록껍질로 면을 찾는다(점이 많아야 16개라 모든 세 점 조합을 봐도 가볍다).
+   모서리 길이는 모두 1 — 면이 정말 정다각형이 되게 좌표를 계산해 둔다. */
+let confKey = null;
+const R5 = 1/(2*Math.sin(Math.PI/5));
+function ring(n, r, y, off){
+  const a = [];
+  for(let i = 0; i < n; i++){ const t = off + 2*Math.PI*i/n; a.push([r*Math.cos(t), y, r*Math.sin(t)]); }
+  return a;
+}
+const R4 = Math.SQRT1_2, H4 = Math.sqrt(1 - 2*R4*R4*(1 - Math.SQRT1_2))/2;   /* 엇갈린 띠(사각 엇각기둥) 높이의 절반 */
+const CONF = {
+  tri:  {name:"삼각쌍뿔", pts:ring(3, 1/Math.sqrt(3), 0, 0).concat([[0, Math.sqrt(2/3), 0], [0, -Math.sqrt(2/3), 0]]),
+         say:"정사면체 두 개를 붙인 모양이에요. 면은 모두 합동인 정삼각형이지만, 위·아래 꼭짓점에는 면이 <b>3개</b>, 가운데 꼭짓점에는 <b>4개</b>가 모여요."},
+  pent: {name:"오각쌍뿔", pts:ring(5, R5, 0, Math.PI/2).concat([[0, Math.sqrt(1 - R5*R5), 0], [0, -Math.sqrt(1 - R5*R5), 0]]),
+         say:"면은 모두 합동인 정삼각형이지만, 위·아래 꼭짓점에는 면이 <b>5개</b>, 가운데 꼭짓점에는 <b>4개</b>가 모여요."},
+  gyro: {name:"정삼각형 16개 다면체", pts:ring(4, R4, H4, 0).concat(ring(4, R4, -H4, Math.PI/4),
+           [[0, H4 + R4, 0], [0, -H4 - R4, 0]]),
+         say:"면 16개가 모두 합동인 정삼각형이지만, 맨 위·아래 꼭짓점에는 면이 <b>4개</b>, 나머지 꼭짓점에는 <b>5개</b>가 모여요."},
+  sq:   {name:"사각쌍뿔", pts:ring(4, R4, 0, 0).concat([[0, R4, 0], [0, -R4, 0]]),
+         say:"정사각뿔 두 개를 붙였더니 모든 꼭짓점에 면이 <b>4개</b>씩 모여요. 이건 <b>정팔면체</b>예요! 쌍뿔이라고 다 아닌 건 아니에요."},
+  cubo: {name:"깎은 정육면체", pts:[[1,1,0],[1,-1,0],[-1,1,0],[-1,-1,0],[1,0,1],[1,0,-1],[-1,0,1],[-1,0,-1],[0,1,1],[0,1,-1],[0,-1,1],[0,-1,-1]]
+           .map(function(p){ return p.map(function(v){ return v*Math.SQRT1_2; }); }),
+         say:"꼭짓점마다 면이 <b>4개</b>씩 똑같이 모이지만, 면이 정삼각형과 정사각형으로 <b>합동이 아니에요</b>. 두 조건을 모두 맞춰야 정다면체예요."}
+};
+const DEG_COL = {3:0xf5820b, 4:0x3e63dd, 5:0xe5484d};
+const hex = function(c){ return "#" + c.toString(16).padStart(6, "0"); };
+function hullOf(P){
+  const V = P.map(function(p){ return new THREE.Vector3(p[0], p[1], p[2]); });
+  const faces = [], seen = {}, EPS = 1e-6;
+  for(let i = 0; i < V.length; i++) for(let j = i + 1; j < V.length; j++) for(let k = j + 1; k < V.length; k++){
+    const n = new THREE.Vector3().subVectors(V[j], V[i]).cross(new THREE.Vector3().subVectors(V[k], V[i]));
+    if(n.length() < EPS) continue;
+    n.normalize();
+    const d = n.dot(V[i]);
+    let pos = 0, neg = 0;
+    const on = [];
+    V.forEach(function(v, m){ const t = n.dot(v) - d; if(t > EPS) pos++; else if(t < -EPS) neg++; else on.push(m); });
+    if(pos && neg) continue;
+    if(pos) n.negate();                                   /* 바깥쪽을 보게 */
+    const key = on.slice().sort(function(a, b){ return a - b; }).join(",");
+    if(seen[key]) continue;
+    seen[key] = 1;
+    const c = new THREE.Vector3();
+    on.forEach(function(m){ c.add(V[m]); }); c.multiplyScalar(1/on.length);
+    const u = new THREE.Vector3().subVectors(V[on[0]], c).normalize(), w = new THREE.Vector3().crossVectors(n, u);
+    on.sort(function(a, b){
+      const A = new THREE.Vector3().subVectors(V[a], c), B = new THREE.Vector3().subVectors(V[b], c);
+      return Math.atan2(A.dot(w), A.dot(u)) - Math.atan2(B.dot(w), B.dot(u));
+    });
+    faces.push(on);
+  }
+  const deg = V.map(function(_, m){ return faces.filter(function(f){ return f.indexOf(m) >= 0; }).length; });
+  return {V:V, faces:faces, deg:deg};
+}
+const confCache = {};
+function confOf(k){
+  if(!confCache[k]){
+    const h = hullOf(CONF[k].pts);
+    let r = 0; h.V.forEach(function(v){ r = Math.max(r, v.length()); });
+    h.scale = 2.4/r;
+    confCache[k] = h;
+  }
+  return confCache[k];
+}
+function buildConf(){
+  clearGroup();
+  const h = confOf(confKey), s = h.scale;
+  const P = h.V.map(function(v){ return v.clone().multiplyScalar(s); });
+  const pos = {};                                        /* 면 모양(변의 수)마다 색을 달리한다 — 깎은 정육면체의 정사각형이 드러나게 */
+  h.faces.forEach(function(f){
+    const arr = pos[f.length] || (pos[f.length] = []);
+    for(let j = 1; j < f.length - 1; j++) [P[f[0]], P[f[j]], P[f[j + 1]]].forEach(function(q){ arr.push(q.x, q.y, q.z); });
+    group.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(f.map(function(m){ return P[m]; })),
+      new THREE.LineBasicMaterial({color:COL.edge})));
+  });
+  Object.keys(pos).forEach(function(n){
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos[n], 3));
+    group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({color:n === "3" ? COL.face : 0xf6c86b, transparent:true,
+      opacity:n === "3" ? 0.34 : 0.5, side:THREE.DoubleSide, depthWrite:false})));
+  });
+  P.forEach(function(p, m){
+    const sp = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 10), new THREE.MeshBasicMaterial({color:DEG_COL[h.deg[m]] || 0x555555}));
+    sp.position.copy(p); group.add(sp);
+  });
+  $("caption").textContent = CONF[confKey].name;
+  $("tip").textContent = "끌어서 돌려 보며 꼭짓점 색을 비교해 보세요";
+}
+function paintConf(){
+  const h = confOf(confKey), c = CONF[confKey];
+  const sides = {}, cnt = {};
+  h.faces.forEach(function(f){ sides[f.length] = (sides[f.length] || 0) + 1; });
+  h.deg.forEach(function(d){ cnt[d] = (cnt[d] || 0) + 1; });
+  const same = Object.keys(sides).length === 1, even = Object.keys(cnt).length === 1, ok = same && even;
+  $("confTable").hidden = false;
+  $("cfShape").innerHTML = Object.keys(sides).map(function(n){ return PNAME[n] + " <b>" + sides[n] + "</b>개"; }).join("<br>");
+  $("cfSame").innerHTML = same ? '<b style="color:var(--ok)">예</b>' : '<b style="color:var(--no)">아니요</b>';
+  $("cfMeet").innerHTML = Object.keys(cnt).map(function(d){
+    return '<span class="dot" style="background:' + hex(DEG_COL[d]) + '"></span><b>' + d + '개</b> 모인 꼭짓점 ' + cnt[d] + '곳';
+  }).join("<br>");
+  $("confFb").innerHTML = '<div class="fb ' + (ok ? "ok" : "warn") + '">' +
+    (ok ? "⭕ <b>정다면체예요.</b> " : "❌ <b>정다면체가 아니에요.</b> ") + c.say + '</div>';
+  $("confFb").scrollIntoView({block:"nearest", behavior:"smooth"});
+  if(window.MKSCORE) MKSCORE.once("conf" + confKey, 3, c.name + " 정다면체인지 따져 보기", false);
+}
+function clearConf(){
+  if(!confKey) return;
+  confKey = null;
+  $("pPlato").classList.remove("conf-on");
+  document.querySelectorAll("#confBtns button").forEach(function(x){ x.classList.remove("on"); });
+  document.querySelectorAll("#platBtns button").forEach(function(x){ x.classList.toggle("on", +x.dataset.p === platN); });
+}
+document.querySelectorAll("#confBtns button").forEach(function(b){
+  b.addEventListener("click", function(){
+    stopNet(); netT = 0; paintNet();
+    document.querySelectorAll("#confBtns button, #platBtns button").forEach(function(x){ x.classList.remove("on"); });
+    b.classList.add("on");
+    confKey = b.dataset.c;
+    $("pPlato").classList.add("conf-on");
+    paintConf(); rebuild();
+  });
+});
 
 $("btnGoWhy").addEventListener("click", function(){
   document.querySelector('header nav button[data-tab="why"]').click();
