@@ -68,6 +68,11 @@
   .fb.no{background:var(--no-soft); color:var(--no);}
   .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
   .fb.warn{background:var(--warn-soft); color:#a75c00;}
+  .mislist{list-style:none; margin-top:6px; display:flex; flex-direction:column; gap:5px;}
+  .mis{font-size:13px; font-weight:700; color:var(--sub); padding:6px 9px; border-radius:8px; background:#f7f9fd; border:1px solid var(--line);}
+  .mis::before{content:"☐ ";}
+  .mis.done{color:var(--ok); background:var(--ok-soft); border-color:transparent;}
+  .mis.done::before{content:"✅ ";}
 
   .calc{
     margin-top:10px; background:#f7f9fd; border:1px solid var(--line); border-radius:10px;
@@ -116,7 +121,8 @@
   <nav>
     <button class="on" data-tab="skin">① 겉넓이 = 원 4개</button>
     <button data-tab="vol">② 부피 = 원기둥의 ⅔</button>
-    <button data-tab="quiz">③ 스스로 풀기</button>
+    <button data-tab="ratio">③ 원뿔·반구·원기둥</button>
+    <button data-tab="quiz">④ 스스로 풀기</button>
   </nav>
   <a class="home-btn" href="../index.html?unit=5">← 목차</a>
 </header>
@@ -177,10 +183,42 @@
       </div>
     </section>
 
-    <!-- ③ 퀴즈 -->
+    <!-- ③ 원뿔·반구·원기둥 -->
+    <section id="pRatio" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 높이가 같은 원뿔·반구·원기둥</h2>
+        <p>밑면의 반지름이 <span class="it">r</span>, 높이가 <span class="it">r</span> 로 같은
+           <b>원뿔</b>, <b>반구</b>, <b>원기둥</b> 그릇이에요. 세 그릇의 부피는 어떤 관계일까요?</p>
+        <p style="margin-top:9px;"><b>① 먼저 예상해 보세요.</b> 원뿔 : 반구 : 원기둥 =</p>
+        <div class="row" id="ratioGuess" style="margin-top:6px;"></div>
+        <p style="margin-top:11px;"><b>② 모래를 부어 확인해 보세요.</b></p>
+        <ul class="mislist">
+          <li id="mis1" class="mis">미션 1 · 원뿔로만 원기둥을 가득 채우려면 몇 번?</li>
+          <li id="mis2" class="mis">미션 2 · 반구 1번 + 원뿔로 원기둥을 가득 채우기</li>
+        </ul>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary sm" id="btnPourC">▶ 원뿔로 붓기</button>
+          <button class="btn primary sm" id="btnPourH">▶ 반구로 붓기</button>
+          <button class="btn sm" id="btnEmpty3">↺ 원기둥 비우기</button>
+        </div>
+        <div class="calc" id="ratioCalc"></div>
+        <div id="ratioFb"></div>
+        <div class="row" style="margin-top:8px;"><button class="btn sm" id="btnRatioReset">처음부터 다시</button></div>
+      </div>
+      <div class="blk hidden" id="ratioLearn">
+        <h2>알게 된 것</h2>
+        <p>높이가 같으면 <b>원뿔 : 반구 : 원기둥 = 1 : 2 : 3</b><br>
+           원기둥 = π<span class="it">r</span>² × <span class="it">r</span> = π<span class="it">r</span>³ 이므로<br>
+           원뿔 = <span class="frac"><span class="top">1</span><span class="bot">3</span></span>π<span class="it">r</span>³,
+           반구 = <span class="frac"><span class="top">2</span><span class="bot">3</span></span>π<span class="it">r</span>³<br>
+           구 = 반구 2개 = <b><span class="frac"><span class="top">4</span><span class="bot">3</span></span>π<span class="it">r</span>³</b></p>
+      </div>
+    </section>
+
+    <!-- ④ 퀴즈 -->
     <section id="pQuiz" class="hidden">
       <div class="blk">
-        <h2><span class="tag">활동 3</span> 스스로 풀기</h2>
+        <h2><span class="tag">활동 4</span> 스스로 풀기</h2>
         <p id="ask"></p>
         <div class="ansrow">
           <input type="text" id="ansIn" placeholder="?" inputmode="decimal" autocomplete="off">
@@ -531,8 +569,7 @@ function drawVol(){
   const top = BY - CH;
   ctx.beginPath(); ctx.rect(CYX - CR, top, 2*CR, CH);
   ctx.fillStyle = "#eef2f9"; ctx.fill();
-  ctx.strokeStyle = "#7b8aa5"; ctx.lineWidth = 2.6; ctx.stroke();
-  ellipse(CYX, BY, CR, CR*0.26, "#eef2f9", "#7b8aa5", 2.2);
+  ellipse(CYX, BY, CR, CR*0.26, "#eef2f9", null);
   if(fill > 0){
     const yh = CH*fill, yTop = BY - yh;
     ellipse(CYX, BY, CR, CR*0.26, SAND + "cc", null, 0);   /* 바닥 곡면까지 모래로 채운다 */
@@ -540,6 +577,11 @@ function drawVol(){
     ctx.fillStyle = SAND + "cc"; ctx.fill();
     ellipse(CYX, yTop, CR, CR*0.26, SAND, "#c9871a", 1.6);
   }
+  /* 옆 두 선과 아래 밑면(앞쪽 반은 실선, 비어 있으면 뒤쪽 반은 점선) — 위·아래를 가로지르는 선은 긋지 않는다 */
+  ctx.strokeStyle = "#7b8aa5"; ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.ellipse(CYX, BY, CR, CR*0.26, 0, 0, Math.PI); ctx.stroke();
+  if(fill <= 0){ ctx.save(); ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.ellipse(CYX, BY, CR, CR*0.26, 0, Math.PI, 2*Math.PI); ctx.stroke(); ctx.restore(); }
+  seg({x:CYX - CR, y:top}, {x:CYX - CR, y:BY}, "#7b8aa5", 2.6); seg({x:CYX + CR, y:top}, {x:CYX + CR, y:BY}, "#7b8aa5", 2.6);
   if(fill < 0.999) ellipse(CYX, top, CR, CR*0.26, "#ffffffcc", "#7b8aa5", 2.2);
   else              ellipse(CYX, top, CR, CR*0.26, null, "#c9871a", 2.2);
   /* 높이 = 2r 임을 눈금으로 보이기 */
@@ -601,6 +643,198 @@ $("btnPour").addEventListener("click", function(){
 $("btnPourReset").addEventListener("click", function(){ stopPour(); poured = 0; paintVol(); draw(); });
 
 /* ============================================================
+   ③ 원뿔·반구·원기둥 — 높이가 같으면 부피는 1 : 2 : 3
+   밑면 반지름 r, 높이 r 로 같은 세 그릇. 원뿔(⅓πr³)·반구(⅔πr³)를 원기둥(πr³)에 부어 본다.
+   원기둥 한 통을 3칸으로 보면 원뿔 한 번 = 1칸, 반구 한 번 = 2칸.
+   미션 1 : 원뿔로만 가득(3번) / 미션 2 : 반구 1번 + 원뿔 1번으로 가득 → 1 : 2 : 3
+   넘치게 부으면 모래가 원기둥 밖으로 흘러 쌓인다.
+   ============================================================ */
+const R3 = 104, BASE3 = 470, RIM3 = BASE3 - R3;               /* 세 그릇 모두 높이 r */
+const CX3 = {c:186, h:412, y:706};                            /* 원뿔 · 반구 · 원기둥 자리 */
+const TH3 = rad(100);
+const POUR3 = {x:CX3.y - 38 - R3*Math.cos(TH3), y:RIM3 - 26 - R3*Math.sin(TH3)};
+const CONE3 = [[-R3, 0], [R3, 0], [0, R3]];
+const BOWL3 = (function(){ const p = []; for(let k = 0; k <= 32; k++){ const a = Math.PI*k/32; p.push([R3*Math.cos(a), R3*Math.sin(a)]); } return p; })();
+const ADD3 = {c:1, h:2};                                       /* 원기둥 한 통 = 3칸 */
+let log3 = [], pour3 = null, pour3T = 0, pour3Anim = null, guess3 = null, m1 = false, m2 = false;
+function drawCup3(who, pos, th, f){
+  const c = Math.cos(th), s = Math.sin(th), W = p => ({x:pos.x + p[0]*c - p[1]*s, y:pos.y + p[0]*s + p[1]*c});
+  const P = (who === "c" ? CONE3 : BOWL3).map(W);
+  poly(P, "#eef2f9", null);
+  if(f > 0.001){
+    /* 모래 면은 늘 수평 — 옆모습에서 모래가 차지하는 넓이가 남은 부피에 맞는 높이를 찾는다 */
+    const want = area(P)*(who === "c" ? Math.pow(f, 2/3) : bowlAreaFrac(f));
+    let lo = Math.min(...P.map(p => p.y)), hi = Math.max(...P.map(p => p.y));
+    for(let k = 0; k < 28; k++){ const m = (lo + hi)/2; if(area(clipBelow(P, m)) > want) lo = m; else hi = m; }
+    const yl = (lo + hi)/2;
+    poly(clipBelow(P, yl), SAND + "dd", null);
+    if(th < 0.02 && f < 0.999){
+      const dy = yl - pos.y, hw = who === "c" ? R3*(R3 - dy)/R3 : Math.sqrt(Math.max(0, R3*R3 - dy*dy));
+      ellipse(pos.x, yl, Math.max(1, hw), Math.max(1, hw*0.26), SAND, "#c9871a", 1.4);
+    }
+  }
+  ctx.save(); ctx.translate(pos.x, pos.y); ctx.rotate(th);
+  ctx.strokeStyle = "#7b8aa5"; ctx.lineWidth = 2.6; ctx.lineJoin = "round";
+  ctx.beginPath();
+  if(who === "c"){ ctx.moveTo(-R3, 0); ctx.lineTo(0, R3); ctx.lineTo(R3, 0); }
+  else ctx.arc(0, 0, R3, 0, Math.PI, false);
+  ctx.stroke();
+  ellipse(0, 0, R3, R3*0.26, (f >= 0.999 && th < 0.02) ? SAND : "#ffffff66", "#7b8aa5", 2.2);
+  ctx.restore();
+}
+function drawCyl3(level, ticks){
+  const cx = CX3.y, top = RIM3, ry = R3*0.26;
+  ctx.beginPath(); ctx.rect(cx - R3, top, 2*R3, R3); ctx.fillStyle = "#eef2f9"; ctx.fill();
+  ellipse(cx, BASE3, R3, ry, "#eef2f9", null);
+  if(level > 0){
+    const yTop = BASE3 - R3*Math.min(1, level);
+    ellipse(cx, BASE3, R3, ry, SAND + "cc", null);
+    ctx.beginPath(); ctx.rect(cx - R3, yTop, 2*R3, BASE3 - yTop); ctx.fillStyle = SAND + "cc"; ctx.fill();
+    ellipse(cx, yTop, R3, ry, SAND, "#c9871a", 1.6);
+  }
+  /* 아래 밑면 : 앞쪽 반은 실선, 뒤쪽 반은 점선 */
+  ctx.strokeStyle = "#7b8aa5"; ctx.lineWidth = 2.2;
+  ctx.beginPath(); ctx.ellipse(cx, BASE3, R3, ry, 0, 0, Math.PI); ctx.stroke();
+  if(level <= 0){ ctx.save(); ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.ellipse(cx, BASE3, R3, ry, 0, Math.PI, 2*Math.PI); ctx.stroke(); ctx.restore(); }
+  seg({x:cx - R3, y:top}, {x:cx - R3, y:BASE3}, "#7b8aa5", 2.6); seg({x:cx + R3, y:top}, {x:cx + R3, y:BASE3}, "#7b8aa5", 2.6);
+  ellipse(cx, top, R3, ry, level >= 0.999 ? null : "#ffffff99", level >= 0.999 ? "#c9871a" : "#7b8aa5", 2.2);
+  if(ticks){
+    [1, 2].forEach(function(k){
+      const y = BASE3 - R3*k/3;
+      ctx.save(); ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.ellipse(cx, y, R3, ry, 0, 0, Math.PI); ctx.strokeStyle = "#9aa6bd"; ctx.lineWidth = 1.4; ctx.stroke(); ctx.restore();
+      txt(k + "/3", cx - R3 - 26, y, SUB, 14, true);
+    });
+  }
+}
+function drawRatio(){
+  const u = pour3T, sm = x => { x = clamp01(x); return x*x*(3 - 2*x); };
+  const T = log3.reduce((s, w) => s + ADD3[w], 0);              /* 지금까지 부은 칸(완료된 것) */
+  let flow = 0, posC = {x:CX3.c, y:RIM3}, posH = {x:CX3.h, y:RIM3}, thC = 0, thH = 0, fC = 1, fH = 1;
+  if(pour3){
+    const rest = pour3 === "c" ? posC : posH;
+    let pos = rest, th = 0, f = 1;
+    if(u < 0.3){ const k = sm(u/0.3); pos = {x:rest.x + (POUR3.x - rest.x)*k, y:rest.y + (POUR3.y - rest.y)*k - 70*Math.sin(Math.PI*k)}; th = TH3*k; }
+    else if(u < 0.8){ pos = POUR3; th = TH3; flow = (u - 0.3)/0.5; f = 1 - flow; }
+    else{ const k = sm((u - 0.8)/0.12); pos = {x:POUR3.x + (rest.x - POUR3.x)*k, y:POUR3.y + (rest.y - POUR3.y)*k - 50*Math.sin(Math.PI*k)}; th = TH3*(1 - k); flow = 1; f = sm((u - 0.92)/0.08); }
+    if(pour3 === "c"){ posC = pos; thC = th; fC = f; } else { posH = pos; thH = th; fH = f; }
+  }
+  const cells = T + (pour3 ? ADD3[pour3]*flow : 0), level = cells/3;
+
+  /* 높이가 같다는 것을 보이는 안내선 */
+  ctx.save(); ctx.setLineDash([3, 6]);
+  seg({x:40, y:RIM3}, {x:860, y:RIM3}, "#c3cbe0", 1.4); seg({x:40, y:BASE3}, {x:860, y:BASE3}, "#c3cbe0", 1.4);
+  ctx.restore();
+  seg({x:46, y:RIM3}, {x:46, y:BASE3}, SUB, 2); seg({x:40, y:RIM3}, {x:52, y:RIM3}, SUB, 2); seg({x:40, y:BASE3}, {x:52, y:BASE3}, SUB, 2);
+  txt("높이 r", 46, RIM3 - 16, SUB, 15, true);
+
+  /* 받침 */
+  const sy = BASE3 - R3*0.42, sw = R3*0.42;
+  ctx.strokeStyle = "#a8b3c7"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(CX3.c - sw, sy); ctx.lineTo(CX3.c - R3*0.7, BASE3 + 8); ctx.moveTo(CX3.c + sw, sy); ctx.lineTo(CX3.c + R3*0.7, BASE3 + 8); ctx.stroke();
+  ellipse(CX3.c, BASE3 + 8, R3*0.7, R3*0.13, "#e7ebf3", "#a8b3c7", 2);
+  ellipse(CX3.h, BASE3 + 6, R3*0.5, R3*0.11, "#e7ebf3", "#a8b3c7", 2);
+
+  /* 원기둥과 넘친 모래 */
+  const over = Math.max(0, level - 1);
+  drawCyl3(level, m1);
+  if(over > 0){
+    const cx = CX3.y, k = Math.min(1, over*1.6);
+    ctx.fillStyle = SAND + "dd";
+    ctx.beginPath(); ctx.moveTo(cx + R3 - 2, RIM3 + 2); ctx.quadraticCurveTo(cx + R3 + 10, (RIM3 + BASE3)/2, cx + R3 + 6, BASE3);
+    ctx.lineTo(cx + R3 + 6 + 70*k, BASE3 + 8); ctx.quadraticCurveTo(cx + R3 + 20, BASE3 - 6 - 18*k, cx + R3 + 4, RIM3 + 2); ctx.fill();
+    ellipse(cx + R3 + 30 + 30*k, BASE3 + 8, 30 + 40*k, 7 + 5*k, SAND + "cc", "#c9871a", 1.2);
+  }
+  if(pour3 && u > 0.3 && u < 0.8){
+    const lip = {x:POUR3.x + R3*Math.cos(TH3), y:POUR3.y + R3*Math.sin(TH3)}, yEnd = BASE3 - R3*Math.min(1, level);
+    const w = 9*Math.min(1, (0.8 - u)/0.08, (u - 0.3)/0.04);
+    seg(lip, {x:lip.x, y:yEnd}, SAND, Math.max(2, w));
+    ctx.fillStyle = "#c9871a";
+    for(let k = 0; k < 6; k++){ const yy = lip.y + ((u*900 + k*37) % Math.max(1, yEnd - lip.y)); ctx.beginPath(); ctx.arc(lip.x + (k % 2 ? 3 : -3), yy, 1.6, 0, 7); ctx.fill(); }
+  }
+  drawCup3("h", posH, thH, fH);
+  drawCup3("c", posC, thC, fC);
+  if(!pour3){
+    [["c", CX3.c], ["h", CX3.h], ["y", CX3.y]].forEach(function(o){
+      seg({x:o[1], y:RIM3}, {x:o[1] + R3, y:RIM3}, INK, 2, [6, 5]);
+      txt("r", o[1] + R3/2, RIM3 - 15, INK, 16, true);
+    });
+  }
+  txt("원뿔", CX3.c, BASE3 + 46, INK, 19, true);
+  txt("반구", CX3.h, BASE3 + 46, INK, 19, true);
+  txt("원기둥", CX3.y, BASE3 + 46, INK, 19, true);
+
+  const name = w => w === "c" ? "원뿔" : "반구";
+  let head, hc = INK;
+  if(pour3) head = (pour3 === "c" ? "원뿔을" : "반구를") + " 붓는 중…";
+  else if(!log3.length) head = guess3 ? "원뿔이나 반구로 원기둥에 부어 보세요" : "먼저 부피의 비를 예상해 보세요";
+  else{
+    head = log3.map(name).join(" + ") + "  →  " + (T > 3 ? "넘쳤어요!" : T === 3 ? "원기둥 가득!" : "원기둥의 " + T + "/3");
+    hc = T > 3 ? RED : T === 3 ? OK : INK;
+  }
+  txt(head, 450, 56, hc, 20, true);
+  txt("밑면의 반지름도, 높이도 모두 r 로 같아요", 450, 90, SUB, 15, true);
+  $("tip").textContent = pour3 ? "" : "원뿔이나 반구로 붓기를 눌러 보세요";
+}
+const GUESS3 = ["1 : 1 : 2", "1 : 2 : 3", "1 : 2 : 4", "1 : 3 : 4"];
+function paintRatio(){
+  const T = log3.reduce((s, w) => s + ADD3[w], 0);
+  const cnt = w => log3.filter(x => x === w).length;
+  $("ratioGuess").innerHTML = GUESS3.map(g => '<button class="btn sm' + (guess3 === g ? ' on' : '') + '" data-g="' + g + '">' + g + '</button>').join("");
+  $("ratioGuess").querySelectorAll("button").forEach(function(b){
+    b.addEventListener("click", function(){ if(m1 && m2) return; guess3 = b.dataset.g; paintRatio(); draw(); });
+  });
+  const busy = !!pour3;
+  $("btnPourC").disabled = !guess3 || busy || T > 3;
+  $("btnPourH").disabled = !guess3 || busy || T > 3;
+  $("mis1").className = "mis" + (m1 ? " done" : "");
+  $("mis2").className = "mis" + (m2 ? " done" : "");
+  $("ratioCalc").innerHTML =
+    '<span class="step">원기둥을 3칸으로 보면</span><br>원뿔 ' + cnt("c") + '번 + 반구 ' + cnt("h") + '번 = ' +
+    '<span class="res">' + T + '칸</span> / 3칸' +
+    (m1 ? '<br><span class="step">원뿔 한 번</span> = 원기둥의 ' + frac(1, 3) : '') +
+    (m2 ? '<br><span class="step">반구 한 번</span> = 원기둥의 ' + frac(2, 3) + ' = 원뿔 2번' : '');
+  let fb;
+  if(!guess3) fb = '<div class="fb info">붓기 전에 <b>원뿔 : 반구 : 원기둥</b> 부피의 비를 먼저 예상해 골라 보세요.</div>';
+  else if(T > 3) fb = '<div class="fb warn">원기둥보다 많이 부어 <b>넘쳤어요</b>. ‘원기둥 비우기’를 누르고 다시 해 보세요.</div>';
+  else if(m1 && m2) fb = '<div class="fb ok' + (paintRatio.told ? ' again' : '') + '">🎉 원뿔 3번 = 원기둥, 반구 1번 + 원뿔 1번 = 원기둥. 그래서 높이가 같으면 ' +
+      '<b>원뿔 : 반구 : 원기둥 = 1 : 2 : 3</b> 이에요.' +
+      (guess3 === "1 : 2 : 3" ? ' 처음 예상(1 : 2 : 3)이 맞았어요!' : ' 처음 예상은 <b>' + guess3 + '</b> 였죠?') + '</div>';
+  else if(T === 3 && log3.length) fb = '<div class="fb ok">🎉 가득 찼어요! ' + (m1 && !m2 ? '이제 <b>미션 2</b>: 반구 1번과 원뿔로 채워 보세요.' : !m1 ? '이제 <b>미션 1</b>: 원뿔로만 채워 보세요.' : '') + ' (원기둥 비우기를 먼저)</div>';
+  else fb = '<div class="fb info">예상: <b>' + guess3 + '</b> — 부어 보며 확인해 보세요.</div>';
+  $("ratioFb").innerHTML = fb;
+  if(m1 && m2){ paintRatio.told = true; $("ratioLearn").classList.remove("hidden"); }
+  else $("ratioLearn").classList.add("hidden");
+  if(m1 && m2 && window.MKSCORE) MKSCORE.once("ratio123", 10, "원뿔·반구·원기둥 1 : 2 : 3");
+}
+function stopPour3(){ if(pour3Anim){ cancelAnimationFrame(pour3Anim); pour3Anim = null; } pour3 = null; pour3T = 0; }
+function startPour3(who){
+  if(pour3 || !guess3) return;
+  const T = log3.reduce((s, w) => s + ADD3[w], 0);
+  if(T > 3) return;
+  pour3 = who; paintRatio();
+  const t0 = performance.now(), DUR = 2800;
+  (function step(now){
+    pour3T = Math.min(1, (now - t0)/DUR);
+    draw();
+    if(pour3T < 1) pour3Anim = requestAnimationFrame(step);
+    else{
+      pour3Anim = null; pour3T = 0; log3.push(who); pour3 = null;
+      const T2 = log3.reduce((s, w) => s + ADD3[w], 0);
+      if(T2 === 3){
+        if(log3.every(w => w === "c")) m1 = true;
+        if(log3.filter(w => w === "h").length === 1 && log3.filter(w => w === "c").length === 1) m2 = true;
+      }
+      paintRatio(); draw();
+    }
+  })(performance.now());
+}
+$("btnPourC").addEventListener("click", function(){ startPour3("c"); });
+$("btnPourH").addEventListener("click", function(){ startPour3("h"); });
+$("btnEmpty3").addEventListener("click", function(){ stopPour3(); log3 = []; paintRatio(); draw(); });
+$("btnRatioReset").addEventListener("click", function(){ stopPour3(); log3 = []; m1 = m2 = false; guess3 = null; paintRatio.told = false; paintRatio(); draw(); });
+
+/* ============================================================
    ③ 스스로 풀기
    ============================================================ */
 function drawQuiz(){
@@ -614,7 +848,10 @@ function drawQuiz(){
     ellipse(cx, cy - R*0.2, R, R*0.26, BLUE + "1e", BLUE, 2.4);
   }else{
     ellipse(cx, cy, R, R, BLUE + "26", BLUE, 3);
-    ellipse(cx, cy, R, R*0.3, null, BLUE + "88", 1.8);
+    /* 적도 : 앞쪽 반은 실선, 뒤쪽 반은 점선 */
+    ctx.strokeStyle = BLUE + "88"; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.ellipse(cx, cy, R, R*0.3, 0, 0, Math.PI); ctx.stroke();
+    ctx.save(); ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.ellipse(cx, cy, R, R*0.3, 0, Math.PI, 2*Math.PI); ctx.stroke(); ctx.restore();
   }
   const y0 = half ? cy - R*0.2 : cy;
   /* 지름으로 주어진 문제는 중심을 가로지르는 선, 반지름이면 중심에서 한쪽만 */
@@ -760,6 +997,7 @@ function draw(){
   ctx.fillRect(-v.ox/v.s, -v.oy/v.s, v.W/v.s, v.H/v.s);
   if(tab === "skin") drawSkin();
   else if(tab === "vol") drawVol();
+  else if(tab === "ratio") drawRatio();
   else drawQuiz();
   ctx.restore();
 }
@@ -768,9 +1006,10 @@ document.querySelectorAll("header nav button").forEach(function(b){
     document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
     b.classList.add("on");
     tab = b.dataset.tab;
-    stopPeel(); stopPour();
+    stopPeel(); stopPour(); stopPour3(); paintRatio();
     $("pSkin").classList.toggle("hidden", tab !== "skin");
     $("pVol") .classList.toggle("hidden", tab !== "vol");
+    $("pRatio").classList.toggle("hidden", tab !== "ratio");
     $("pQuiz").classList.toggle("hidden", tab !== "quiz");
     draw();
   });
@@ -779,6 +1018,7 @@ function boot(){
   buildOX();
   paintSkin();
   paintVol();
+  paintRatio();
   newQuestion();
   tab = "skin";
   if(window.MK && MK.fit) MK.fit(cv, draw);

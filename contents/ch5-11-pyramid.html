@@ -445,7 +445,13 @@ function drawBox(cx, fill, sq){
   const top = PBY - PH;
   ctx.beginPath(); ctx.rect(cx - PR, top, 2*PR, PH);
   ctx.fillStyle = "#eef2f9"; ctx.fill();
-  rim(cx, PBY, PR, sq, "#eef2f9", "#7b8aa5", 2.4);
+  if(sq) rim(cx, PBY, PR, sq, "#eef2f9", "#7b8aa5", 2.4);
+  else{   /* 원기둥 아래 밑면 : 앞쪽 반은 실선, 비어 있으면 뒤쪽 반은 점선 */
+    ellipse(cx, PBY, PR, PR*0.28, "#eef2f9", null);
+    ctx.strokeStyle = "#7b8aa5"; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.ellipse(cx, PBY, PR, PR*0.28, 0, 0, Math.PI); ctx.stroke();
+    if(fill <= 0){ ctx.save(); ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.ellipse(cx, PBY, PR, PR*0.28, 0, Math.PI, 2*Math.PI); ctx.stroke(); ctx.restore(); }
+  }
   if(fill > 0){
     const yTop = PBY - PH*fill;
     ctx.beginPath(); ctx.rect(cx - PR, yTop, 2*PR, PBY - yTop);
@@ -552,9 +558,16 @@ function drawQuiz(){
   const cx = 430, by = 490, H = 290, R = 112;
   if(Q.kind.indexOf("cone") === 0){
     poly([{x:cx, y:by - H}, {x:cx - R, y:by}, {x:cx + R, y:by}], BLUE + "26", BLUE, 2.6);
-    ellipse(cx, by, R, R*0.28, BLUE + "26", BLUE, 2.4);
-    seg({x:cx, y:by - H}, {x:cx, y:by}, INK, 2, [6, 5]);
-    txt(Q.h + " cm", cx - 30, by - H/2, INK, 17, true);
+    /* 밑면 : 앞쪽 반은 실선, 뒤쪽 반은 점선(가려진 부분) */
+    ctx.beginPath(); ctx.ellipse(cx, by, R, R*0.28, 0, 0, 7); ctx.fillStyle = BLUE + "26"; ctx.fill();
+    ctx.strokeStyle = BLUE; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.ellipse(cx, by, R, R*0.28, 0, 0, Math.PI); ctx.stroke();
+    ctx.save(); ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.ellipse(cx, by, R, R*0.28, 0, Math.PI, 2*Math.PI); ctx.stroke(); ctx.restore();
+    /* 높이는 부피 문제에만(겉넓이 문제는 반지름과 모선만 주어진다 — 아무 높이나 그리면 모선과 맞지 않는다) */
+    if(Q.kind === "coneV"){
+      seg({x:cx, y:by - H}, {x:cx, y:by}, INK, 2, [6, 5]);
+      txt(Q.h + " cm", cx - 30, by - H/2, INK, 17, true);
+    }
     seg({x:cx, y:by}, {x:cx + R, y:by}, ORANGE, 2.4);
     txt(Q.r + " cm", cx + R/2, by + 24, ORANGE, 17, true);
     if(Q.kind === "coneS"){
@@ -563,9 +576,12 @@ function drawQuiz(){
     }
   }else{
     const w = 215, d = 70;
-    poly([{x:cx - w/2, y:by}, {x:cx + w/2, y:by}, {x:cx + w/2 + d, y:by - d*0.55}, {x:cx - w/2 + d, y:by - d*0.55}],
-         ORANGE + "40", ORANGE, 2.4);
+    const FL = {x:cx - w/2, y:by}, FR = {x:cx + w/2, y:by}, BR = {x:cx + w/2 + d, y:by - d*0.55}, BL = {x:cx - w/2 + d, y:by - d*0.55};
+    poly([FL, FR, BR, BL], ORANGE + "40", null);
+    seg(FL, FR, ORANGE, 2.4); seg(FR, BR, ORANGE, 2.4);
+    seg(BR, BL, ORANGE, 2, [6, 6]); seg(BL, FL, ORANGE, 2, [6, 6]);       /* 가려진 밑면 모서리 */
     const apex = {x:cx + d/2, y:by - H};
+    seg(apex, BL, BLUE, 2, [6, 6]);                                          /* 가려진 옆모서리 */
     poly([apex, {x:cx - w/2, y:by}, {x:cx + w/2, y:by}], BLUE + "26", BLUE, 2.4);
     poly([apex, {x:cx + w/2, y:by}, {x:cx + w/2 + d, y:by - d*0.55}], BLUE + "1e", BLUE, 2);
     seg(apex, {x:cx + d/2, y:by - d*0.28}, INK, 2, [6, 5]);
