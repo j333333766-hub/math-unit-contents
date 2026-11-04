@@ -369,6 +369,102 @@
     })["catch"](function(){ clearTimeout(ES_RETRY); ES_RETRY = setTimeout(listenGo, 8000); });
   }
 
+  /* ---------- 📸 화면 모니터 (파이어베이스만, 2026-11-05) ----------
+     수업이 열려 있고 이 화면을 보고 있을 때만, SNAP_MS 마다 콘텐츠의 가장 큰 캔버스를
+     가로 480px·세로 340px 안쪽의 작은 JPEG(보통 5~15KB) 로 떠서 /mk/snap/<수업>/<내 익명 uid> 에 덮어쓴다.
+     · 그림·활동 탭·피드백 문구가 그대로면 보내지 않는다(전송량 아끼기). 그래서 교사 현황판의
+       '화면 n초 전'은 '마지막으로 화면이 바뀐 때'다 — 오래 그대로면 멈춰 있다는 뜻.
+     · 학생 화면 전체가 아니라 콘텐츠 그림판만 뜬다(화면 공유 허락·설치가 필요 없다).
+     · 보내는 동안 왼쪽 아래 번호 단추 위에 작은 표시(📸)를 띄워 숨기지 않고 알린다.
+     · 교사가 수업을 닫으면 /mk/snap/<수업> 이 통째로 지워진다. */
+  var SNAP_MS = 5000, SNAP_W = 480, SNAP_HMAX = 340, SNAP_Q = 0.6;
+  var snapLast = "", snapOkAt = 0, snapBusy = false, snapPill = null, snapCv = null;
+  function uidOf(t){
+    try{
+      var p = t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      while(p.length % 4) p += "=";
+      var j = JSON.parse(decodeURIComponent(escape(atob(p))));
+      return j.user_id || j.sub || null;
+    }catch(e){ return null; }
+  }
+  function bigCanvas(){
+    var cs = document.querySelectorAll("canvas"), best = null, area = 0;
+    for(var i=0;i<cs.length;i++){
+      var c = cs[i], r = c.getBoundingClientRect();
+      if(!c.width || !c.height || r.width < 60 || r.height < 60) continue;
+      if(c.closest && c.closest(".mk-track-back")) continue;
+      var a = r.width * r.height;
+      if(a > area){ area = a; best = c; }
+    }
+    return best;
+  }
+  function snapText(sel){
+    var el = document.querySelector(sel);
+    return el ? String(el.textContent || "").replace(/\s+/g, " ").trim() : "";
+  }
+  function lastFb(){
+    /* 보이는 피드백 칸 가운데 마지막 것(활동 탭마다 칸이 따로 있으므로 숨은 탭 것은 뺀다) */
+    var fs = document.querySelectorAll(".fb, .mk-fb"), t = "";
+    for(var i=0;i<fs.length;i++){ if(fs[i].offsetParent !== null){ var x = String(fs[i].textContent || "").replace(/\s+/g, " ").trim(); if(x) t = x; } }
+    return t.slice(0, 118);
+  }
+  function paintSnapPill(){
+    var on = Date.now() - snapOkAt < 25000;
+    if(!snapPill){
+      if(!on) return;
+      snapPill = document.createElement("div");
+      snapPill.className = "mk-snap-pill";
+      snapPill.textContent = "📸 선생님이 이 화면을 볼 수 있어요";
+      document.body.appendChild(snapPill);
+    }
+    snapPill.style.display = on ? "" : "none";
+  }
+  function snapTick(){
+    paintSnapPill();
+    if(!FIRE || !NO || snapBusy || !visible() || document.querySelector(".mk-track-back")) return;
+    if(Date.now() - CUR_AT > CUR_MS){ pullCurrent(); return; }      /* 수업이 열렸는지 먼저 알아 둔다 */
+    if(!CUR) return;
+    var c = bigCanvas();
+    if(!c) return;
+    var w = SNAP_W, h = Math.round(SNAP_W * c.height / c.width);
+    if(h > SNAP_HMAX){ h = SNAP_HMAX; w = Math.round(SNAP_HMAX * c.width / c.height); }
+    var img;
+    try{
+      snapCv = snapCv || document.createElement("canvas");
+      snapCv.width = w; snapCv.height = h;
+      var x = snapCv.getContext("2d");
+      x.fillStyle = "#fff"; x.fillRect(0, 0, w, h);
+      x.drawImage(c, 0, 0, w, h);
+      img = snapCv.toDataURL("image/jpeg", SNAP_Q);
+    }catch(e){ return; }
+    if(!img || img.length > 88000) return;
+    var tab = snapText("header nav button.on, nav button.on, [data-tab].on").slice(0, 58);
+    var fb = lastFb();
+    var sig = PAGE + "|" + tab + "|" + fb + "|" + img;
+    if(sig === snapLast){ if(Date.now() - snapOkAt < 20000) return; }   /* 그대로면 보내지 않는다(표시만 20초마다 확인) */
+    var ms = CUR.ms;
+    snapBusy = true;
+    token().then(function(t){
+      var uid = uidOf(t);
+      if(!uid) throw new Error("uid");
+      if(sig === snapLast){ snapOkAt = Date.now(); return; }            /* 표시만 이어 간다 */
+      return fetch(dbUrl("/mk/snap/" + ms + "/" + uid, t), {
+        method:"PUT", cache:"no-store", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({n:NO, p:PAGE.slice(0, 40), ti:String(document.title || "").slice(0, 58), tab:tab, fb:fb,
+                             img:img, w:w, h:h, st:{".sv":"timestamp"}})
+      }).then(function(r){
+        if(r.ok){ snapLast = sig; snapOkAt = Date.now(); }
+        else if(r.status === 401 || r.status === 403){ CUR_AT = 0; }       /* 수업이 바뀌었을 수 있다 — 다시 확인 */
+      });
+    })["catch"](function(){}).then(function(){ snapBusy = false; paintSnapPill(); });
+  }
+  function startSnap(){
+    if(!FIRE) return;
+    setTimeout(snapTick, 2500);
+    setInterval(snapTick, SNAP_MS);
+    document.addEventListener("visibilitychange", function(){ if(visible()) setTimeout(snapTick, 600); });
+  }
+
   /* ---------- 화면 구석의 번호 단추 ---------- */
   var badge;
   function paintBadge(){
@@ -445,7 +541,7 @@
       keepNo();
       paintBadge();
       close();
-      if(changed) SID = Math.random().toString(36).slice(2, 10);   /* 사람이 바뀌면 새 세션 */
+      if(changed){ SID = Math.random().toString(36).slice(2, 10); snapLast = ""; }   /* 사람이 바뀌면 새 세션, 화면도 새 번호로 다시 보낸다 */
       push("open", document.title, true);
       listenGo(); pullGo();
     }
@@ -619,7 +715,10 @@
       "border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.3); transition:transform .25s; max-width:92vw; text-align:center;}" +
       ".mk-lock-toast.on{transform:translate(-50%,0);}" +
       ".mk-lock-toast b{color:#ffd166;}" +
-      "@media print{.mk-track-badge{display:none;}}";
+      ".mk-snap-pill{position:fixed; left:12px; bottom:74px; z-index:99997; pointer-events:none;" +
+      "font:700 11px/1 'Pretendard','Malgun Gothic',sans-serif; color:#3e63dd; background:#eef2ffd9;" +
+      "border:1px solid #c7d3f7; padding:5px 9px; border-radius:99px; box-shadow:0 1px 4px rgba(29,36,51,.10);}" +
+      "@media print{.mk-track-badge,.mk-snap-pill{display:none;}}";
     document.head.appendChild(s);
   }
 
@@ -629,6 +728,7 @@
     makeBadge();
     watchProgress();
     wrapScore();
+    startSnap();
     /* 번호를 이미 아는 학생만 미리 알아 둔다. 번호를 넣지 않은 브라우저까지
        익명 계정을 만들면 한 반이 같은 학교 IP 로 몰릴 때 가입 한도에 걸린다.
        번호를 넣고 나면 첫 기록을 보낼 때 알아서 확인한다. */

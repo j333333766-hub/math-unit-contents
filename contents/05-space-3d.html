@@ -6,7 +6,7 @@
 <title>공간에서의 위치 관계 — 꼬인 위치까지 눈으로</title>
 <link rel="stylesheet" href="../assets/common.css?v=4">
 <script src="../assets/common.js?v=4" data-home="../index.html?unit=4" defer></script>
-<script src="../assets/track.js?v=11" defer></script>
+<script src="../assets/track.js?v=12" defer></script>
 <script src="../assets/vendor/three.min.js"></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
@@ -477,7 +477,7 @@ function edgeFaceRel(e, f){
    2. Three.js 무대
    ============================================================ */
 const canvas = $("gl"), labelBox = $("labels");
-const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true, preserveDrawingBuffer:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);

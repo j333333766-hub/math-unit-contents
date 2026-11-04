@@ -157,6 +157,42 @@
   @media (max-width:640px){ :root{--pvw:calc(100vw - 20px);} body.pvon #app{padding-right:10px;} .pv .ph .note,.pv .ph .tx,#pvW,#bView .lt{display:none;} }
 
   /* 로그인 화면 */
+  /* ---------- 📸 화면 모니터 ---------- */
+  .snapbar{display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:0 2px 6px; font-size:12.5px; color:var(--sub); font-weight:700;}
+  .snapbar select{font-size:12.5px; padding:4px 6px;}
+  .snapbar label{display:inline-flex; gap:4px; align-items:center; cursor:pointer;}
+  .snapbar .hint{margin-left:auto; font-weight:600;}
+  .sgrid{display:grid; gap:var(--gap,8px); width:100%;}
+  .sn{position:relative; display:flex; flex-direction:column; min-width:0; min-height:0; background:var(--panel);
+      border:1.5px solid var(--bd,#e3e8f0); border-left:5px solid var(--c,#94a3b8); border-radius:10px; overflow:hidden;
+      box-shadow:0 1px 3px rgba(29,36,51,.06);}
+  .sn.on{--c:#16a34a; --bd:#bbe7cb;} .sn.away{--c:#ea8a00; --bd:#f7d59a;} .sn.gone{--c:#e11d48; --bd:#f8bccb;}
+  .sn.off{--c:#94a3b8; --bd:#cbd5e1; border-style:dashed; border-left-style:solid;}
+  .sn.away .si img,.sn.gone .si img{opacity:.45; filter:grayscale(.6);}
+  .sn .sh{display:flex; gap:6px; align-items:center; padding:4px 7px; font-size:var(--sf,12px); font-weight:800; white-space:nowrap; overflow:hidden;}
+  .sn .sh .no{flex:none; min-width:1.7em; text-align:center; color:#fff; background:var(--c); border-radius:6px; padding:1px 4px;}
+  .sn .sh .nm{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; color:var(--ink);}
+  .sn .sh .ag{flex:none; font-weight:700; color:var(--sub); font-size:.92em;}
+  .sn .sh .ag.still{color:#b45309; background:#fff4e0; border-radius:6px; padding:0 5px;}
+  .sn .si{flex:1; min-height:0; display:flex; align-items:center; justify-content:center; background:#f6f8fc; cursor:zoom-in;}
+  .sn .si img{max-width:100%; max-height:100%; object-fit:contain; display:block;}
+  .sn .si .none{font-size:var(--sf,12px); color:#94a3b8; font-weight:700; text-align:center; padding:6px; line-height:1.5;}
+  .sn .sf{padding:3px 7px 5px; font-size:calc(var(--sf,12px) * .92); font-weight:600; color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-height:1.5em;}
+  .sn .sf b{color:var(--ink);} .sn .sf .ok{color:var(--ok);}
+  .sn.fresh{box-shadow:0 0 0 2px #3e63dd55;}
+  .snapmsg{display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center; color:var(--sub); font-weight:700; line-height:1.8; font-size:14px;}
+  .snapbig{position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; background:#1d2433cc; padding:18px;}
+  .snapbig.on{display:flex;}
+  .snapbig .bx{background:#fff; border-radius:14px; width:min(1100px,96vw); max-height:94vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.35);}
+  .snapbig .bh{display:flex; gap:8px; align-items:center; padding:10px 12px; border-bottom:1px solid var(--line); flex-wrap:wrap;}
+  .snapbig .bh .no{font-size:18px; font-weight:900; color:#fff; background:var(--accent); border-radius:8px; padding:2px 10px;}
+  .snapbig .bh .t{font-weight:800; font-size:15px;} .snapbig .bh .s{color:var(--sub); font-weight:700; font-size:13px;}
+  .snapbig .bh .sp{flex:1;}
+  .snapbig .bi{flex:1; min-height:0; background:#f6f8fc; display:flex; align-items:center; justify-content:center; padding:10px;}
+  .snapbig .bi img{max-width:100%; max-height:calc(94vh - 150px); width:100%; object-fit:contain;}
+  .snapbig .bf{padding:9px 12px; font-size:13.5px; font-weight:600; color:var(--sub); border-top:1px solid var(--line); line-height:1.6;}
+  .snapbig .bf b{color:var(--ink);}
+
   #gate{position:fixed; inset:0; background:var(--bg); display:flex; align-items:center;
         justify-content:center; padding:20px; z-index:50;}
   #gate .box{background:var(--panel); border:1px solid var(--line); border-radius:16px;
@@ -192,6 +228,7 @@
   <select id="blkSel" title="볼 수업"></select>
   <div class="stats" id="stats"></div>
   <div class="sp"></div>
+  <button class="btn" id="bSnap" title="학생 콘텐츠 화면을 작은 그림으로 모아 봅니다(수업 중에만, 5초마다 바뀐 화면만 옵니다)">📸<span class="lt"> 화면</span></button>
   <button class="btn" id="bView" title="콘텐츠를 학생 화면 그대로 열어 봅니다(기록은 남지 않습니다)">👁<span class="lt"> 콘텐츠 보기</span></button>
   <details class="more" id="more"><summary class="btn">⋯</summary>
     <div class="menu">
@@ -206,6 +243,17 @@
   <div class="callbar" id="callbar" style="display:none"></div>
 </div>
 <div id="wrap"></div>
+</div>
+
+<div class="snapbig" id="snapBig">
+  <div class="bx">
+    <div class="bh"><span class="no" id="sbNo"></span><span class="t" id="sbT"></span><span class="s" id="sbS"></span><span class="sp"></span>
+      <button class="btn" id="sbOpen" title="이 콘텐츠를 옆 창에서 열어 봅니다">👁 콘텐츠 보기</button>
+      <button class="btn" id="sbPrev" title="앞 학생 (←)">◀</button><button class="btn" id="sbNext" title="다음 학생 (→)">▶</button>
+      <button class="btn" id="sbX" title="닫기 (Esc)">✕</button></div>
+    <div class="bi"><img id="sbImg" alt="학생 콘텐츠 화면"></div>
+    <div class="bf" id="sbF"></div>
+  </div>
 </div>
 
 <div class="pv" id="pv">
@@ -348,6 +396,7 @@ function listen(){
     CUR = (v && v.ms) ? {ms:Number(v.ms), g:Number(v.g)||0, c:Number(v.c)||0} : null;
     GO = (v && v.go) ? v.go : null;
     syncSubs();
+    syncSnap();
     draw();
     paintCallbar();
   });
@@ -765,6 +814,7 @@ async function startClass(g, c){
   if(act) up["mk/sessions/" + act.ms + "/end"] = ms;      /* 앞 수업 닫기 */
   up["mk/sessions/" + ms] = {ms, g, c, end:0};
   up["mk/current"] = {ms, g, c};
+  up["mk/snap"] = null;                                   /* 지난 수업 화면이 남아 있으면 지운다 */
   await update(ref(db), up);
 }
 async function endClass(){
@@ -772,6 +822,7 @@ async function endClass(){
   const up = {};
   if(act) up["mk/sessions/" + act.ms + "/end"] = serverNow();
   up["mk/current"] = null;
+  up["mk/snap"] = null;                                   /* 📸 수업 화면은 수업이 끝나면 남기지 않는다 */
   await update(ref(db), up);
 }
 async function renameSession(ms, g, c){
@@ -874,6 +925,9 @@ function paint(){
   }
 
   const has = DATA.students.length;
+  if(SNAPMODE){ paintSnaps(list, live); }
+  else{
+  SNAPDOM = null;
   $("wrap").innerHTML = has
     ? '<div class="grid" id="grid">' + cells + '</div>'
     : '<div class="empty">' + (
@@ -881,6 +935,7 @@ function paint(){
         : DATA.running ? "아직 접속한 학생이 없습니다.<br>학생이 콘텐츠를 열면 여기에 나타납니다."
         : "수업이 시작되지 않았습니다.<br>위에서 학년·반을 고르고 <b>▶ 수업 시작</b>을 눌러 주세요. 시작한 뒤의 기록만 저장됩니다.") + '</div>';
   if(has) fitGrid(list.length);
+  }
 
   const st = live
     ? [["#2f9e63","학습 중",on,"화면을 보고 있음(90초 이내)"],["#f5820b","다른 탭",away,"페이지는 열려 있으나 다른 탭·창을 보는 중"],["#e5484d","끊김",gone,"90초 넘게 신호 없음(창을 닫았거나 자리 비움)"],["#9aa5b8","미접속",off,"접속 기록 없음"]]
@@ -917,6 +972,194 @@ function fitGrid(n){
   g.classList.toggle("r7", rows >= 6.6 && rows < 8.6);   /* 이보다 크면 최근 활동 기록까지 보인다 */
 }
 window.addEventListener("resize", () => { if(document.body.classList.contains("pvon")) pvSize(); if(DATA) paint(); });
+
+/* ---------- 📸 화면 모니터 ----------
+   학생 track.js 가 수업 중 5초마다(바뀌었을 때만) 콘텐츠 그림을 /mk/snap/<수업>/<익명uid> 에 덮어쓴다.
+   · 📸 화면 을 켠 동안만 지금 수업의 화면을 구독한다(전송량 아끼기).
+   · 칸은 한 번 만들고 그림·글자만 바꿔 끼운다 — 1초마다 다시 그려도 깜빡이지 않게.
+   · '화면 n초 전'은 화면이 마지막으로 바뀐 때다. 학습 중인데 1분 넘게 그대로면 주황(⏸)으로 알린다.
+   · 그림을 누르면 크게 본다(←·→ 로 다음 학생, Esc 닫기). 수업을 닫으면 화면은 모두 지워진다. */
+let SNAPMODE = false, SNAP = {}, SNAPBYNO = {}, SNAPDOM = null, SNAPKEY = null, SNAPUNSUB = null, SNAPSIG = "", SNAPORDER = [], SBIDX = -1;
+let SNAPOPT = {page:"", hideOff:true, sort:"no"};
+try{ SNAPMODE = localStorage.getItem("dash.snap") === "1"; const o = JSON.parse(localStorage.getItem("dash.snapopt") || "null"); if(o) SNAPOPT = Object.assign(SNAPOPT, o); }catch(e){}
+const STILL_MS = 60000;
+const escS = (t) => String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function keepSnapOpt(){ try{ localStorage.setItem("dash.snapopt", JSON.stringify(SNAPOPT)); }catch(e){} }
+function syncSnap(){
+  const want = (SNAPMODE && CUR) ? String(CUR.ms) : null;
+  if(want === SNAPKEY) return;
+  if(SNAPUNSUB){ SNAPUNSUB(); SNAPUNSUB = null; }
+  SNAPKEY = want; SNAP = {}; SNAPBYNO = {}; SNAPDOM = null;
+  if(want){
+    SNAPUNSUB = onValue(ref(db, "mk/snap/" + want), (s) => {
+      SNAP = s.val() || {};
+      const by = {};
+      for(const uid of Object.keys(SNAP)){
+        const v = SNAP[uid]; if(!v || !v.n) continue;
+        const n = Number(v.n);
+        if(!by[n] || Number(v.st) > Number(by[n].st)) by[n] = v;   /* 같은 번호가 두 기기면 최근 것 */
+      }
+      SNAPBYNO = by;
+      if(SNAPMODE && DATA) paint();
+      if(SBIDX >= 0) paintBig();
+    }, () => {});
+  }
+}
+function setSnapMode(on){
+  SNAPMODE = !!on;
+  try{ localStorage.setItem("dash.snap", SNAPMODE ? "1" : "0"); }catch(e){}
+  $("bSnap").classList.toggle("on", SNAPMODE);
+  SNAPDOM = null; SNAPSIG = "";
+  if(!SNAPMODE) closeBig();
+  syncSnap();
+  if(DATA) paint();
+}
+$("bSnap").onclick = () => setSnapMode(!SNAPMODE);
+$("bSnap").classList.toggle("on", SNAPMODE);
+
+function snapAgo(ms){
+  const s = Math.max(0, Math.round((serverNow() - ms) / 1000));
+  return s < 5 ? "방금" : s < 60 ? s + "초 전" : s < 3600 ? Math.floor(s / 60) + "분 전" : Math.floor(s / 3600) + "시간 전";
+}
+function stuState(a, now){
+  if(!a) return {cls:"off", tag:"미접속"};
+  const d = now - a.last;
+  if(d > GONE_MS) return {cls:"gone", tag:"끊김"};
+  if(!a.vis) return {cls:"away", tag:"다른 탭"};
+  return {cls:"on", tag:"학습 중"};
+}
+function paintSnaps(list, live){
+  const W = $("wrap");
+  const running = !!(CUR && DATA.running && isToday());
+  if(!running){
+    if(SNAPDOM !== "idle"){
+      SNAPDOM = "idle"; SNAPSIG = "";
+      W.innerHTML = '<div class="snapmsg"><div>📸 화면 모니터는 <b>수업 중</b>에만 볼 수 있어요.</div>' +
+        '<div>수업을 시작하면 학생 콘텐츠 화면이 5초마다(바뀐 것만) 모입니다. 수업을 닫으면 화면은 지워집니다.</div>' +
+        '<button class="btn" id="snapOff" style="margin-top:8px">학생 칸 보기로 돌아가기</button></div>';
+      $("snapOff").onclick = () => setSnapMode(false);
+    }
+    return;
+  }
+  const now = serverNow();
+  let rows = list.map(([i, a]) => ({i, a, s:SNAPBYNO[i] || null, st:stuState(a, now)}));
+  if(SNAPOPT.hideOff) rows = rows.filter((r) => r.a || r.s);
+  if(SNAPOPT.page) rows = rows.filter((r) => (r.s ? r.s.p : r.a && r.a.page) === SNAPOPT.page);
+  if(SNAPOPT.sort === "still") rows.sort((x, y) => (x.s ? Number(x.s.st) : Infinity) - (y.s ? Number(y.s.st) : Infinity) || x.i - y.i);
+  else if(SNAPOPT.sort === "fresh") rows.sort((x, y) => (y.s ? Number(y.s.st) : -Infinity) - (x.s ? Number(x.s.st) : -Infinity) || x.i - y.i);
+  SNAPORDER = rows.map((r) => r.i);
+
+  const pages = [...new Set(Object.values(SNAPBYNO).map((v) => v.p).concat(DATA.students.map((a) => a.page)).filter(Boolean))].sort();
+  if(SNAPOPT.page && !pages.includes(SNAPOPT.page)) pages.push(SNAPOPT.page);
+  /* '오래 멈춘 먼저'·'방금 바뀐 먼저'는 순서가 계속 바뀌므로, 칸을 새로 만드는 대신 CSS order 로 옮긴다 */
+  const ids = rows.map((r) => r.i).slice().sort((a, b) => a - b);
+  const sig = ids.join(",") + "|" + pages.join(",") + "|" + JSON.stringify(SNAPOPT) + "|" + W.clientWidth + "x" + W.clientHeight;
+  if(!SNAPDOM || SNAPDOM === "idle" || sig !== SNAPSIG){
+    SNAPSIG = sig;
+    const opts = '<option value="">모든 콘텐츠</option>' + pages.map((p) => '<option value="' + escS(p) + '"' + (p === SNAPOPT.page ? " selected" : "") + '>' + escS(nameOf(p)) + '</option>').join("");
+    W.innerHTML = '<div class="snapbar">' +
+      '<label>콘텐츠 <select id="snPage">' + opts + '</select></label>' +
+      '<label>순서 <select id="snSort"><option value="no"' + (SNAPOPT.sort === "no" ? " selected" : "") + '>번호순</option>' +
+        '<option value="still"' + (SNAPOPT.sort === "still" ? " selected" : "") + '>오래 멈춘 화면 먼저</option>' +
+        '<option value="fresh"' + (SNAPOPT.sort === "fresh" ? " selected" : "") + '>방금 바뀐 화면 먼저</option></select></label>' +
+      '<label><input type="checkbox" id="snHide"' + (SNAPOPT.hideOff ? " checked" : "") + '> 미접속 숨기기</label>' +
+      '<span class="hint">그림을 누르면 크게 · ⏸ 1분 넘게 화면 그대로</span></div>' +
+      (ids.length ? '<div class="sgrid" id="sgrid">' + ids.map((i) =>
+        '<div class="sn" data-n="' + i + '"><div class="sh"><span class="no">' + i + '</span><span class="nm"></span><span class="ag"></span></div>' +
+        '<div class="si"><span class="none"></span><img alt="" style="display:none"></div><div class="sf"></div></div>').join("") + '</div>'
+        : '<div class="snapmsg">' + (SNAPOPT.page ? "이 콘텐츠를 보는 학생이 없어요." : "아직 접속한 학생이 없어요.") + '</div>');
+    $("snPage").onchange = (e) => { SNAPOPT.page = e.target.value; keepSnapOpt(); paint(); };
+    $("snSort").onchange = (e) => { SNAPOPT.sort = e.target.value; keepSnapOpt(); paint(); };
+    $("snHide").onchange = (e) => { SNAPOPT.hideOff = e.target.checked; keepSnapOpt(); paint(); };
+    SNAPDOM = {};
+    W.querySelectorAll(".sn").forEach((el) => { SNAPDOM[el.dataset.n] = el; });
+    fitSnapGrid(ids.length);
+  }
+  /* 칸마다 그림·글자만 바꿔 끼운다 */
+  rows.forEach((r, k) => {
+    const el = SNAPDOM[r.i]; if(!el) return;
+    el.style.order = String(k);
+    const s = r.s, a = r.a;
+    const age = s ? now - Number(s.st) : 0;
+    const still = s && r.st.cls === "on" && age > STILL_MS;
+    const cls = "sn " + r.st.cls + (s && age < 6000 ? " fresh" : "");
+    if(el.className !== cls) el.className = cls;
+    const pg = s ? nameOf(s.p) : (a ? a.pageName || "" : "");
+    const nm = el.querySelector(".nm"); if(nm.textContent !== pg) nm.textContent = pg;
+    const ag = el.querySelector(".ag");
+    const agT = s ? (still ? "⏸ " : "") + snapAgo(Number(s.st)) + (r.st.cls !== "on" ? " · " + r.st.tag : "") : r.st.tag;
+    if(ag.textContent !== agT) ag.textContent = agT;
+    const agC = "ag" + (still ? " still" : "");
+    if(ag.className !== agC) ag.className = agC;
+    ag.title = s ? "화면이 마지막으로 바뀐 때 · 지금 " + r.st.tag : "";
+    const img = el.querySelector("img"), none = el.querySelector(".none");
+    if(s && s.img){
+      if(img.dataset.k !== String(s.st)){ img.src = s.img; img.dataset.k = String(s.st); }
+      if(img.style.display) img.style.display = "";
+      if(none.style.display !== "none") none.style.display = "none";
+    }else{
+      if(img.style.display !== "none") img.style.display = "none";
+      none.style.display = "";
+      const t = !a ? "미접속" : r.st.cls === "away" ? "다른 탭을 보는 중" : r.st.cls === "gone" ? "신호 끊김" : "화면 받는 중…<br><small>그림판이 없는 화면(목차 등)은 오지 않아요</small>";
+      if(none.innerHTML !== t) none.innerHTML = t;
+    }
+    const sf = el.querySelector(".sf");
+    const tab = s ? (s.tab || "") : (a && a.tab) || "";
+    const fb = s && s.fb ? s.fb : "";
+    const sfH = (tab ? "▸ <b>" + escS(tab) + "</b>" : "") + (fb ? (tab ? " · " : "") + '<span class="' + (/🎉|정답|맞았|성공|훌륭|완성/.test(fb) ? "ok" : "") + '">' + escS(fb) + "</span>" : "");
+    if(sf.innerHTML !== sfH){ sf.innerHTML = sfH; sf.title = (tab ? tab + " · " : "") + fb; }
+  });
+}
+function fitSnapGrid(n){
+  const W = $("wrap"), g = $("sgrid"); if(!g || !n) return;
+  const bar = W.querySelector(".snapbar");
+  const AW = W.clientWidth, AH = W.clientHeight - (bar ? bar.offsetHeight : 0), gap = AW < 700 ? 5 : 8;
+  let best = null;
+  for(let cols = 1; cols <= n; cols++){
+    const rows = Math.ceil(n / cols);
+    const cw = (AW - gap*(cols - 1)) / cols, ch = (AH - gap*(rows - 1)) / rows;
+    if(cw <= 40 || ch <= 60) continue;
+    const imgH = ch - 46, imgW = Math.min(cw, imgH * 1.5);      /* 그림 가로:세로 ≈ 3:2 */
+    if(!best || imgW > best.imgW) best = {cols, rows, cw, ch, imgW};
+  }
+  if(!best){ const c = Math.ceil(Math.sqrt(n)); best = {cols:c, rows:Math.ceil(n / c), cw:110, ch:100}; g.style.height = "auto"; W.style.overflow = "auto"; }
+  else { g.style.height = Math.max(0, AH) + "px"; W.style.overflow = ""; }
+  g.style.setProperty("--gap", gap + "px");
+  g.style.gridTemplateColumns = "repeat(" + best.cols + ", minmax(0,1fr))";
+  g.style.gridTemplateRows = "repeat(" + best.rows + ", minmax(0,1fr))";
+  g.style.setProperty("--sf", Math.max(10, Math.min(13.5, best.cw / 18)).toFixed(1) + "px");
+}
+/* 크게 보기 */
+function openBig(n){ SBIDX = SNAPORDER.indexOf(Number(n)); if(SBIDX < 0) return; $("snapBig").classList.add("on"); paintBig(); }
+function closeBig(){ SBIDX = -1; $("snapBig").classList.remove("on"); }
+function moveBig(d){ if(!SNAPORDER.length) return; SBIDX = (SBIDX + d + SNAPORDER.length) % SNAPORDER.length; paintBig(); }
+function paintBig(){
+  if(SBIDX < 0) return;
+  if(SBIDX >= SNAPORDER.length){ closeBig(); return; }
+  const n = SNAPORDER[SBIDX], s = SNAPBYNO[n];
+  const a = DATA && DATA.students.find((x) => x.n === n);
+  const st = stuState(a, serverNow());
+  $("sbNo").textContent = n + "번";
+  $("sbT").textContent = s ? nameOf(s.p) : (a ? a.pageName || "" : "");
+  $("sbS").textContent = st.tag + (s ? " · 화면 " + snapAgo(Number(s.st)) : "");
+  const img = $("sbImg");
+  if(s && s.img){ if(img.dataset.k !== String(s.st)){ img.src = s.img; img.dataset.k = String(s.st); } img.style.visibility = ""; }
+  else img.style.visibility = "hidden";
+  $("sbF").innerHTML = s ? ((s.tab ? "활동 <b>" + escS(s.tab) + "</b><br>" : "") + (s.fb ? "마지막 안내·피드백: " + escS(s.fb) : "피드백 문구 없음"))
+                         : "아직 이 학생의 화면이 오지 않았어요.";
+  $("sbOpen").style.display = s && s.p ? "" : "none";
+}
+setInterval(() => { if(SBIDX >= 0) paintBig(); }, 1000);
+$("wrap").addEventListener("click", (e) => { const t = e.target.closest && e.target.closest(".sn .si"); if(t) openBig(t.parentElement.dataset.n); });
+$("sbX").onclick = closeBig; $("sbPrev").onclick = () => moveBig(-1); $("sbNext").onclick = () => moveBig(1);
+$("snapBig").addEventListener("click", (e) => { if(e.target.id === "snapBig") closeBig(); });
+$("sbOpen").onclick = () => { const s = SNAPBYNO[SNAPORDER[SBIDX]]; if(s && s.p){ closeBig(); openView(s.p); } };
+document.addEventListener("keydown", (e) => {
+  if(SBIDX < 0) return;
+  if(e.key === "Escape"){ e.stopImmediatePropagation(); closeBig(); }
+  else if(e.key === "ArrowLeft") moveBig(-1);
+  else if(e.key === "ArrowRight") moveBig(1);
+}, true);
 
 /* ---------- 👁 콘텐츠 보기 ----------
    현황판 안의 창으로 열면 track.js 가 알아보고 기록하지 않는다(번호도 묻지 않는다).

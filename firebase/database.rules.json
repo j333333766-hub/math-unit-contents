@@ -73,6 +73,32 @@
       "names": {
         ".read":  "auth != null && auth.token.email === 'j333333766@gmail.com'",
         ".write": "auth != null && auth.token.email === 'j333333766@gmail.com'"
+      },
+
+      /* 📸 화면 모니터 (2026-11-05)
+         학생 track.js 가 수업 중 5초마다(화면이 바뀌었을 때만) 콘텐츠 그림을 작은 JPEG 로 떠서
+         /mk/snap/<수업시작ms>/<자기 익명 uid> 에 덮어쓴다. 최신 한 장만 남고, 교사가 수업을 닫으면 통째로 지운다.
+         · 학생 : 지금 열린 수업 아래 '자기 uid 칸'에만 쓴다. 읽지는 못한다.
+         · 교사 : 읽고, 지운다. */
+      "snap": {
+        ".read":  "auth != null && auth.token.email === 'j333333766@gmail.com'",
+        ".write": "auth != null && auth.token.email === 'j333333766@gmail.com'",
+        "$ms": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && $ms === root.child('mk/current/ms').val() + ''",
+            ".validate": "newData.hasChildren(['n','img','st']) && newData.child('st').val() === now",
+            "n":   { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 45" },
+            "img": { ".validate": "newData.isString() && newData.val().beginsWith('data:image/jpeg;base64,') && newData.val().length < 90000" },
+            "st":  { ".validate": true },
+            "p":   { ".validate": "newData.isString() && newData.val().length <= 40" },
+            "ti":  { ".validate": "newData.isString() && newData.val().length <= 60" },
+            "tab": { ".validate": "newData.isString() && newData.val().length <= 60" },
+            "fb":  { ".validate": "newData.isString() && newData.val().length <= 120" },
+            "w":   { ".validate": "newData.isNumber()" },
+            "h":   { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        }
       }
     }
   }
