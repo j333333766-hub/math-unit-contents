@@ -379,6 +379,7 @@
      · 교사가 수업을 닫으면 /mk/snap/<수업> 이 통째로 지워진다. */
   var SNAP_MS = 5000, SNAP_W = 480, SNAP_HMAX = 340, SNAP_Q = 0.6;
   var snapLast = "", snapOkAt = 0, snapBusy = false, snapPill = null, snapCv = null;
+  var snapMeta = "", snapSentAt = 0, snapActAt = 0;   /* 스스로 도는 3D 그림은 손대지 않으면 20초에 한 번만 */
   function uidOf(t){
     try{
       var p = t.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
@@ -442,6 +443,9 @@
     var fb = lastFb();
     var sig = PAGE + "|" + tab + "|" + fb + "|" + img;
     if(sig === snapLast){ if(Date.now() - snapOkAt < 20000) return; }   /* 그대로면 보내지 않는다(표시만 20초마다 확인) */
+    var meta = PAGE + "|" + tab + "|" + fb;
+    /* 그림만 바뀌었고 그동안 학생 손길이 없으면(스스로 도는 3D 등) 20초에 한 번만 보낸다 */
+    if(sig !== snapLast && snapLast && meta === snapMeta && snapActAt < snapSentAt && Date.now() - snapSentAt < 20000) return;
     var ms = CUR.ms;
     snapBusy = true;
     token().then(function(t){
@@ -453,13 +457,16 @@
         body:JSON.stringify({n:NO, p:PAGE.slice(0, 40), ti:String(document.title || "").slice(0, 58), tab:tab, fb:fb,
                              img:img, w:w, h:h, st:{".sv":"timestamp"}})
       }).then(function(r){
-        if(r.ok){ snapLast = sig; snapOkAt = Date.now(); }
+        if(r.ok){ snapLast = sig; snapOkAt = snapSentAt = Date.now(); snapMeta = meta; }
         else if(r.status === 401 || r.status === 403){ CUR_AT = 0; }       /* 수업이 바뀌었을 수 있다 — 다시 확인 */
       });
     })["catch"](function(){}).then(function(){ snapBusy = false; paintSnapPill(); });
   }
   function startSnap(){
     if(!FIRE) return;
+    ["pointerdown","pointermove","keydown","wheel","input"].forEach(function(t){
+      document.addEventListener(t, function(e){ if(t !== "pointermove" || e.buttons) snapActAt = Date.now(); }, {capture:true, passive:true});
+    });
     setTimeout(snapTick, 2500);
     setInterval(snapTick, SNAP_MS);
     document.addEventListener("visibilitychange", function(){ if(visible()) setTimeout(snapTick, 600); });
