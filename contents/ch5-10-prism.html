@@ -269,78 +269,207 @@ let base = 12, vh = 5, stack = 0, stackAnim = null, stackSeen = false;   /* ② 
 let Q = {kind:"cylS", r:0, h:0, a:0, b:0, ans:0, pi:false, done:false, tries:0, ok:0, streak:0};
 
 /* ============================================================
-   ① 전개도로 펼치기
+   ① 전개도로 펼치기 — 3차원으로 실제로 접혔다 펴진다
+   · 밑면 다각형을 꼭짓점 차례(시계 반대 방향)로 두고, 가운데 옆면 하나(f)를 앞에 세워 고정한다.
+   · 옆면 띠 : 이웃 옆면은 세로 모서리를 경첩 삼아 돌아간다. 접힌 상태의 꺾인 각(밑면의 외각)을
+     (1 - u) 배로 줄여 가면 u = 1 에서 한 줄로 펴진다 — 옆면 하나하나는 늘어나거나 줄지 않는다.
+   · 밑면 두 개 : 고정 옆면의 아래·위 모서리에 붙어, 그 모서리를 축으로 90° 젖혀진다.
+     그래서 다 펴면 밑면의 각 변과 옆면의 가로가 꼭 맞물린다.
+   · 원기둥은 밑면을 정48각형(둘레 = 2πr)으로 보고 같은 방법으로 말린 옆면을 푼다.
+   · 순서 : 먼저 밑면(뚜껑)이 열리고 → 옆면 띠가 펴진다. 보는 각도도 비스듬히 → 정면으로 돌린다.
    ============================================================ */
-/* 1 cm 를 몇 px 로 그릴지 — 슬라이더 값이 작아도 그림이 화면을 채우도록 맞춘다 */
-function scaleOf(){
-  if(kind === "cyl")
-    return Math.max(10, Math.min(34, 104/rr, 200/(hh/2 + 2*rr)));
-  const per  = (kind === "tri") ? 12 : 2*(rr + 4);
-  const bhcm = (kind === "tri") ? 3 : 4;
-  return Math.max(10, Math.min(34, 840/per, 205/(hh/2 + bhcm)));
+const EDGE_C = [RED, OK, PURPLE, ORANGE];                 /* 밑면의 변 ↔ 옆면의 가로 짝 색 */
+function basePoly(){
+  if(kind === "tri")  return {V:[[0, 0], [4, 0], [0, 3]], f:0, smooth:false};          /* 4·5·3 */
+  if(kind === "rect") return {V:[[0, 0], [rr, 0], [rr, 4], [0, 4]], f:0, smooth:false};
+  const N = 48, L = 2*Math.PI*rr/N, R = L/(2*Math.sin(Math.PI/N)), V = [];
+  for(let i = 0; i < N; i++){ const a = -Math.PI/2 - Math.PI/N + i*2*Math.PI/N; V.push([R*Math.cos(a), R*Math.sin(a)]); }
+  return {V, f:0, smooth:true};
+}
+function netModel(){
+  const P = basePoly(), V = P.V, n = V.length, f = P.f;
+  const L = [], dir = [], th = [];
+  for(let i = 0; i < n; i++){
+    const a = V[i], b = V[(i + 1)%n];
+    L.push(Math.hypot(b[0] - a[0], b[1] - a[1])); dir.push(Math.atan2(b[1] - a[1], b[0] - a[0]));
+  }
+  for(let i = 0; i < n; i++){                             /* 꼭짓점 i+1 의 외각 */
+    let d = dir[(i + 1)%n] - dir[i];
+    while(d <= -Math.PI) d += 2*Math.PI; while(d > Math.PI) d -= 2*Math.PI;
+    th.push(d);
+  }
+  /* 고정 옆면의 밑변이 원점에서 +x 방향이 되도록 밑면을 옮긴다(몸통은 +y 쪽, 보는 사람은 -y 쪽) */
+  const c = Math.cos(-dir[f]), s = Math.sin(-dir[f]), o = V[f];
+  const loc = V.map(p => [ (p[0] - o[0])*c - (p[1] - o[1])*s, (p[0] - o[0])*s + (p[1] - o[1])*c ]);
+  return {n, f, L, th, loc, smooth:P.smooth};
+}
+/* 옆면 띠 : u = 0 접힘 → 1 펼침. 옆면마다 밑변의 두 끝(a → b, 밑면 꼭짓점 차례)을 준다 */
+function stripAt(M, u){
+  const {n, f, L, th} = M, out = [{i:f, a:[0, 0], b:[L[f], 0]}];
+  const F = Math.floor((n - 1)/2), Bk = n - 1 - F;
+  let P = [L[f], 0], ph = 0;
+  for(let j = 1; j <= F; j++){
+    const i = (f + j)%n; ph += th[(f + j - 1)%n]*(1 - u);
+    const Q = [P[0] + L[i]*Math.cos(ph), P[1] + L[i]*Math.sin(ph)];
+    out.push({i, a:P, b:Q}); P = Q;
+  }
+  P = [0, 0]; let ps = Math.PI;
+  for(let j = 1; j <= Bk; j++){
+    const i = (f - j + n)%n; ps -= th[i]*(1 - u);
+    const Q = [P[0] + L[i]*Math.cos(ps), P[1] + L[i]*Math.sin(ps)];
+    out.push({i, a:Q, b:P}); P = Q;
+  }
+  return out;
+}
+const ease = v => { v = clamp01(v); return v*v*(3 - 2*v); };
+function netState(t){
+  const M = netModel();
+  return {M, beta:Math.PI/2*ease(t/0.42), u:ease((t - 0.32)/0.68),
+          yaw:rad(kind === "tri" ? 34 : -34)*(1 - ease(t)),   /* 삼각기둥은 왼쪽(3 cm) 옆면이 보이게 반대쪽에서 */
+          pitch:rad(32)*(1 - ease((t - 0.1)/0.9)), H:hh};
+}
+/* 밑면 점 → 3차원 (아래 밑면은 아래로, 위 밑면은 위로 젖혀진다) */
+function basePt(S, p, top){
+  const cb = Math.cos(S.beta), sb = Math.sin(S.beta);
+  return top ? {x:p[0], y:p[1]*cb, z:S.H + p[1]*sb} : {x:p[0], y:p[1]*cb, z:-p[1]*sb};
+}
+function prj3(S, p){
+  const cx = S.M.L[S.M.f]/2;
+  const x0 = p.x - cx, y0 = p.y, z0 = p.z - S.H/2;
+  const cy = Math.cos(S.yaw), sy = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
+  const X = x0*cy - y0*sy, Y = x0*sy + y0*cy;
+  return {x:X, y:-(z0*cp + Y*sp), d:Y*cp - z0*sp};
+}
+function viewDepthOf(S, v){       /* 방향 벡터가 보는 사람에게서 멀어지면 + */
+  const cy = Math.cos(S.yaw), sy = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
+  return (v.x*sy + v.y*cy)*cp - v.z*sp;
+}
+function netFaces(S){
+  const M = S.M, faces = [];
+  stripAt(M, S.u).forEach(function(q){
+    const A = {x:q.a[0], y:q.a[1]}, B = {x:q.b[0], y:q.b[1]};
+    const W = [{x:A.x, y:A.y, z:0}, {x:B.x, y:B.y, z:0}, {x:B.x, y:B.y, z:S.H}, {x:A.x, y:A.y, z:S.H}];
+    const dx = B.x - A.x, dy = B.y - A.y, dl = Math.hypot(dx, dy) || 1;
+    faces.push({kind:"side", i:q.i, W, n:{x:dy/dl, y:-dx/dl, z:0}});
+  });
+  faces.push({kind:"base", top:false, W:M.loc.map(p => basePt(S, p, false))});
+  faces.push({kind:"base", top:true,  W:M.loc.map(p => basePt(S, p, true))});
+  return faces;
+}
+function netBox3(t){
+  const S = netState(t), b = {x0:1e9, x1:-1e9, y0:1e9, y1:-1e9};
+  netFaces(S).forEach(F => F.W.forEach(p => { const q = prj3(S, p);
+    b.x0 = Math.min(b.x0, q.x); b.x1 = Math.max(b.x1, q.x); b.y0 = Math.min(b.y0, q.y); b.y1 = Math.max(b.y1, q.y); }));
+  return b;
 }
 function drawNet(){
-  const t = clamp01(tOpen);
-  const SC = scaleOf();
-  const R = rr*SC, H = hh*SC;
-  const cx = 300, cy = 320;
+  const t = clamp01(tOpen), S = netState(t), M = S.M;
+  /* 1 cm 의 크기 : 접힌 모습·펼치는 중·전개도 모두 캔버스(가로 780 × 세로 430) 안에 */
+  let mw = 0, mh = 0;
+  [0, 0.5, 1].forEach(function(k){ const b = netBox3(k); mw = Math.max(mw, b.x1 - b.x0); mh = Math.max(mh, b.y1 - b.y0); });
+  const SC = Math.min(36, 780/mw, 410/mh);
+  const B = netBox3(t), OX = 450 - (B.x0 + B.x1)/2*SC, OY = 335 - (B.y0 + B.y1)/2*SC;
+  const SP = p => { const q = prj3(S, p); return {x:OX + q.x*SC, y:OY + q.y*SC, d:q.d}; };
+  const Ld = {x:-0.35, y:-0.75, z:0.56};
 
-  if(kind === "cyl"){
-    /* 옆면 : 접힌 상태는 원기둥 옆면, 펼치면 가로 2πr 인 직사각형 */
-    const w = 2*Math.PI*R;
-    const sideX = cx - R + (450 - (cx - R))*t;          /* 펼치면 오른쪽으로 이동 */
-    const sideW = 2*R + (w - 2*R)*t;
-    rect(sideX - sideW/2 + R, cy - H/2, sideW, H, BLUE + "33", BLUE, 2.6);
-    if(t < 0.5){
-      ellipse(cx, cy - H/2, R, R*0.34, "#ffffffcc", BLUE, 2.4);
-      ellipse(cx, cy + H/2, R, R*0.34, ORANGE + "44", ORANGE, 2.4);
-    }
-    /* 밑면 두 개 — 펼치면 위·아래로 빠져나온다 */
-    const bx = cx + (sideX - sideW/2 + R - 30 - cx)*t;
-    const upY  = cy - H/2 - (R + 26)*t;
-    const dnY  = cy + H/2 + (R + 26)*t;
-    ellipse(t > 0.5 ? bx : cx, upY, R, t > 0.5 ? R : R*0.34, ORANGE + "44", ORANGE, 2.4);
-    ellipse(t > 0.5 ? bx : cx, dnY, R, t > 0.5 ? R : R*0.34, ORANGE + "44", ORANGE, 2.4);
-    if(t > 0.75){
-      txt("2π×" + rr + " = " + r2(2*rr) + "π cm", sideX + R, cy + H/2 + 24, BLUE, 17, true);
-      txt(hh + " cm", sideX - sideW/2 + R - 30, cy, BLUE, 17, true);
-    }
-  }else{
-    /* 각기둥 : 밑면 다각형 n개 변 → 옆면은 변마다 직사각형 */
-    const n = (kind === "tri") ? 3 : 4;
-    const sides = (kind === "tri") ? [3, 4, 5] : [rr, 4, rr, 4];   /* cm */
-    const per = sides.reduce(function(a, b){ return a + b; }, 0);
-    const totalW = per*SC;
-    const x0 = 470 - totalW/2;
-    let x = x0;
-    const openX = cx - totalW/2;
-    for(let i = 0; i < sides.length; i++){
-      const w = sides[i]*SC;
-      const fx = x0 + (x - x0)*0 + (x - x0);            /* 펼친 자리 */
-      const sx = cx - totalW/2 + (x - x0);              /* 접힌 자리(대충 겹쳐 보이게) */
-      const px = sx + (x - sx)*t;
-      rect(px, cy - H/2, w, H, BLUE + "33", BLUE, 2.4);
-      if(t > 0.75) txt(sides[i] + "", px + w/2, cy + H/2 - 14, BLUE, 15, true);
-      x += w;
-    }
-    /* 밑면 두 개 */
-    const bw = (kind === "tri") ? 4*SC : rr*SC;
-    const bh = (kind === "tri") ? 3*SC : 4*SC;
-    const bx = x0 + 10, byU = cy - H/2 - bh - 18*t, byD = cy + H/2 + 18*t;
-    if(kind === "tri"){
-      poly([{x:bx, y:byU + bh}, {x:bx + bw, y:byU + bh}, {x:bx, y:byU}], ORANGE + "44", ORANGE, 2.4);
-      poly([{x:bx, y:byD}, {x:bx + bw, y:byD}, {x:bx, y:byD + bh}], ORANGE + "44", ORANGE, 2.4);
+  const faces = netFaces(S).map(function(F){
+    const P = F.W.map(SP);
+    const d = P.reduce((s, p) => s + p.d, 0)/P.length;
+    let n = F.n;
+    if(!n){ const a = F.W[0], b = F.W[1], c = F.W[2];
+      const u1 = {x:b.x - a.x, y:b.y - a.y, z:b.z - a.z}, u2 = {x:c.x - a.x, y:c.y - a.y, z:c.z - a.z};
+      n = {x:u1.y*u2.z - u1.z*u2.y, y:u1.z*u2.x - u1.x*u2.z, z:u1.x*u2.y - u1.y*u2.x};
+      const l = Math.hypot(n.x, n.y, n.z) || 1; n = {x:n.x/l, y:n.y/l, z:n.z/l}; }
+    const lit = 0.66 + 0.34*Math.abs(n.x*Ld.x + n.y*Ld.y + n.z*Ld.z);
+    return Object.assign({}, F, {P, d, lit, out:viewDepthOf(S, n) < 0});
+  });
+  faces.sort((a, b) => b.d - a.d);
+  const shade = (rgb, lit, add) => "rgb(" + rgb.map(c => Math.round(Math.min(255, c*lit + (add || 0)))).join(",") + ")";
+  const SIDE_A = [120, 155, 238], SIDE_B = [150, 180, 245], SIDE_IN = [205, 216, 246], BASE = [253, 205, 150];
+  for(const F of faces){
+    ctx.beginPath(); F.P.forEach((p, k) => k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath();
+    if(F.kind === "base"){
+      ctx.fillStyle = shade(BASE, F.lit); ctx.fill();
+      ctx.strokeStyle = ORANGE; ctx.lineWidth = 2.4; ctx.lineJoin = "round"; ctx.stroke();
     }else{
-      rect(bx, byU, bw, bh, ORANGE + "44", ORANGE, 2.4);
-      rect(bx, byD, bw, bh, ORANGE + "44", ORANGE, 2.4);
+      const rgb = !F.out ? SIDE_IN : (M.smooth || F.i%2 === 0 ? SIDE_A : SIDE_B);
+      ctx.fillStyle = shade(rgb, F.lit, F.out ? 0 : 10); ctx.fill();
+      if(M.smooth){ ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 0.9; ctx.stroke(); }     /* 칸 사이 틈 메우기 */
+      else { ctx.strokeStyle = BLUE; ctx.lineWidth = 2.2; ctx.lineJoin = "round"; ctx.stroke(); }
     }
-    /* 아래쪽 밑면과 겹치지 않도록 그 밑에 적는다 */
-    if(t > 0.75) txt("옆면 : 밑면의 둘레 " + per + " cm × 높이 " + hh + " cm",
-                     450, byD + bh + 26, BLUE, 17, true);
+  }
+  /* 원기둥 : 옆면 띠의 테두리(위·아래 둘레와 자른 선) */
+  const strip = stripAt(M, S.u);
+  if(M.smooth){
+    const chain = [];
+    const back = strip.filter((q, k) => k > Math.floor((M.n - 1)/2)).reverse();
+    const fwd = strip.slice(0, Math.floor((M.n - 1)/2) + 1);
+    back.concat(fwd).forEach(q => chain.push(q));
+    const line = (z, w) => { ctx.beginPath(); chain.forEach((q, k) => { const A = SP({x:q.a[0], y:q.a[1], z}); if(!k) ctx.moveTo(A.x, A.y); else ctx.lineTo(A.x, A.y); });
+      const lq = chain[chain.length - 1], Z = SP({x:lq.b[0], y:lq.b[1], z}); ctx.lineTo(Z.x, Z.y); ctx.strokeStyle = BLUE; ctx.lineWidth = w; ctx.stroke(); };
+    if(S.u > 0.02){
+      line(0, 2.4); line(S.H, 2.4);
+      const c0 = chain[0], c1 = chain[chain.length - 1];
+      seg(SP({x:c0.a[0], y:c0.a[1], z:0}), SP({x:c0.a[0], y:c0.a[1], z:S.H}), BLUE, 2.4);
+      seg(SP({x:c1.b[0], y:c1.b[1], z:0}), SP({x:c1.b[0], y:c1.b[1], z:S.H}), BLUE, 2.4);
+    }
   }
 
-  txt(t > 0.9 ? "전개도" : (t < 0.1 ? "기둥" : "펼치는 중…"), 450, 52, t > 0.9 ? OK : INK, 21, true);
-  $("tip").textContent = "펼치기 슬라이더를 밀어 보세요";
+  /* 글자 */
+  if(t < 0.04){
+    /* 접힌 기둥 : 높이와 밑면 크기 */
+    let best = null;
+    strip.forEach(function(q){ [q.a, q.b].forEach(function(v){ const p = SP({x:v[0], y:v[1], z:0}); if(!best || p.x > best.p.x) best = {p, v}; }); });
+    const p0 = best.p, p1 = SP({x:best.v[0], y:best.v[1], z:S.H});
+    seg({x:p0.x + 18, y:p0.y}, {x:p1.x + 18, y:p1.y}, INK, 2);
+    txt("높이 " + hh + " cm", p0.x + 70, (p0.y + p1.y)/2, INK, 16, true);
+    if(M.smooth){
+      const top = M.loc.map(p => SP(basePt(S, p, true)));
+      const cxp = top.reduce((s, p) => s + p.x, 0)/top.length, cyp = top.reduce((s, p) => s + p.y, 0)/top.length;
+      const rp = SP(basePt(S, [M.L[M.f]/2, 0], true));
+      seg({x:cxp, y:cyp}, rp, ORANGE, 2.2, [6, 5]);
+      txt(rr + " cm", (cxp + rp.x)/2 + 22, (cyp + rp.y)/2 + 4, ORANGE, 15, true);
+    }
+  }
+  if(t > 0.93){
+    const all = []; faces.forEach(F => F.P.forEach(p => all.push(p)));
+    const yMax = Math.max.apply(null, all.map(p => p.y));
+    const left = strip.reduce((m, q) => Math.min(m, q.a[0], q.b[0]), 1e9);
+    const right = strip.reduce((m, q) => Math.max(m, q.a[0], q.b[0]), -1e9);
+    const L0 = SP({x:left, y:0, z:0}), L1 = SP({x:left, y:0, z:S.H});
+    seg({x:L0.x - 18, y:L0.y}, {x:L1.x - 18, y:L1.y}, INK, 2);
+    txt(hh + " cm", L0.x - 52, (L0.y + L1.y)/2, INK, 16, true);
+    if(M.smooth){
+      const mid = SP({x:(left + right)/2, y:0, z:S.H*0.22});
+      txt("가로 = 밑면의 둘레 = 2π×" + rr + " = " + (2*rr) + "π cm", mid.x, mid.y, BLUE, 16, true);
+      const top = M.loc.map(p => SP(basePt(S, p, true)));
+      const cxp = top.reduce((s, p) => s + p.x, 0)/top.length, cyp = top.reduce((s, p) => s + p.y, 0)/top.length;
+      seg({x:cxp, y:cyp}, {x:cxp + rr*SC, y:cyp}, ORANGE, 2.2, [6, 5]);
+      txt(rr + " cm", cxp + rr*SC/2, cyp - 13, ORANGE, 15, true);
+    }else{
+      /* 밑면의 변과 옆면의 가로를 같은 색으로 — 길이가 같아 꼭 맞물린다 */
+      strip.forEach(function(q){
+        const c = EDGE_C[q.i%EDGE_C.length];
+        const a = SP({x:q.a[0], y:0, z:0}), b = SP({x:q.b[0], y:0, z:0});
+        seg({x:a.x + 3, y:a.y - 2}, {x:b.x - 3, y:b.y - 2}, c, 5);
+        txt(M.L[q.i] + " cm", (a.x + b.x)/2, a.y - 18, c, 15, true);
+      });
+      for(let i = 0; i < M.n; i++){
+        if(i === M.f) continue;
+        const c = EDGE_C[i%EDGE_C.length];
+        [false, true].forEach(function(top){
+          const a = SP(basePt(S, M.loc[i], top)), b = SP(basePt(S, M.loc[(i + 1)%M.n], top));
+          seg(a, b, c, 5);
+        });
+      }
+      const per = M.L.reduce((s, v) => s + v, 0);
+      txt("옆면의 가로 = 밑면의 둘레 = " + M.L.join(" + ") + " = " + per + " cm", 450, Math.min(575, yMax + 26), BLUE, 16, true);
+    }
+  }
+  txt(t > 0.93 ? "전개도 — 밑면 2개 + 옆면" : (t < 0.04 ? M.smooth ? "원기둥" : (kind === "tri" ? "삼각기둥" : "직육면체") : "펼치는 중…"),
+      450, 52, t > 0.93 ? OK : INK, 21, true);
+  $("tip").textContent = t > 0.93 ? (M.smooth ? "밑면 원이 옆면 직사각형의 위·아래에 맞닿아요" : "같은 색 변끼리 길이가 같아요")
+                                  : "펼치기 슬라이더를 밀어 보세요";
 }
 
 function prismInfo(){
@@ -395,7 +524,7 @@ $("rH").addEventListener("input", function(e){ hh = +e.target.value; paintNet();
 $("rT").addEventListener("input", function(e){ stopOpen(); tOpen = +e.target.value/100; paintNet(); draw(); });
 $("btnOpen").addEventListener("click", function(){
   stopOpen();
-  const from = tOpen, t0 = performance.now(), DUR = 2000;
+  const from = tOpen >= 0.999 ? 0 : tOpen, t0 = performance.now(), DUR = 3600*(1 - from);
   (function step(now){
     const u = Math.min(1, (now - t0)/DUR);
     tOpen = from + (1 - from)*u;
@@ -412,31 +541,39 @@ $("btnClose").addEventListener("click", function(){
    ② 부피 쌓아 보기
    ============================================================ */
 function drawVol(){
-  const cx = 430, cyB = 500;
-  const w = Math.min(330, base*14), d = 62, layerH = Math.min(34, 360/vh);
-  const shown = Math.min(vh, stack);
+  /* 밑면(주황)을 한 층(1 cm)씩 위로 쌓는다. 층마다 앞·오른쪽·윗면을 그려 상자로 보이게, 아래층부터 */
+  const cx = 400, yb = 505;
+  const w = Math.min(330, 70 + base*11), d = 80, dx = d, dy = -d*0.55, layerH = Math.min(36, 330/vh);
+  const x0 = cx - w/2, shown = Math.min(vh, stack);
+  const cuboid = function(y, hgt, front, side, top, stroke, lw){
+    poly([{x:x0 + w, y:y}, {x:x0 + w + dx, y:y + dy}, {x:x0 + w + dx, y:y + dy - hgt}, {x:x0 + w, y:y - hgt}], side, stroke, lw);
+    poly([{x:x0, y:y - hgt}, {x:x0 + w, y:y - hgt}, {x:x0 + w + dx, y:y - hgt + dy}, {x:x0 + dx, y:y - hgt + dy}], top, stroke, lw);
+    rect(x0, y - hgt, w, hgt, front, stroke, lw);
+  };
+  /* 다 쌓았을 때의 기둥 자리(점선) */
+  ctx.save(); ctx.setLineDash([7, 6]);
+  const Ht = vh*layerH;
+  poly([{x:x0, y:yb - Ht}, {x:x0 + w, y:yb - Ht}, {x:x0 + w + dx, y:yb - Ht + dy}, {x:x0 + dx, y:yb - Ht + dy}], null, "#b8c3dc", 1.6);
+  seg({x:x0, y:yb}, {x:x0, y:yb - Ht}, "#b8c3dc", 1.6); seg({x:x0 + w, y:yb}, {x:x0 + w, y:yb - Ht}, "#b8c3dc", 1.6);
+  seg({x:x0 + w + dx, y:yb + dy}, {x:x0 + w + dx, y:yb + dy - Ht}, "#b8c3dc", 1.6);
+  ctx.restore();
   /* 밑면 */
-  const basePts = [{x:cx - w/2, y:cyB}, {x:cx + w/2, y:cyB},
-                   {x:cx + w/2 + d, y:cyB - d*0.6}, {x:cx - w/2 + d, y:cyB - d*0.6}];
-  poly(basePts, ORANGE + "55", ORANGE, 2.6);
-  txt("밑넓이 " + base + " cm²", cx + d/2, cyB + 26, ORANGE, 18, true);
-
+  poly([{x:x0, y:yb}, {x:x0 + w, y:yb}, {x:x0 + w + dx, y:yb + dy}, {x:x0 + dx, y:yb + dy}], ORANGE + "55", ORANGE, 2.6);
   for(let i = 0; i < shown; i++){
-    const y = cyB - (i + 1)*layerH;
-    const p = [{x:cx - w/2, y:y}, {x:cx + w/2, y:y},
-               {x:cx + w/2 + d, y:y - d*0.6}, {x:cx - w/2 + d, y:y - d*0.6}];
-    poly(p, BLUE + "2e", BLUE, 1.8);
-    /* 옆면 */
-    poly([{x:cx - w/2, y:y}, {x:cx + w/2, y:y},
-          {x:cx + w/2, y:y + layerH}, {x:cx - w/2, y:y + layerH}], BLUE + "22", BLUE, 1.4);
+    const y = yb - i*layerH;
+    const last = (i === shown - 1);
+    cuboid(y, layerH, BLUE + "30", BLUE + "4a", last ? ORANGE + "40" : BLUE + "22", BLUE, 1.6);
   }
+  txt("밑넓이 " + base + " cm²", cx + dx/2, yb + 28, ORANGE, 18, true);
   if(shown > 0){
-    const topY = cyB - shown*layerH;
-    seg({x:cx + w/2 + d + 16, y:cyB - d*0.6}, {x:cx + w/2 + d + 16, y:topY - d*0.6}, OK, 3);
-    txt(shown + " cm", cx + w/2 + d + 48, (cyB + topY)/2 - d*0.6, OK, 17, true);
+    const topY = yb - shown*layerH;
+    const hx = x0 + w + dx + 18;
+    seg({x:hx, y:yb + dy}, {x:hx, y:topY + dy}, OK, 3);
+    seg({x:hx - 6, y:yb + dy}, {x:hx + 6, y:yb + dy}, OK, 3); seg({x:hx - 6, y:topY + dy}, {x:hx + 6, y:topY + dy}, OK, 3);
+    txt(shown + " cm", hx + 34, (yb + topY)/2 + dy, OK, 17, true);
   }
-  txt(shown >= vh ? "밑넓이 × 높이 = " + (base*vh) + " cm³" : "한 층씩 쌓는 중… (" + shown + "층)",
-      430, 52, shown >= vh ? OK : INK, 21, true);
+  txt(shown >= vh ? "밑넓이 × 높이 = " + base + " × " + vh + " = " + (base*vh) + " cm³" : "한 층씩 쌓는 중… (" + shown + "층)",
+      450, 52, shown >= vh ? OK : INK, 21, true);
   $("tip").textContent = "밑면을 높이만큼 쌓으면 부피예요";
 }
 function paintVol(){
@@ -475,24 +612,37 @@ const QC = {x:430, y:320};
 function drawQuiz(){
   const R = 88, H = 215;
   if(Q.kind.indexOf("cyl") === 0){
-    rect(QC.x - R, QC.y - H/2, 2*R, H, BLUE + "26", BLUE, 2.6);
-    ellipse(QC.x, QC.y - H/2, R, R*0.3, "#ffffffdd", BLUE, 2.4);
-    ellipse(QC.x, QC.y + H/2, R, R*0.3, BLUE + "26", BLUE, 2.4);
-    seg({x:QC.x, y:QC.y - H/2}, {x:QC.x + R, y:QC.y - H/2}, INK, 2.2, [6, 5]);
-    txt(Q.r + " cm", QC.x + R/2, QC.y - H/2 - 18, INK, 17, true);
-    seg({x:QC.x + R + 24, y:QC.y - H/2}, {x:QC.x + R + 24, y:QC.y + H/2}, INK, 2.2);
+    const top = QC.y - H/2, bot = QC.y + H/2, ry = R*0.3;
+    /* 옆면 : 위 타원 아래와 아래 타원 앞쪽 반을 이어 칠하고, 옆 두 선만 긋는다 */
+    ctx.beginPath(); ctx.moveTo(QC.x - R, top); ctx.lineTo(QC.x - R, bot);
+    ctx.ellipse(QC.x, bot, R, ry, 0, Math.PI, 0, true); ctx.lineTo(QC.x + R, top);
+    ctx.ellipse(QC.x, top, R, ry, 0, 0, Math.PI, false); ctx.closePath();
+    ctx.fillStyle = BLUE + "26"; ctx.fill();
+    seg({x:QC.x - R, y:top}, {x:QC.x - R, y:bot}, BLUE, 2.6); seg({x:QC.x + R, y:top}, {x:QC.x + R, y:bot}, BLUE, 2.6);
+    /* 아래 밑면 : 앞쪽 반은 실선, 뒤쪽 반은 점선(가려진 부분) */
+    ctx.beginPath(); ctx.ellipse(QC.x, bot, R, ry, 0, 0, Math.PI); ctx.strokeStyle = BLUE; ctx.lineWidth = 2.4; ctx.stroke();
+    ctx.save(); ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.ellipse(QC.x, bot, R, ry, 0, Math.PI, 2*Math.PI); ctx.stroke(); ctx.restore();
+    ellipse(QC.x, top, R, ry, "#ffffffee", BLUE, 2.4);
+    seg({x:QC.x, y:top}, {x:QC.x + R, y:top}, INK, 2.2, [6, 5]);
+    txt(Q.r + " cm", QC.x + R/2, top - 18, INK, 17, true);
+    seg({x:QC.x + R + 24, y:top}, {x:QC.x + R + 24, y:bot}, INK, 2.2);
     txt(Q.h + " cm", QC.x + R + 62, QC.y, INK, 17, true);
   }else{
-    const w = 215, d = 72;
-    const x0 = QC.x - w/2, y0 = QC.y + H/2;
-    poly([{x:x0, y:y0}, {x:x0 + w, y:y0}, {x:x0 + w + d, y:y0 - d*0.55}, {x:x0 + d, y:y0 - d*0.55}],
-         ORANGE + "40", ORANGE, 2.4);
+    const w = 215, d = 72, dx = d, dy = -d*0.55;
+    const x0 = QC.x - w/2 - dx/2, y0 = QC.y + H/2;
+    /* 가려진 모서리(점선)와 밑면 */
+    poly([{x:x0, y:y0}, {x:x0 + w, y:y0}, {x:x0 + w + dx, y:y0 + dy}, {x:x0 + dx, y:y0 + dy}], ORANGE + "40", null);
+    ctx.save(); ctx.setLineDash([6, 6]);
+    seg({x:x0, y:y0}, {x:x0 + dx, y:y0 + dy}, BLUE, 2); seg({x:x0 + dx, y:y0 + dy}, {x:x0 + w + dx, y:y0 + dy}, BLUE, 2);
+    seg({x:x0 + dx, y:y0 + dy}, {x:x0 + dx, y:y0 + dy - H}, BLUE, 2);
+    ctx.restore();
+    /* 보이는 면 : 오른쪽 옆면, 윗면, 앞면 */
+    poly([{x:x0 + w, y:y0}, {x:x0 + w + dx, y:y0 + dy}, {x:x0 + w + dx, y:y0 + dy - H}, {x:x0 + w, y:y0 - H}], BLUE + "3a", BLUE, 2.4);
+    poly([{x:x0, y:y0 - H}, {x:x0 + w, y:y0 - H}, {x:x0 + w + dx, y:y0 - H + dy}, {x:x0 + dx, y:y0 - H + dy}], BLUE + "1c", BLUE, 2.4);
     rect(x0, y0 - H, w, H, BLUE + "26", BLUE, 2.6);
-    poly([{x:x0, y:y0 - H}, {x:x0 + w, y:y0 - H}, {x:x0 + w + d, y:y0 - H - d*0.55}, {x:x0 + d, y:y0 - H - d*0.55}],
-         BLUE + "26", BLUE, 2.4);
-    seg({x:x0 + w + d + 18, y:y0 - d*0.55}, {x:x0 + w + d + 18, y:y0 - H - d*0.55}, INK, 2.2);
-    txt(Q.h + " cm", x0 + w + d + 56, y0 - H/2 - d*0.3, INK, 17, true);
-    txt("밑넓이 " + Q.b + " cm²", QC.x + d/2, y0 + 28, ORANGE, 18, true);
+    seg({x:x0 + w + dx + 18, y:y0 + dy}, {x:x0 + w + dx + 18, y:y0 + dy - H}, INK, 2.2);
+    txt(Q.h + " cm", x0 + w + dx + 56, y0 - H/2 + dy, INK, 17, true);
+    txt("밑넓이 " + Q.b + " cm²", x0 + w/2 + dx/2, y0 + 28, ORANGE, 18, true);
   }
   txt(Q.kind.slice(-1) === "S" ? "겉넓이는?" : "부피는?", 430, 52,
       Q.kind.slice(-1) === "S" ? BLUE : OK, 21, true);
