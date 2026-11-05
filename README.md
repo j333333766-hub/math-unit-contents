@@ -42,8 +42,7 @@ math-unit-contents/
 │   ├── ch5-07-sector-size.html      # 부채꼴 호·넓이 계산기  (195~196쪽)
 │   ├── ch5-08-polyhedron.html       # 다면체 탐구실 (3D)     (198~200쪽)
 │   ├── ch5-09-revolution.html       # 회전체 만들기 (3D)     (201~203쪽)
-│   ├── ch5-10-prism.html            # 기둥 펼치기            (206~210쪽)
-│   ├── ch5-10b-prism-volume.html    # 기둥의 부피 만들기      (208쪽) 단위정육면체→세 모서리의 곱→밑넓이×높이, 삼각·오각·원기둥
+│   ├── ch5-10-prism.html            # 기둥 펼치기            (206~210쪽) 전개도·단위정육면체→밑넓이×높이·다른 기둥·문제
 │   ├── ch5-11-pyramid.html          # 뿔 실험실              (211~215쪽)
 │   ├── ch5-12-sphere.html           # 구 실험실              (216~218쪽)
 │   └── ch5-13-archimedes.html         # 아르키메데스의 원기둥  (1:2:3, 심화)
