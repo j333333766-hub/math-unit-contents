@@ -91,13 +91,11 @@ button,a{ -webkit-tap-highlight-color:transparent; }
 
 /* -----------------------------------------------------------
    글자 크기 조절 (교실 TV 로 띄울 때)
-   common.js 가 --fs 값을 바꾸고, 오른쪽 패널 폭은 js 가 같이 늘린다.
-   zoom 을 쓰면 각 콘텐츠가 <style> 에 적어 둔 px 값을 건드리지 않고도
-   머리글·패널이 통째로 커진다.
+   common.js 가 --fs 값을 바꾸고, 각 <style> 의 글자 크기(px)만 곱해 다시 써 넣는다.
+   (11/9) 화면 나눔·패널 폭·단추 틀은 그대로 두고 글자만 커진다. zoom 은 목차(허브)에만 쓴다.
    ----------------------------------------------------------- */
 :root{ --fs:1; }
 
-#app > header{ zoom:var(--fs); }
 /* 크게 키우면 탭이 많은 콘텐츠는 머리글이 한 줄에 안 들어간다 → 줄바꿈 허용
    (필요할 때만 줄이 바뀌므로 100% 일 때 보이는 모습은 그대로다) */
 html.mk-fs-big #app > header{
@@ -113,9 +111,6 @@ html.mk-fs-big #tip,
 html.mk-fs-big #hintbar,
 html.mk-fs-big #rotateHint{ font-size:calc(12.5px * var(--fs)); }
 html.mk-fs-big .vlab{ font-size:calc(19px * var(--fs)); }
-/* 작도판의 도구 막대는 캔버스 위가 아니라 제 자리를 차지하므로 통째로 키워도 안전하다 */
-html.mk-fs-big #app .tools{ zoom:var(--fs); }
-#app main > aside{ zoom:var(--fs); }
 body.mk-zoom{ zoom:var(--fs); }          /* 목차(허브)처럼 캔버스가 없는 쪽은 통째로 */
 
 .mk-fs{
@@ -141,3 +136,47 @@ body.mk-zoom{ zoom:var(--fs); }          /* 목차(허브)처럼 캔버스가 �
   position:fixed; top:10px; right:12px; z-index:99998;
   box-shadow:0 2px 12px rgba(29,36,51,.16);
 }
+
+/* -----------------------------------------------------------
+   수식 입력기 (MK.mathInput) — 답 칸에서 분수를 쓴다
+   ----------------------------------------------------------- */
+.mk-mi{ display:inline-flex; align-items:center; gap:6px; vertical-align:middle; }
+.mk-mi-frac{ display:inline-flex; flex-direction:column; align-items:center; }
+.mk-mi-frac.hidden{ display:none !important; }
+.mk-mi .mk-mi-frac input,
+.ansrow .mk-mi .mk-mi-frac input{
+  width:78px; font:700 16px var(--font); padding:5px 6px; margin:0;
+  border:1px solid var(--line); border-radius:8px; text-align:center; background:#fff; color:var(--ink);
+}
+.mk-mi .mk-mi-frac input:focus{ outline:2px solid var(--accent-soft); border-color:var(--accent); }
+.mk-mi-frac .mk-mi-bar{ width:100%; min-width:70px; height:2.5px; background:var(--ink); border-radius:2px; margin:4px 0; }
+.mk-mi.good .mk-mi-frac input{ border-color:var(--ok); background:var(--ok-soft); color:var(--ok); }
+.mk-mi.good .mk-mi-frac .mk-mi-bar{ background:var(--ok); }
+.mk-mi.bad  .mk-mi-frac input{ border-color:var(--no); background:var(--no-soft); color:var(--no); }
+.mk-mi.bad  .mk-mi-frac .mk-mi-bar{ background:var(--no); }
+.mk-mi-btn{
+  display:inline-flex; align-items:center; gap:5px; cursor:pointer;
+  font:800 13px var(--font); color:var(--accent); background:var(--accent-soft);
+  border:1px solid #c7d3f7; border-radius:9px; padding:6px 9px;
+}
+.mk-mi-btn:hover{ filter:brightness(.97); }
+.mk-mi-btn .ico{ display:inline-flex; flex-direction:column; align-items:center; line-height:1; }
+.mk-mi-btn .ico i{ display:block; width:9px; height:7px; border:1.6px solid currentColor; border-radius:2px; }
+.mk-mi-btn .ico b{ display:block; width:13px; height:1.8px; background:currentColor; margin:2px 0; }
+
+/* -----------------------------------------------------------
+   도형 크기 단추 (MK.zoomCtl) — 왼쪽 도형 영역 왼쪽 위
+   ----------------------------------------------------------- */
+.mk-zm{
+  position:absolute; left:10px; top:10px; z-index:5;
+  display:inline-flex; align-items:center; gap:1px;
+  background:#ffffffeb; border:1px solid var(--line); border-radius:999px; padding:2px;
+  box-shadow:0 1px 6px rgba(29,36,51,.10);
+}
+.mk-zm button{
+  font:800 14px/1 var(--font); color:var(--sub); background:none; border:0;
+  padding:6px 9px; border-radius:999px; cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
+.mk-zm button:hover{ background:var(--accent-soft); color:var(--accent); }
+.mk-zm button:disabled{ opacity:.35; cursor:default; }
+.mk-zm .mk-zm-val{ min-width:58px; font-size:12px; color:var(--ink); padding:6px 2px; }

@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>기둥 탐구실 — 사각기둥에서 출발하는 겉넓이와 부피</title>
+<link rel="stylesheet" href="../assets/common.css?v=5">
+<script src="../assets/common.js?v=5" data-home="../index.html?unit=5" defer></script>
+<script src="../assets/track.js?v=13" defer></script>
+<script src="../assets/vendor/three.min.js"></script>
+<style>
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:var(--font); background:var(--bg); color:var(--ink); overflow:hidden;}
+  #app{height:100%; display:flex; flex-direction:column;}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:0 16px; height:52px; flex:none;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:17px; font-weight:800; white-space:nowrap;}
+  header h1 small{font-size:12px; font-weight:700; color:var(--sub); margin-left:6px;}
+  header nav{display:flex; gap:5px;}
+  header nav button{
+    font:600 14px/1 var(--font); padding:8px 12px; border-radius:9px;
+    border:1px solid transparent; background:none; color:var(--sub); cursor:pointer; white-space:nowrap;
+  }
+  header nav button:hover{background:var(--accent-soft); color:var(--accent);}
+  header nav button.on{background:var(--accent-soft); color:var(--accent); border-color:#c7d3f7;}
+
+  main{flex:1; min-height:0; padding:12px; display:grid; grid-template-columns:1fr 380px; gap:12px;}
+  .board-wrap{
+    position:relative; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  }
+  .stage{position:absolute; inset:0;}
+  #gl{position:absolute; left:0; top:0; display:block; touch-action:none; cursor:grab;}
+  #gl:active{cursor:grabbing;}
+  #caption{
+    position:absolute; left:0; right:0; top:14px; text-align:center; pointer-events:none; padding:0 12px;
+    font-size:20px; font-weight:800; color:var(--ink); text-shadow:0 0 6px #fff,0 0 6px #fff,0 0 6px #fff;
+  }
+  #caption .o{color:#d9650a;} #caption .g{color:var(--ok);} #caption .b{color:var(--accent);}
+  #counter{
+    position:absolute; left:14px; bottom:12px; pointer-events:none;
+    background:#ffffffe6; border:1px solid var(--line); border-radius:12px; padding:8px 14px;
+    font-size:15px; font-weight:800; color:var(--ink);
+  }
+  #counter:empty{display:none;}
+  #counter b{font-size:26px; color:var(--accent); margin:0 2px;}
+  #tip{
+    position:absolute; right:12px; bottom:11px; pointer-events:none;
+    font-size:12.5px; font-weight:600; color:var(--sub);
+    background:#f7f9fdd9; padding:6px 12px; border-radius:999px; border:1px solid var(--line);
+  }
+  #tip:empty{display:none;}
+
+  aside{min-width:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
+  .blk{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px;}
+  .blk h2{font-size:14px; font-weight:800; margin-bottom:9px; display:flex; align-items:center; gap:6px;}
+  .blk h2 .tag{font-size:11px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:6px;}
+  .blk p{font-size:13.5px; line-height:1.65; color:var(--sub);}
+  .blk p b{color:var(--ink);}
+
+  .row{display:flex; flex-wrap:wrap; gap:6px;}
+  .btn{
+    font:600 14px/1 var(--font); padding:9px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; transition:.14s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn.primary:hover{background:var(--accent-dark); color:#fff;}
+  .btn.sm{padding:7px 10px; font-size:13px;}
+  .btn.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .btn:disabled{opacity:.45; cursor:default;}
+
+  .kinds{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px;}
+  .kinds .btn{padding:8px 4px; font-size:12.5px; position:relative;}
+  .kinds .btn .ck{position:absolute; right:4px; top:2px; font-size:11px; color:var(--ok);}
+  .modes{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px;}
+
+  .slider{margin-top:10px;}
+  .slider label{display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:700; margin-bottom:4px;}
+  .slider label .v{color:var(--accent); font-size:14px;}
+  .slider3{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .slider3 .slider{margin-top:6px;}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+
+  .fb{font-size:13.5px; font-weight:600; line-height:1.6; padding:9px 11px; border-radius:9px; margin-top:8px;}
+  .fb.ok{background:var(--ok-soft); color:var(--ok);}
+  .fb.no{background:var(--no-soft); color:var(--no);}
+  .fb.info{background:var(--accent-soft); color:var(--accent-dark);}
+  .fb.warn{background:var(--warn-soft); color:#a75c00;}
+
+  .calc{
+    margin-top:10px; background:#f7f9fd; border:1px solid var(--line); border-radius:10px;
+    padding:10px 12px; font-size:13.5px; font-weight:700; line-height:1.9; color:var(--ink);
+  }
+  .calc .step{color:var(--sub); font-size:12.5px; font-weight:600;}
+  .calc .res{color:var(--accent); font-size:16px;}
+  .o{color:#d9650a;} .g{color:var(--ok);} .b{color:var(--accent);}
+  .it{font-family:'Times New Roman',serif; font-style:italic; font-weight:700;}
+
+  .ansrow{display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; font-size:13.5px; font-weight:700;}
+  .ansrow input{
+    width:82px; font:700 16px var(--font); padding:7px 8px;
+    border:1px solid var(--line); border-radius:9px; text-align:center;
+  }
+  .ansrow input.good{border-color:var(--ok); background:var(--ok-soft); color:var(--ok);}
+  .ansrow input.bad {border-color:var(--no); background:var(--no-soft); color:var(--no);}
+  .ansrow .unit{font-size:13.5px; font-weight:700; color:var(--sub);}
+  .ansrow .lb{min-width:62px;}
+
+  /* 유도 단계 */
+  .steps{display:grid; gap:7px;}
+  .stp{border:1px solid var(--line); border-radius:10px; padding:9px 11px; background:#fff; font-size:13.5px; line-height:1.7; color:var(--ink);}
+  .stp.on{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);}
+  .stp .hd{font-weight:800; display:flex; align-items:center;}
+  .stp .n{display:inline-grid; place-items:center; width:21px; height:21px; border-radius:50%; background:var(--accent); color:#fff; font-size:12px; font-weight:800; margin-right:6px; flex:none;}
+  .stp.done .n{background:var(--ok);}
+  .stp .ds{color:var(--sub); margin-top:3px;}
+  .stp .ds b{color:var(--ink);}
+  .stp .eq{display:block; margin-top:5px; font-weight:800; color:var(--ink); font-size:14px; background:#f7f9fd; border-radius:8px; padding:6px 9px; line-height:1.85;}
+  .stp .eq:empty{display:none;}
+  .stp .row{margin-top:7px;}
+  .stepnav{display:flex; justify-content:space-between; align-items:center; margin-top:10px;}
+  .stepnav .pg{font-size:12.5px; font-weight:700; color:var(--sub);}
+  .big{
+    margin-top:8px; border-radius:12px; padding:11px; text-align:center;
+    background:linear-gradient(90deg,#fff3e6,#e9f7ef); border:1px solid #f3d3b0;
+    font-size:16.5px; font-weight:900; color:var(--ink); line-height:1.6;
+  }
+  .big small{display:block; font-size:12.5px; font-weight:700; color:var(--sub); margin-top:3px;}
+
+  .scoreboard{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;}
+  .sc{background:#f7f9fd; border:1px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center;}
+  .sc .v{font-size:21px; font-weight:800; line-height:1.1;}
+  .sc .l{font-size:11px; color:var(--sub); margin-top:3px;}
+  .sc.ok .v{color:var(--ok);}
+  .ask{font-size:14.5px; font-weight:700; line-height:1.7;}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto; min-height:100%;}
+    main{grid-template-columns:1fr; height:auto;}
+    .board-wrap{height:52vh; min-height:330px;}
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px;}
+    header nav{order:3; width:100%;}
+    header nav button{flex:1; padding:8px 3px; font-size:13px;}
+    #caption{font-size:15px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <h1>🧱 기둥 탐구실<small>입체도형 탐구 ①</small></h1>
+  <nav>
+    <button class="on" data-tab="area">① 겉넓이 공식</button>
+    <button data-tab="vol">② 부피 공식</button>
+    <button data-tab="other">③ 다른 기둥도?</button>
+    <button data-tab="quiz">④ 스스로 풀기</button>
+  </nav>
+  <a class="home-btn" href="../index.html?unit=5">← 목차</a>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <div class="stage" id="stage3"><canvas id="gl"></canvas></div>
+    <div id="caption"></div>
+    <div id="counter"></div>
+    <div id="tip">끌어서 돌리기 · 휠로 확대</div>
+  </div>
+
+  <aside>
+    <!-- ================= ① 겉넓이 ================= -->
+    <section id="pArea">
+      <div class="blk">
+        <h2><span class="tag">활동 1</span> 사각기둥을 펼쳐 겉넓이 공식 만들기</h2>
+        <p>밑면이 직사각형인 사각기둥이에요. 가로·세로·높이를 바꿔 보세요. (교과서 206쪽)</p>
+        <div class="slider3">
+          <div class="slider"><label><span>가로</span><span class="v" id="vAa">4</span></label><input type="range" id="rAa" min="1" max="6" value="4"></div>
+          <div class="slider"><label><span>세로</span><span class="v" id="vAb">3</span></label><input type="range" id="rAb" min="1" max="5" value="3"></div>
+          <div class="slider"><label><span>높이</span><span class="v" id="vAh">5</span></label><input type="range" id="rAh" min="1" max="6" value="5"></div>
+        </div>
+        <div class="slider"><label><span>펼치기</span><span class="v" id="vAt">0 %</span></label><input type="range" id="rAt" min="0" max="100" value="0"></div>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn primary sm" id="aOpen">▶ 천천히 펼치기</button>
+          <button class="btn sm" id="aClose">↺ 접기</button>
+          <button class="btn sm" id="aFront">👁 정면에서 보기</button>
+        </div>
+      </div>
+
+      <div class="blk">
+        <div class="steps" id="aSteps">
+          <div class="stp" data-s="1">
+            <div class="hd"><span class="n">1</span>펼치면 어떤 모양일까?</div>
+            <div class="ds">사각기둥을 끝까지 펼쳐 전개도를 만들어요. 전개도는 <b>면 몇 개</b>로 되어 있나요?</div>
+            <div class="ansrow"><span class="lb">면의 개수</span><input type="number" id="a1In" inputmode="numeric"><span class="unit">개</span><button class="btn sm" id="a1Chk">확인</button></div>
+            <div id="a1Fb"></div>
+          </div>
+          <div class="stp" data-s="2">
+            <div class="hd"><span class="n">2</span>면의 넓이를 모두 더하면 겉넓이</div>
+            <div class="ds">입체도형의 겉면 전체의 넓이가 <b>겉넓이</b>예요. 그림에서 <b>면을 하나씩 눌러</b> 넓이를 더해 보세요. 뒤쪽 면은 돌리거나 펼쳐서 누르면 돼요. (<span id="a2Cnt">0</span>/6)</div>
+            <span class="eq" id="a2Eq"></span>
+          </div>
+          <div class="stp" data-s="3">
+            <div class="hd"><span class="n">3</span>똑같은 면끼리 묶어 보자 — 밑면</div>
+            <div class="ds">위와 아래의 두 <b class="o">밑면</b>은 모양과 크기가 같아요(합동). 그러니 두 밑면의 넓이는 한 밑면의 넓이(<b class="o">밑넓이</b>)를 두 번 더한 것이에요.</div>
+            <div class="row"><button class="btn sm" id="a3Show">🟧 밑면 2개 보기</button></div>
+            <span class="eq" id="a3Eq"></span>
+          </div>
+          <div class="stp" data-s="4">
+            <div class="hd"><span class="n">4</span>옆면 4개를 이어 붙이면?</div>
+            <div class="ds">전개도에서 옆면 4개는 나란히 붙어 <b class="b">하나의 큰 직사각형</b>이 돼요. 이 직사각형의 가로는 무엇과 같을까요?</div>
+            <div class="row"><button class="btn sm" id="a4Show">▭ 옆면 이어 붙이기</button></div>
+            <span class="eq" id="a4Eq"></span>
+            <div class="ansrow hidden" id="a4Ask"><span class="lb">가로 길이</span><input type="number" id="a4In" inputmode="numeric"><span class="unit">cm</span><button class="btn sm" id="a4Chk">확인</button></div>
+            <div id="a4Fb"></div>
+          </div>
+          <div class="stp" data-s="5">
+            <div class="hd"><span class="n">5</span>정리 — 기둥의 겉넓이</div>
+            <div class="big">(겉넓이) = (<span class="o">밑넓이</span>) × 2 + (<span class="b">옆넓이</span>)<small>옆넓이 = (밑면의 둘레) × (높이)</small></div>
+            <span class="eq" id="a5Eq"></span>
+          </div>
+        </div>
+        <div class="stepnav">
+          <button class="btn sm" id="aPrev">◀ 이전</button>
+          <span class="pg" id="aPg">1 / 5</span>
+          <button class="btn primary sm" id="aNext">다음 ▶</button>
+        </div>
+      </div>
+
+      <div class="blk hidden" id="aTry">
+        <h2><span class="tag">확인</span> 크기를 바꿔 직접 구해 봐요</h2>
+        <p>위에서 가로·세로·높이를 바꾼 뒤, 공식으로 구해 보세요.</p>
+        <div class="ansrow"><span class="lb o">밑넓이</span><input type="number" id="tS" inputmode="numeric"><span class="unit">cm²</span></div>
+        <div class="ansrow"><span class="lb b">옆넓이</span><input type="number" id="tL" inputmode="numeric"><span class="unit">cm²</span></div>
+        <div class="ansrow"><span class="lb">겉넓이</span><input type="number" id="tT" inputmode="numeric"><span class="unit">cm²</span><button class="btn primary sm" id="tChk">✅ 확인</button></div>
+        <div id="tFb"></div>
+      </div>
+    </section>
+
+    <!-- ================= ② 부피 ================= -->
+    <section id="pVol" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 2</span> 단위정육면체로 부피 공식 만들기</h2>
+        <p>초등학교에서 배운 방법처럼, 1 cm 짜리 정육면체를 몇 개 넣을 수 있는지 세어 부피를 구해요. (교과서 208쪽)</p>
+        <div class="slider3">
+          <div class="slider"><label><span>가로</span><span class="v" id="vVa">4</span></label><input type="range" id="rVa" min="1" max="6" value="4"></div>
+          <div class="slider"><label><span>세로</span><span class="v" id="vVb">3</span></label><input type="range" id="rVb" min="1" max="5" value="3"></div>
+          <div class="slider"><label><span>높이</span><span class="v" id="vVh">3</span></label><input type="range" id="rVh" min="1" max="5" value="3"></div>
+        </div>
+      </div>
+      <div class="blk">
+        <div class="steps" id="vSteps">
+          <div class="stp" data-s="1">
+            <div class="hd"><span class="n">1</span>단위정육면체 한 개</div>
+            <div class="ds">한 모서리의 길이가 1 cm 인 정육면체의 부피를 <b>1 cm³</b> 라고 해요. 이 정육면체가 몇 개 들어가는지 세면 부피를 알 수 있어요.</div>
+            <div class="row"><button class="btn sm" id="v1One">🧊 하나 넣어 보기</button></div>
+          </div>
+          <div class="stp" data-s="2">
+            <div class="hd"><span class="n">2</span>하나씩 넣으며 세기</div>
+            <div class="ds">빈틈없이 하나씩 넣어 세어 봐요. 꽉 차면 모두 몇 개인지 적어요.</div>
+            <div class="row">
+              <button class="btn sm" id="v2Plus">+1 넣기</button>
+              <button class="btn primary sm" id="v2Auto">▶ 하나씩 끝까지</button>
+              <button class="btn sm" id="v2Fast">⏩ 빨리</button>
+              <button class="btn sm" id="v2Clear">비우기</button>
+            </div>
+            <div class="ansrow"><span class="lb">모두</span><input type="number" id="v2In" inputmode="numeric"><span class="unit">개 → 부피</span><button class="btn sm" id="v2Chk">확인</button></div>
+            <div id="v2Fb"></div>
+          </div>
+          <div class="stp" data-s="3">
+            <div class="hd"><span class="n">3</span>한 줄씩, 한 층씩 — 한 층 = 밑넓이</div>
+            <div class="ds">하나씩 세면 오래 걸려요. <b>한 줄</b>에 몇 개, 그런 줄이 몇 줄이면 <b>한 층</b>이 될까요? 바닥의 모눈과 비교해 보세요.</div>
+            <div class="row">
+              <button class="btn sm" id="v3Clear">비우기</button>
+              <button class="btn sm" id="v3Row">➖ 한 줄 넣기</button>
+              <button class="btn primary sm" id="v3Layer">▦ 한 층 채우기</button>
+            </div>
+            <span class="eq" id="v3Eq"></span>
+            <div class="ansrow"><span class="lb">1층의 개수</span><input type="number" id="v3In" inputmode="numeric"><span class="unit">개</span><button class="btn sm" id="v3Chk">확인</button></div>
+            <div id="v3Fb"></div>
+          </div>
+          <div class="stp" data-s="4">
+            <div class="hd"><span class="n">4</span>층을 쌓으면 — 층 수 = 높이</div>
+            <div class="ds">한 층을 그대로 위로 쌓아 올려요. 몇 층까지 쌓을 수 있나요?</div>
+            <div class="row">
+              <button class="btn primary sm" id="v4Add">⬆ 한 층 더 쌓기</button>
+              <button class="btn sm" id="v4Reset">1층으로</button>
+            </div>
+            <span class="eq" id="v4Eq"></span>
+            <div class="ansrow"><span class="lb">층 수</span><input type="number" id="v4In" inputmode="numeric"><span class="unit">층</span><button class="btn sm" id="v4Chk">확인</button></div>
+            <div id="v4Fb"></div>
+          </div>
+          <div class="stp" data-s="5">
+            <div class="hd"><span class="n">5</span>정리 — 기둥의 부피</div>
+            <span class="eq" id="v5Eq"></span>
+            <div class="big">(부피) = (<span class="o">밑넓이</span>) × (<span class="g">높이</span>)<small>(1층의 개수) × (층 수) = (밑넓이) × (높이)</small></div>
+          </div>
+        </div>
+        <div class="stepnav">
+          <button class="btn sm" id="vPrev">◀ 이전</button>
+          <span class="pg" id="vPg">1 / 5</span>
+          <button class="btn primary sm" id="vNext">다음 ▶</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= ③ 다른 기둥 ================= -->
+    <section id="pOther" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 3</span> 다른 기둥도 같은 공식일까?</h2>
+        <p>사각기둥에서 만든 두 공식이 다른 기둥에서도 성립하는지 확인해요. 기둥마다 <b>겉넓이</b>와 <b>부피</b>를 모두 확인하면 ✔ 표시가 붙어요. (교과서 206~208쪽)</p>
+        <div class="kinds" id="oKinds">
+          <button class="btn on" data-k="rtri">직각삼각기둥<span class="ck"></span></button>
+          <button class="btn" data-k="tri">삼각기둥<span class="ck"></span></button>
+          <button class="btn" data-k="trap">사다리꼴 기둥<span class="ck"></span></button>
+          <button class="btn" data-k="house">오각기둥<span class="ck"></span></button>
+          <button class="btn" data-k="cyl">원기둥<span class="ck"></span></button>
+        </div>
+        <div class="modes" id="oModes">
+          <button class="btn on" data-m="area">📐 겉넓이 (펼치기)</button>
+          <button class="btn" data-m="vol">🧊 부피 (쌓기·나누기)</button>
+        </div>
+        <div class="slider"><label><span>기둥의 높이</span><span class="v" id="vOh">5 cm</span></label><input type="range" id="rOh" min="1" max="9" value="5"></div>
+        <div class="slider hidden" id="oRWrap"><label><span>밑면의 반지름 <span class="it">r</span></span><span class="v" id="vOr">2 cm</span></label><input type="range" id="rOr" min="1" max="4" value="2"></div>
+
+        <div id="oAreaCtl">
+          <div class="slider"><label><span>펼치기</span><span class="v" id="vOt">0 %</span></label><input type="range" id="rOt" min="0" max="100" value="0"></div>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn primary sm" id="oOpen">▶ 천천히 펼치기</button>
+            <button class="btn sm" id="oClose">↺ 접기</button>
+          </div>
+        </div>
+        <div id="oVolCtl" class="hidden">
+          <div class="row" style="margin-top:10px;">
+            <button class="btn primary sm" id="oStack">▶ 1 cm 판 쌓기</button>
+            <button class="btn sm" id="oSplit">✂ 나누어 보기</button>
+            <button class="btn sm" id="oWhole">● 처음 모양</button>
+          </div>
+          <div class="slider hidden" id="oNWrap"><label><span>밑면을 정 <span class="it">n</span> 각형으로</span><span class="v" id="vOn">n = 6</span></label><input type="range" id="rOn" min="3" max="48" value="6"></div>
+        </div>
+        <div id="oText"></div>
+        <div class="calc" id="oCalc"></div>
+      </div>
+      <div class="blk">
+        <h2><span class="tag">정리</span> 모든 기둥에서</h2>
+        <div class="big">(겉넓이) = (<span class="o">밑넓이</span>) × 2 + (<span class="b">옆넓이</span>)<br>(부피) = (<span class="o">밑넓이</span>) × (<span class="g">높이</span>)</div>
+        <p style="margin-top:9px;">원기둥은 밑넓이가 <b>π<span class="it">r</span>²</b>, 옆면의 가로가 <b>2π<span class="it">r</span></b> 이므로<br>
+          (겉넓이) = <b>2π<span class="it">r</span>² + 2π<span class="it">rh</span></b>, (부피) = <b>π<span class="it">r</span>²<span class="it">h</span></b></p>
+      </div>
+    </section>
+
+    <!-- ================= ④ 문제 ================= -->
+    <section id="pQuiz" class="hidden">
+      <div class="blk">
+        <h2><span class="tag">활동 4</span> 스스로 풀기</h2>
+        <div class="ask" id="qAsk"></div>
+        <div class="ansrow"><span class="lb">답</span><input type="number" id="qIn" inputmode="decimal" style="width:110px"><span class="unit" id="qUnit">cm²</span></div>
+        <p style="margin-top:6px;font-size:12.5px;color:var(--sub);">분수는 <b>[분수]</b> 단추를 누르거나 <b>/</b> 키를 눌러 분자·분모를 따로 적어요.</p>
+        <div class="row" id="qUnfoldRow" style="margin-top:9px;">
+          <button class="btn sm" id="qUnfold">📐 전개도로 펼치기</button>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn primary" id="qChk">✅ 확인</button>
+          <button class="btn sm" id="qHow">💡 풀이 보기</button>
+          <button class="btn sm" id="qNext">🔄 새 문제</button>
+        </div>
+        <div id="qFb"></div>
+        <div class="scoreboard">
+          <div class="sc"><div class="v" id="qTry">0</div><div class="l">푼 문제</div></div>
+          <div class="sc ok"><div class="v" id="qOk">0</div><div class="l">맞힘</div></div>
+          <div class="sc"><div class="v" id="qStreak">0</div><div class="l">연속</div></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const PI = Math.PI;
+const fmt = x => Math.abs(x - Math.round(x)) < 1e-6 ? String(Math.round(x)) : (Math.round(x*10)/10).toString();
+
+/* ============================================================
+   Three.js 무대
+   ============================================================ */
+const canvas = $("gl"), stage = $("stage3");
+const renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true, alpha:true, preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1.5, 0.1, 500);
+scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+const sun = new THREE.DirectionalLight(0xffffff, 0.5); sun.position.set(6, 12, 9); scene.add(sun);
+const sun2 = new THREE.DirectionalLight(0xffffff, 0.22); sun2.position.set(-8, 4, -6); scene.add(sun2);
+let world = new THREE.Group(); scene.add(world);
+
+const C = {
+  side1:0x8fb8ef, side2:0xb9d3f6, base:0xf5a04a, base2:0xf8c28a, edge:0x2b4170, grid:0x5e7fb8, baseGrid:0xb15a10,
+  merged:0x8fb8ef, cube:0x8fb8ef, cube2:0xb9d3f6, layer1:0xf5a04a, ghost:0x9fb3d6, gray:0xd3d9e5, grayEdge:0x8792a8,
+  piece:[0x8fb8ef, 0xf5a04a, 0x7fd3a0, 0xc39be8, 0xf28c8c], green:0x2f9e63
+};
+
+/* 카메라: 끌어서 돌리기·휠 확대 */
+const cam = {th:0.62, ph:0.42, zoom:1, auto:16};
+let fitBox = {w:8, h:8, d:6};
+function fitDist(){
+  const asp = (VW && VH) ? VW/VH : 1.5;
+  const tv = Math.tan(19*PI/180);
+  return (Math.max(fitBox.h, fitBox.w/asp)/2)/tv*1.12 + fitBox.d/2 + 0.5;
+}
+function placeCamera(){
+  const d = fitDist()*cam.zoom/(window.MKZ || 1);        /* 도형 크기 단추 */
+  camera.position.set(d*Math.cos(cam.ph)*Math.sin(cam.th), d*Math.sin(cam.ph), d*Math.cos(cam.ph)*Math.cos(cam.th));
+  camera.lookAt(0, 0, 0);
+}
+let drag = null;
+canvas.addEventListener("pointerdown", function(e){ drag = {x:e.clientX, y:e.clientY, sx:e.clientX, sy:e.clientY}; });
+window.addEventListener("pointerup", function(e){
+  if(drag && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) onPick(e);
+  drag = null;
+});
+window.addEventListener("pointermove", function(e){
+  if(!drag) return;
+  camTween = null;
+  cam.th -= (e.clientX - drag.x)*0.008;
+  cam.ph += (e.clientY - drag.y)*0.008;
+  cam.ph = Math.max(-1.2, Math.min(1.45, cam.ph));
+  drag.x = e.clientX; drag.y = e.clientY;
+});
+canvas.addEventListener("wheel", function(e){
+  e.preventDefault();
+  cam.zoom = Math.max(0.45, Math.min(2.2, cam.zoom*(e.deltaY > 0 ? 1.08 : 1/1.08)));
+}, {passive:false});
+
+let VW = 0, VH = 0;
+function resize(){
+  const r = stage.getBoundingClientRect();
+  const w = Math.round(r.width), h = Math.round(r.height);
+  if(!w || !h || (w === VW && h === VH)) return;
+  VW = w; VH = h;
+  renderer.setSize(w, h);
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+}
+if(window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+window.addEventListener("resize", resize);
+
+let camTween = null;
+function camTo(th, ph, dur){
+  camTween = {th0:cam.th, ph0:cam.ph, th1:th, ph1:ph, t:0, dur:dur || 0.9};
+}
+
+function disposeTree(o){
+  o.traverse(function(c){
+    if(c.geometry) c.geometry.dispose();
+    if(c.material){ (Array.isArray(c.material) ? c.material : [c.material]).forEach(function(m){ if(m.map) m.map.dispose(); m.dispose(); }); }
+  });
+}
+function resetWorld(){ scene.remove(world); disposeTree(world); world = new THREE.Group(); scene.add(world); pickables = []; }
+
+/* 글자 판 */
+function label(text, color, scale, depthTest){
+  const cv = document.createElement("canvas"), g = cv.getContext("2d"), fs = 64;
+  const font = "800 " + fs + "px Pretendard, 'Malgun Gothic', sans-serif";
+  g.font = font;
+  const w = Math.ceil(g.measureText(text).width) + 36;
+  cv.width = w; cv.height = fs + 30;
+  g.font = font; g.textAlign = "center"; g.textBaseline = "middle";
+  g.lineWidth = 14; g.strokeStyle = "#fff"; g.lineJoin = "round"; g.strokeText(text, w/2, cv.height/2);
+  g.fillStyle = color || "#1d2433"; g.fillText(text, w/2, cv.height/2);
+  const tex = new THREE.CanvasTexture(cv); tex.minFilter = THREE.LinearFilter;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthTest:!!depthTest, transparent:true}));
+  const s = scale || 0.6;
+  sp.scale.set(s*w/cv.height, s, 1); sp.renderOrder = 10;
+  return sp;
+}
+function lineMat(color, dashed){
+  return dashed ? new THREE.LineDashedMaterial({color:color, dashSize:0.18, gapSize:0.12})
+                : new THREE.LineBasicMaterial({color:color});
+}
+function seg3(p, q, color, dashed){
+  const g = new THREE.BufferGeometry().setFromPoints([p, q]);
+  const l = new THREE.Line(g, lineMat(color, dashed));
+  if(dashed) l.computeLineDistances();
+  return l;
+}
+function V3(x, y, z){ return new THREE.Vector3(x, y, z); }
+function faceMat(color, opacity){
+  return new THREE.MeshLambertMaterial({color:color, side:THREE.DoubleSide, transparent:opacity < 1, opacity:opacity == null ? 1 : opacity,
+    polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1});
+}
+
+/* ============================================================
+   전개도가 되는 기둥 — 밑면 다각형(x,z)과 높이로 만든다.
+   옆면 0 을 고정하고, 옆면 i+1 은 옆면 i 의 오른쪽 모서리에 경첩으로 붙는다.
+   두 밑면은 옆면 0 의 위·아래 모서리에 붙는다.
+   ============================================================ */
+function makeNet(poly, h, opt){
+  opt = opt || {};
+  function toLocal(P){
+    const x0 = P[0][0], z0 = P[0][1];
+    const a0 = Math.atan2(-(P[1][1] - z0), P[1][0] - x0);
+    const c = Math.cos(a0), s = Math.sin(a0);
+    return P.map(function(q){ const dx = q[0] - x0, dz = q[1] - z0; return [dx*c - dz*s, dx*s + dz*c]; });
+  }
+  let P = poly.slice();
+  let L = toLocal(P);
+  let sw = 0; L.forEach(function(q){ sw += q[1]; });
+  if(sw > 0){ P = [P[1], P[0]].concat(P.slice(2).reverse()); L = toLocal(P); }
+  const n = L.length, len = [], ang = [], turn = [];
+  for(let i = 0; i < n; i++){
+    const p = L[i], q = L[(i+1)%n];
+    len.push(Math.hypot(q[0] - p[0], q[1] - p[1]));
+    ang.push(Math.atan2(-(q[1] - p[1]), q[0] - p[0]));
+  }
+  for(let i = 0; i < n - 1; i++){
+    let d = ang[i+1] - ang[i];
+    while(d > PI) d -= 2*PI; while(d <= -PI) d += 2*PI;
+    turn.push(d);
+  }
+  const Ltot = len.reduce(function(a, b){ return a + b; }, 0);
+  let D = 0, cu = 0, cw = 0, umin = 1e9, umax = -1e9;
+  L.forEach(function(q){ D = Math.max(D, -q[1]); cu += q[0]/n; cw += q[1]/n; umin = Math.min(umin, q[0]); umax = Math.max(umax, q[0]); });
+
+  const root = new THREE.Group(), content = new THREE.Group(); root.add(content);
+  const pivots = [], faces = [];
+  let parent = content;
+  for(let i = 0; i < n; i++){
+    const pv = new THREE.Group();
+    if(i > 0) pv.position.set(len[i-1], 0, 0);
+    parent.add(pv); pivots.push(pv); parent = pv;
+    const g = new THREE.PlaneGeometry(len[i], h); g.translate(len[i]/2, h/2, 0);
+    const col = opt.sideColor ? opt.sideColor(i) : C.side1;
+    const m = new THREE.Mesh(g, faceMat(col));
+    m.userData = {kind:"side", i:i, color:col, w:len[i], h:h};
+    pv.add(m); faces.push(m);
+    if(opt.strip){
+      const lines = [V3(0,0,0), V3(len[i],0,0), V3(0,h,0), V3(len[i],h,0)];
+      if(i === 0) lines.push(V3(0,0,0), V3(0,h,0));
+      if(i === n-1) lines.push(V3(len[i],0,0), V3(len[i],h,0));
+      m.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(lines), lineMat(C.edge)));
+    }else{
+      m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), lineMat(C.edge)));
+    }
+    if(opt.grid && Math.abs(len[i] - Math.round(len[i])) < 1e-6 && Math.abs(h - Math.round(h)) < 1e-6){
+      const pts = [];
+      for(let u = 1; u < len[i] - 1e-6; u++) [0.005, -0.005].forEach(function(z){ pts.push(V3(u,0,z), V3(u,h,z)); });
+      for(let v = 1; v < h - 1e-6; v++) [0.005, -0.005].forEach(function(z){ pts.push(V3(0,v,z), V3(len[i],v,z)); });
+      if(pts.length){ const gl = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({color:C.grid, transparent:true, opacity:0.45})); m.add(gl); }
+    }
+  }
+  /* 밑면 — attach 번째 옆면의 위·아래 모서리에 붙인다 */
+  const K = Math.max(0, Math.min(n - 1, opt.attach || 0));
+  const LK = (function(){
+    const o = L[K], q1 = L[(K+1)%n];
+    const a0 = Math.atan2(-(q1[1] - o[1]), q1[0] - o[0]), c = Math.cos(a0), s = Math.sin(a0);
+    return L.map(function(q){ const dx = q[0] - o[0], dz = q[1] - o[1]; return [dx*c - dz*s, dx*s + dz*c]; });
+  })();
+  function baseMesh(top){
+    const L = LK;
+    const pos = [];
+    for(let i = 1; i < n - 1; i++){
+      [L[0], L[i], L[i+1]].forEach(function(q){ pos.push(q[0], 0, q[1]); });
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.computeVertexNormals();
+    const col = opt.baseColor || C.base;
+    const m = new THREE.Mesh(g, faceMat(col));
+    m.userData = {kind:"base", top:top, color:col};
+    const loop = L.map(function(q){ return V3(q[0], 0, q[1]); }); loop.push(loop[0].clone());
+    m.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(loop), lineMat(C.edge)));
+    if(opt.baseGrid){
+      const pts = [], a = opt.baseGrid[0], b = opt.baseGrid[1];
+      for(let u = 1; u < a; u++) [0.005, -0.005].forEach(function(y){ pts.push(V3(u,y,0), V3(u,y,-b)); });
+      for(let w = 1; w < b; w++) [0.005, -0.005].forEach(function(y){ pts.push(V3(0,y,-w), V3(a,y,-w)); });
+      if(pts.length) m.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({color:C.baseGrid, transparent:true, opacity:0.45})));
+    }
+    return m;
+  }
+  const topH = new THREE.Group(); topH.position.set(0, h, 0); pivots[K].add(topH);
+  const botH = new THREE.Group(); pivots[K].add(botH);
+  const top = baseMesh(true), bot = baseMesh(false);
+  topH.add(top); botH.add(bot);
+
+  const net = {root:root, content:content, faces:faces, bases:[top, bot], len:len, Ltot:Ltot, D:D, h:h, n:n, t:0,
+               center:{cu:cu, cw:cw}, span:{u:umax - umin, w:D}};
+  net.setT = function(t){
+    net.t = t;
+    for(let i = 1; i < n; i++) pivots[i].rotation.y = turn[i-1]*(1 - t);
+    topH.rotation.x = t*PI/2;
+    botH.rotation.x = -t*PI/2;
+    const fx = cu, fz = cw, ux = Ltot/2, uz = 0;
+    root.position.set(-(fx + (ux - fx)*t), -h/2, -(fz + (uz - fz)*t));
+  };
+  net.fit = function(extraBottom){
+    const t = net.t, e = extraBottom || 0;
+    const fw = Math.max(net.span.u, net.span.w)*1.25 + 1, fh = h*1.15 + net.span.w*0.5 + 1;
+    const uw = Ltot + 1.5, uh = h + 2*D + 1 + 2*e;
+    return {w:fw + (uw - fw)*t, h:fh + (uh - fh)*t, d:(1 - t)*Math.max(net.span.u, net.span.w)};
+  };
+  /* 둘레 표시(옆면 아래) */
+  net.bracket = function(segTexts, totalText, hText){
+    const g = new THREE.Group(), y0 = -D - 0.6, col = 0x3e63dd;
+    g.add(seg3(V3(0, y0, 0.03), V3(Ltot, y0, 0.03), col));
+    let x = 0;
+    for(let i = 0; i <= n; i++){
+      if(!opt.strip || i === 0 || i === n){
+        g.add(seg3(V3(x, y0 - 0.18, 0.03), V3(x, y0 + 0.18, 0.03), col));
+        g.add(seg3(V3(x, 0, 0.03), V3(x, y0, 0.03), 0x9fb0d6, true));
+      }
+      if(i < n && segTexts && segTexts[i]){
+        const sp = label(segTexts[i], "#3e63dd", 0.5); sp.position.set(x + len[i]/2, y0 - 0.42, 0.05); g.add(sp);
+      }
+      if(i < n) x += len[i];
+    }
+    if(totalText){ const sp = label(totalText, "#3e63dd", 0.62); sp.position.set(Ltot/2, y0 - 1.15, 0.05); g.add(sp); }
+    if(hText){
+      g.add(seg3(V3(Ltot + 0.45, 0, 0.03), V3(Ltot + 0.45, h, 0.03), C.green));
+      const sp = label(hText, "#2f9e63", 0.55); sp.position.set(Ltot + 0.45 + 0.2 + 0.03*hText.length*8, h/2, 0.05); g.add(sp);
+    }
+    content.add(g);
+    return g;
+  };
+  /* 옆면 전체를 하나의 직사각형으로 덮는 판 */
+  net.mergePlate = function(){
+    const g = new THREE.PlaneGeometry(Ltot, h); g.translate(Ltot/2, h/2, 0.02);
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({color:0xcfe0fb, transparent:true, opacity:0.78, side:THREE.DoubleSide, depthWrite:false}));
+    m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), new THREE.LineBasicMaterial({color:0x3e63dd})));
+    content.add(m);
+    return m;
+  };
+  net.setT(0);
+  return net;
+}
+
+/* 밑면 다각형(x,z) 기둥 덩어리: y0 ~ y1 */
+function prismMesh(poly, y0, y1, color, opacity, edgeColor){
+  let g;
+  if(poly.circle){
+    g = new THREE.CylinderGeometry(poly.r, poly.r, y1 - y0, 72, 1);
+    g.translate(poly.cx || 0, (y0 + y1)/2, poly.cz || 0);
+  }else{
+    const sh = new THREE.Shape(poly.map(function(q){ return new THREE.Vector2(q[0], q[1]); }));
+    g = new THREE.ExtrudeGeometry(sh, {depth:y1 - y0, bevelEnabled:false, steps:1});
+    g.rotateX(PI/2); g.translate(0, y1, 0);
+  }
+  const op = opacity == null ? 1 : opacity;
+  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({color:color, transparent:op < 1, opacity:op, depthWrite:op >= 1,
+    polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1, side:op < 1 ? THREE.DoubleSide : THREE.FrontSide}));
+  m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 25), new THREE.LineBasicMaterial({color:edgeColor || C.edge, transparent:op < 1, opacity:op < 1 ? 0.6 : 1})));
+  return m;
+}
+function polyArea(P){ let s = 0; for(let i = 0; i < P.length; i++){ const p = P[i], q = P[(i+1)%P.length]; s += p[0]*q[1] - q[0]*p[1]; } return Math.abs(s)/2; }
+function polyCentroid(P){ let x = 0, z = 0; P.forEach(function(q){ x += q[0]; z += q[1]; }); return [x/P.length, z/P.length]; }
+
+/* ============================================================
+   애니메이션 틀
+   ============================================================ */
+let tweens = [];
+function tween(dur, upd, done){ const tw = {t:0, dur:dur, upd:upd, done:done}; tweens.push(tw); return tw; }
+function killTweens(){ tweens = []; }
+const ease = x => x < 0.5 ? 2*x*x : 1 - Math.pow(-2*x + 2, 2)/2;
+
+let tab = "area";
+let last = performance.now();
+function loop(now){
+  const dt = Math.min(0.05, (now - last)/1000); last = now;
+  tweens = tweens.filter(function(tw){
+    tw.t = Math.min(1, tw.t + dt/tw.dur);
+    tw.upd(ease(tw.t), tw.t);
+    if(tw.t >= 1){ if(tw.done) tw.done(); return false; }
+    return true;
+  });
+  if(camTween){
+    camTween.t = Math.min(1, camTween.t + dt/camTween.dur);
+    const e = ease(camTween.t);
+    cam.th = camTween.th0 + (camTween.th1 - camTween.th0)*e;
+    cam.ph = camTween.ph0 + (camTween.ph1 - camTween.ph0)*e;
+    if(camTween.t >= 1) camTween = null;
+  }
+  if(tab === "vol") volTick(dt);
+  if(tab === "area" && A.net) fitBox = A.net.fit(1.2);
+  if(tab === "other" && O.net && O.mode === "area") fitBox = O.net.fit(1.2);
+  if(tab === "quiz" && Q.net && Q.net.root.visible) fitBox = Q.net.fit(1.2);
+  placeCamera();
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+
+/* 클릭으로 면 고르기 */
+let pickables = [];
+const ray = new THREE.Raycaster();
+function onPick(e){
+  if(!pickables.length) return;
+  const r = canvas.getBoundingClientRect();
+  if(e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
+  const ndc = new THREE.Vector2(((e.clientX - r.left)/r.width)*2 - 1, -((e.clientY - r.top)/r.height)*2 + 1);
+  scene.updateMatrixWorld(true);
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(pickables, false);
+  if(hits.length) areaPick(hits[0].object);
+}
+
+function setCaption(html){ $("caption").innerHTML = html || ""; }
+function setCounter(html){ $("counter").innerHTML = html || ""; }
+function fb(el, cls, html){ $(el).innerHTML = html ? '<div class="fb ' + cls + '">' + html + '</div>' : ""; }
+function mark(inp, ok){ inp.classList.remove("good", "bad"); inp.classList.add(ok ? "good" : "bad"); }
+function score(key, p, d){ if(window.MKSCORE) MKSCORE.once(key, p, d); }
+
+/* ============================================================
+   ① 겉넓이 — 사각기둥 전개도에서 공식으로
+   ============================================================ */
+const A = {a:4, b:3, h:5, t:0, step:1, maxStep:1, picked:[], net:null, showBase:false, merged:false, solved:{}};
+const FACE_NAME = ["앞면", "오른쪽 면", "뒷면", "왼쪽 면"];
+
+function buildArea(){
+  resetWorld();
+  const a = A.a, b = A.b, h = A.h;
+  const poly = [[-a/2, b/2], [a/2, b/2], [a/2, -b/2], [-a/2, -b/2]];
+  const net = makeNet(poly, h, {sideColor:function(i){ return i%2 ? C.side2 : C.side1; }, baseColor:C.base, grid:true, baseGrid:[a, b]});
+  A.net = net;
+  world.add(net.root);
+  /* 면마다 넓이 글자(누르면 보임) */
+  const sizes = [[a,h],[b,h],[a,h],[b,h]];
+  net.faces.forEach(function(m, i){
+    const w = sizes[i][0], hh = sizes[i][1];
+    m.userData.area = w*hh; m.userData.text = w + "×" + hh + "=" + (w*hh); m.userData.name = FACE_NAME[i]; m.userData.id = i;
+    const sp = label(m.userData.text, "#1d2433", 0.5, true); sp.position.set(w/2, hh/2, 0.06); sp.visible = false; m.add(sp);
+    m.userData.label = sp;
+    pickables.push(m);
+  });
+  net.bases.forEach(function(m, k){
+    m.userData.area = a*b; m.userData.text = a + "×" + b + "=" + (a*b); m.userData.name = k === 0 ? "윗면(밑면)" : "아랫면(밑면)"; m.userData.id = 4 + k;
+    const sp = label(m.userData.text, "#9a4a05", 0.5, true); sp.position.set(a/2, k === 0 ? 0.06 : -0.06, -b/2); sp.visible = false; m.add(sp);
+    m.userData.label = sp;
+    pickables.push(m);
+  });
+  /* 접혀 있을 때 모서리 길이 */
+  A.dimLabels = new THREE.Group();
+  const la = label("가로 " + a + " cm", "#3e63dd", 0.5); la.position.set(a/2, -0.45, 0.25); A.dimLabels.add(la);
+  const lb = label("세로 " + b + " cm", "#3e63dd", 0.5); lb.position.set(a + 0.55, -0.45, -b/2); A.dimLabels.add(lb);
+  const lh = label("높이 " + h + " cm", "#2f9e63", 0.5); lh.position.set(-0.3, h/2, 0.3); lh.center.set(1, 0.5); A.dimLabels.add(lh);
+  net.content.add(A.dimLabels);
+  /* 둘레 표시와 하나로 합친 옆면 */
+  A.bracket = net.bracket([String(a), String(b), String(a), String(b)], "밑면의 둘레 " + a + "+" + b + "+" + a + "+" + b + " = " + (2*(a+b)) + " cm", "높이 " + h);
+  A.plate = net.mergePlate();
+  const pl = label("옆넓이 " + (2*(a+b)) + "×" + h + "=" + (2*(a+b)*h), "#1f3f99", 0.62, false);
+  pl.position.set(net.Ltot/2 + (net.Ltot > 2*a ? a : 0)*0.5, h/2, 0.1); A.plate.add(pl);
+  net.setT(A.t);
+  A.picked = A.picked.filter(function(id){ return true; });
+  refreshArea();
+}
+
+function refreshArea(){
+  const net = A.net; if(!net) return;
+  const a = A.a, b = A.b, h = A.h, S = a*b, P = 2*(a+b), Lat = P*h, T = 2*S + Lat;
+  const full = net.t > 0.97;
+  A.dimLabels.visible = net.t < 0.08;
+  A.bracket.visible = full && A.step >= 4 && A.merged;
+  A.plate.visible = full && A.step >= 4 && A.merged;
+  /* 면 색 */
+  net.faces.forEach(function(m){
+    const picked = A.picked.indexOf(m.userData.id) >= 0;
+    m.userData.label.visible = picked && !(A.plate.visible);
+    let col = m.userData.color;
+    if(A.step >= 3 && A.showBase) col = 0xdfe6f2;
+    m.material.color.setHex(col);
+  });
+  net.bases.forEach(function(m){
+    const picked = A.picked.indexOf(m.userData.id) >= 0;
+    m.userData.label.visible = picked || (A.step >= 3 && A.showBase);
+    m.material.color.setHex(A.step >= 3 && A.showBase ? 0xf08a24 : m.userData.color);
+  });
+  $("vAt").textContent = Math.round(net.t*100) + " %";
+  $("rAt").value = Math.round(net.t*100);
+
+  /* 단계 2: 더한 식 */
+  const items = A.picked.map(function(id){ return id < 4 ? net.faces[id].userData : net.bases[id - 4].userData; });
+  $("a2Cnt").textContent = items.length;
+  if(items.length){
+    const sum = items.reduce(function(s, u){ return s + u.area; }, 0);
+    $("a2Eq").innerHTML = items.map(function(u){ return '<span class="' + (u.id >= 4 ? "o" : "b") + '">' + u.area + '</span>'; }).join(" + ") +
+      " = " + sum + " cm²" + (items.length === 6 ? '<br>🎉 여섯 면을 모두 더한 <b>' + T + ' cm²</b> 가 겉넓이예요.' : "");
+  }else $("a2Eq").innerHTML = "";
+
+  $("a3Eq").innerHTML = A.showBase ?
+    '(두 밑면의 넓이) = <span class="o">' + S + '</span> + <span class="o">' + S + '</span> = <span class="o">(밑넓이) × 2</span> = ' + S + ' × 2 = ' + (2*S) + ' cm²' : "";
+
+  if(A.merged){
+    $("a4Eq").innerHTML =
+      '(옆면 4개의 넓이) = <span class="b">' + a + '×' + h + ' + ' + b + '×' + h + ' + ' + a + '×' + h + ' + ' + b + '×' + h + '</span><br>' +
+      '= (' + a + '+' + b + '+' + a + '+' + b + ') × <span class="g">' + h + '</span><br>' +
+      '= (<span class="b">밑면의 둘레</span>) × (<span class="g">높이</span>) = ' + P + ' × ' + h + ' = <b>' + Lat + ' cm²</b>';
+    $("a4Ask").classList.remove("hidden");
+  }else{ $("a4Eq").innerHTML = ""; $("a4Ask").classList.add("hidden"); }
+
+  $("a5Eq").innerHTML =
+    '(겉넓이) = <span class="o">' + S + '</span> × 2 + <span class="b">' + P + ' × ' + h + '</span><br>= ' + (2*S) + ' + ' + Lat + ' = <b>' + T + ' cm²</b>' +
+    '<br><span style="color:var(--sub);font-size:12.5px;">→ 단계 2 에서 여섯 면을 하나하나 더한 값과 같아요!</span>';
+
+  /* 단계 표시 */
+  document.querySelectorAll("#aSteps .stp").forEach(function(el){
+    const s = +el.dataset.s;
+    el.classList.toggle("hidden", s > A.step);
+    el.classList.toggle("on", s === A.step);
+    el.classList.toggle("done", s < A.step);
+  });
+  $("aPg").textContent = A.step + " / 5";
+  $("aPrev").disabled = A.step === 1;
+  $("aNext").disabled = A.step === 5;
+  $("aTry").classList.toggle("hidden", A.step < 5);
+
+  /* 위 글 */
+  if(A.step === 1) setCaption(full ? '사각기둥의 <b class="b">전개도</b>' : '사각기둥을 펼쳐 보세요');
+  else if(A.step === 2) setCaption('면을 눌러 넓이를 더해요 — <span class="b">' + items.length + '</span> / 6');
+  else if(A.step === 3) setCaption('두 <span class="o">밑면</span>은 합동 → <span class="o">(밑넓이) × 2</span>');
+  else if(A.step === 4) setCaption(A.merged && full ? '옆면 = 가로 <span class="b">' + P + '</span>(밑면의 둘레), 세로 <span class="g">' + h + '</span>(높이)인 직사각형' : '옆면 4개를 이어 붙여 보세요');
+  else setCaption('(겉넓이) = <span class="o">' + S + '</span>×2 + <span class="b">' + P + '</span>×<span class="g">' + h + '</span> = <span class="b">' + T + ' cm²</span>');
+  setCounter("");
+  $("tip").textContent = A.step === 2 ? "면을 눌러 넓이 더하기 · 끌어서 돌리기" : "끌어서 돌리기 · 휠로 확대";
+}
+
+function areaUnfold(to, dur){
+  const from = A.net.t;
+  killTweens();
+  tween(dur || 2.2*Math.abs(to - from) + 0.2, function(e){ A.t = from + (to - from)*e; A.net.setT(A.t); refreshArea(); });
+  if(to > 0.5) camTo(0, 0.05, 1.6); else camTo(0.62, 0.42, 1.2);
+}
+function areaPick(m){
+  if(tab !== "area" || A.step < 2) return;
+  const id = m.userData.id;
+  if(A.picked.indexOf(id) < 0) A.picked.push(id);
+  if(A.picked.length === 6) score("areaFaces", 5, "사각기둥 여섯 면 넓이 더하기");
+  refreshArea();
+}
+function areaGo(s){
+  A.step = Math.max(1, Math.min(5, s));
+  if(A.step === 4 && A.net.t < 0.97) areaUnfold(1);
+  if(A.step < 4) A.merged = false;
+  if(A.step < 3) A.showBase = false;
+  if(A.step === 5) score("areaDerive", 10, "기둥 겉넓이 = 밑넓이×2+옆넓이 유도");
+  refreshArea();
+}
+
+function bindArea(){
+  ["a", "b", "h"].forEach(function(k){
+    $("rA" + k).addEventListener("input", function(){
+      A[k] = +this.value; $("vA" + k).textContent = this.value;
+      A.picked = [];
+      buildArea(); clearTry();
+    });
+  });
+  $("rAt").addEventListener("input", function(){ killTweens(); A.t = this.value/100; A.net.setT(A.t); refreshArea(); });
+  $("aOpen").onclick = function(){ areaUnfold(1); };
+  $("aClose").onclick = function(){ areaUnfold(0); };
+  $("aFront").onclick = function(){ camTo(0, 0.05, 1); };
+  $("a1Chk").onclick = function(){
+    const v = +$("a1In").value, ok = v === 6;
+    mark($("a1In"), ok);
+    fb("a1Fb", ok ? "ok" : "no", ok ? '맞아요! 밑면 <b class="o">2개</b> + 옆면 <b class="b">4개</b> = 6개예요. 그림에서 주황색이 밑면, 파란색이 옆면이에요.' :
+       (A.net.t < 0.97 ? '먼저 끝까지 펼쳐서 세어 보세요.' : '주황색 면과 파란색 면을 모두 세어 보세요.'));
+  };
+  $("a3Show").onclick = function(){ A.showBase = !A.showBase; this.textContent = A.showBase ? "↺ 원래 색으로" : "🟧 밑면 2개 보기"; refreshArea(); };
+  $("a4Show").onclick = function(){
+    A.merged = !A.merged;
+    this.textContent = A.merged ? "↺ 다시 4개로" : "▭ 옆면 이어 붙이기";
+    if(A.merged && A.net.t < 0.97) areaUnfold(1);
+    refreshArea();
+  };
+  $("a4Chk").onclick = function(){
+    const v = +$("a4In").value, P = 2*(A.a + A.b), ok = v === P;
+    mark($("a4In"), ok);
+    fb("a4Fb", ok ? "ok" : "no", ok ? '맞아요! 옆면의 가로는 밑면을 한 바퀴 두른 길이, 곧 <b>밑면의 둘레</b>예요.' :
+      '아래 파란 눈금의 길이 ' + A.a + ', ' + A.b + ', ' + A.a + ', ' + A.b + ' 를 모두 더해 보세요.');
+  };
+  $("aPrev").onclick = function(){ areaGo(A.step - 1); };
+  $("aNext").onclick = function(){ areaGo(A.step + 1); };
+  $("tChk").onclick = function(){
+    const a = A.a, b = A.b, h = A.h, S = a*b, Lat = 2*(a+b)*h, T = 2*S + Lat;
+    const okS = +$("tS").value === S, okL = +$("tL").value === Lat, okT = +$("tT").value === T;
+    mark($("tS"), okS); mark($("tL"), okL); mark($("tT"), okT);
+    const key = a + "-" + b + "-" + h;
+    if(okS && okL && okT){
+      fb("tFb", "ok", '🎉 정확해요! ' + S + ' × 2 + ' + Lat + ' = ' + T + ' cm²');
+      if(!A.solved[key]){ A.solved[key] = 1; if(window.MKSCORE) MKSCORE.quiz(true, "사각기둥 겉넓이 직접 구하기"); }
+    }else{
+      fb("tFb", "no", (!okS ? '밑넓이는 가로 × 세로예요. ' : '') + (!okL ? '옆넓이는 (밑면의 둘레) × (높이)예요. ' : '') + (!okT ? '겉넓이는 (밑넓이) × 2 + (옆넓이)예요.' : ''));
+    }
+  };
+}
+function clearTry(){ ["tS","tL","tT"].forEach(function(id){ $(id).value = ""; $(id).classList.remove("good","bad"); }); fb("tFb"); }
+
+/* ============================================================
+   ② 부피 — 단위정육면체 채우기 → 밑넓이 × 높이
+   ============================================================ */
+const V = {a:4, b:3, h:3, step:1, n:0, target:0, rate:6, cubes:[], mats:[], basePlate:null};
+function buildVol(){
+  resetWorld();
+  const a = V.a, b = V.b, h = V.h;
+  /* 빈 상자 */
+  const box = new THREE.BoxGeometry(a, h, b);
+  const ghost = new THREE.Mesh(box, new THREE.MeshBasicMaterial({color:C.ghost, transparent:true, opacity:0.07, depthWrite:false, side:THREE.DoubleSide}));
+  ghost.add(new THREE.LineSegments(new THREE.EdgesGeometry(box), new THREE.LineDashedMaterial({color:0x5b6b8c, dashSize:0.2, gapSize:0.12})));
+  ghost.children[0].computeLineDistances();
+  world.add(ghost);
+  /* 바닥 모눈(밑면) */
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(a, b), new THREE.MeshBasicMaterial({color:0xf5a04a, transparent:true, opacity:0.42, side:THREE.DoubleSide, depthWrite:false}));
+  plate.rotation.x = -PI/2; plate.position.y = -h/2 - 0.01;
+  const gp = [];
+  for(let i = 0; i <= a; i++) gp.push(V3(-a/2 + i, -h/2 - 0.005, -b/2), V3(-a/2 + i, -h/2 - 0.005, b/2));
+  for(let j = 0; j <= b; j++) gp.push(V3(-a/2, -h/2 - 0.005, -b/2 + j), V3(a/2, -h/2 - 0.005, -b/2 + j));
+  const grid = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(gp), new THREE.LineBasicMaterial({color:0xb15a10}));
+  V.basePlate = new THREE.Group(); V.basePlate.add(plate, grid);
+  const bl = label("밑넓이 " + a + "×" + b + " = " + (a*b) + " cm²", "#b15a10", 0.55);
+  bl.position.set(0, -h/2 - 0.1, b/2 + 0.9); V.basePlate.add(bl);
+  world.add(V.basePlate);
+  /* 단위정육면체 */
+  V.mats = []; for(let L = 0; L < h; L++) V.mats.push(new THREE.MeshLambertMaterial({color:C.cube}));
+  const cg = new THREE.BoxGeometry(0.94, 0.94, 0.94), ce = new THREE.EdgesGeometry(cg);
+  const em = new THREE.LineBasicMaterial({color:0x2b4170});
+  V.cubes = [];
+  for(let k = 0; k < a*b*h; k++){
+    const L = Math.floor(k/(a*b)), r = k % (a*b), row = Math.floor(r/a), col = r % a;
+    const m = new THREE.Mesh(cg, V.mats[L]);
+    m.position.set(-a/2 + col + 0.5, -h/2 + L + 0.5, b/2 - row - 0.5);
+    m.add(new THREE.LineSegments(ce, em));
+    m.visible = false; world.add(m); V.cubes.push(m);
+  }
+  /* 모서리 길이 */
+  const la = label("가로 " + a + " cm", "#3e63dd", 0.5); la.position.set(0, -h/2 - 0.45, b/2 + 0.35); world.add(la);
+  const lb = label("세로 " + b + " cm", "#3e63dd", 0.5); lb.position.set(a/2 + 0.7, -h/2 - 0.4, 0); world.add(lb);
+  const lh = label("높이 " + h + " cm", "#2f9e63", 0.5); lh.position.set(-a/2 - 0.35, 0, b/2 + 0.2); lh.center.set(1, 0.5); world.add(lh);
+  V.one = new THREE.Group();
+  const o1 = label("1 cm³", "#1d2433", 0.5); o1.position.set(-a/2 + 0.5, -h/2 + 1.45, b/2 - 0.5); V.one.add(o1);
+  world.add(V.one);
+  fitBox = {w:Math.max(a, b)*1.5 + 3, h:h + 3, d:Math.max(a, b)};
+  V.n = Math.min(V.n, a*b*h); V.target = Math.min(V.target, a*b*h);
+  showCubes(); refreshVol();
+}
+function showCubes(){
+  const k = Math.floor(V.n + 1e-6);
+  V.cubes.forEach(function(m, i){ m.visible = i < k; });
+}
+function volColor(){
+  const hl = V.step >= 3;
+  V.mats.forEach(function(m, L){ m.color.setHex(hl && L === 0 ? C.layer1 : (L % 2 ? C.cube2 : C.cube)); });
+}
+function volTick(dt){
+  if(V.n < V.target){
+    V.n = Math.min(V.target, V.n + V.rate*dt);
+    showCubes(); volCounter();
+    if(V.n >= V.target) refreshVol();
+  }
+}
+function volCounter(){
+  const k = Math.floor(V.n + 1e-6), ab = V.a*V.b;
+  if(V.step >= 3 && k > 0 && k % ab === 0){
+    setCounter('1층 <b>' + ab + '</b>개 × <b>' + (k/ab) + '</b>층 = <b>' + k + '</b>개');
+  }else setCounter(k ? '단위정육면체 <b>' + k + '</b>개 = <b>' + k + '</b> cm³' : "");
+}
+function fillTo(target, rate){ V.target = Math.max(0, Math.min(V.a*V.b*V.h, target)); if(V.target < V.n){ V.n = V.target; showCubes(); } V.rate = rate; volCounter(); refreshVol(); }
+
+function refreshVol(){
+  const a = V.a, b = V.b, h = V.h, ab = a*b, N = a*b*h, k = Math.floor(V.n + 1e-6);
+  V.basePlate.visible = V.step >= 3;
+  V.one.visible = V.step === 1 && k >= 1;
+  volColor();
+  document.querySelectorAll("#vSteps .stp").forEach(function(el){
+    const s = +el.dataset.s;
+    el.classList.toggle("hidden", s > V.step);
+    el.classList.toggle("on", s === V.step);
+    el.classList.toggle("done", s < V.step);
+  });
+  $("vPg").textContent = V.step + " / 5";
+  $("vPrev").disabled = V.step === 1; $("vNext").disabled = V.step === 5;
+
+  const rows = Math.floor(Math.min(k, ab)/a);
+  $("v3Eq").innerHTML = k ? '한 줄에 <span class="b">' + a + '</span>개' + (rows ? ', <span class="b">' + rows + '</span>줄 → ' + a + ' × ' + rows + ' = ' + (a*rows) + '개' : '') +
+    (k >= ab ? '<br>1층 = ' + a + ' × ' + b + ' = <span class="o">' + ab + '</span>개<br>바닥 모눈도 <span class="o">' + ab + '</span>칸 → <span class="o">1층의 개수 = 밑넓이(' + ab + ' cm²)</span>의 수' : '') : '';
+  const layers = Math.floor(k/ab);
+  $("v4Eq").innerHTML = layers ? '<span class="o">' + ab + '</span> × <span class="g">' + layers + '</span> = ' + (ab*layers) + '개' +
+    (layers === h ? '<br>꽉 찼어요! 층 수 <span class="g">' + h + '</span> = 높이 <span class="g">' + h + ' cm</span>' : '') : '';
+  $("v5Eq").innerHTML =
+    '(부피) = (가로) × (세로) × (높이)<br>= (<span class="o">' + a + ' × ' + b + '</span>) × <span class="g">' + h + '</span><br>= (<span class="o">밑넓이</span>) × (<span class="g">높이</span>) = ' + ab + ' × ' + h + ' = <b>' + N + ' cm³</b>';
+
+  if(V.step === 1) setCaption('한 모서리가 1 cm → 부피 <b class="b">1 cm³</b>');
+  else if(V.step === 2) setCaption(k >= N ? '꽉 찼어요! 모두 몇 개일까요?' : '하나씩 넣으며 세어요');
+  else if(V.step === 3) setCaption(k >= ab ? '1층 <span class="o">' + ab + '</span>개 = 밑면의 모눈 <span class="o">' + ab + '</span>칸' : '한 줄, 한 층을 만들어 보세요');
+  else if(V.step === 4) setCaption('<span class="o">' + ab + '</span>개씩 <span class="g">' + layers + '</span>층');
+  else setCaption('(부피) = <span class="o">' + ab + '</span> × <span class="g">' + h + '</span> = <span class="b">' + N + ' cm³</span>');
+  $("tip").textContent = "끌어서 돌리기 · 휠로 확대";
+}
+function volGo(s){
+  V.step = Math.max(1, Math.min(5, s));
+  const ab = V.a*V.b, N = ab*V.h;
+  if(V.step === 1) fillTo(1, 4);
+  if(V.step === 2){ V.n = 0; fillTo(0, 4); }
+  if(V.step === 3){ V.n = 0; showCubes(); fillTo(0, 4); }
+  if(V.step === 4){ V.n = Math.min(V.n, ab); showCubes(); fillTo(ab, ab*2); }
+  if(V.step === 5) fillTo(N, N);
+  if(V.step === 5) score("volDerive", 10, "기둥 부피 = 밑넓이×높이 유도");
+  refreshVol();
+}
+function bindVol(){
+  ["a", "b", "h"].forEach(function(k){
+    $("rV" + k).addEventListener("input", function(){
+      V[k] = +this.value; $("vV" + k).textContent = this.value;
+      ["v2In","v3In","v4In"].forEach(function(id){ $(id).value = ""; $(id).classList.remove("good","bad"); });
+      ["v2Fb","v3Fb","v4Fb"].forEach(function(id){ fb(id); });
+      buildVol(); volGo(V.step);
+    });
+  });
+  $("v1One").onclick = function(){ fillTo(1, 4); };
+  $("v2Plus").onclick = function(){ fillTo(Math.floor(V.n) + 1, 8); };
+  $("v2Auto").onclick = function(){ fillTo(V.a*V.b*V.h, 4); };
+  $("v2Fast").onclick = function(){ fillTo(V.a*V.b*V.h, 30); };
+  $("v2Clear").onclick = function(){ V.n = 0; showCubes(); fillTo(0, 4); };
+  $("v2Chk").onclick = function(){
+    const N = V.a*V.b*V.h, ok = +$("v2In").value === N;
+    mark($("v2In"), ok);
+    fb("v2Fb", ok ? "ok" : "no", ok ? '맞아요! 1 cm³ 가 ' + N + '개 → 부피는 <b>' + N + ' cm³</b>. 그런데 하나씩 세니 좀 오래 걸리죠? 다음 단계에서 더 빠른 방법을 찾아봐요.' :
+      (Math.floor(V.n) < N ? '먼저 끝까지 채워 보세요. (⏩ 빨리 를 눌러도 돼요)' : '왼쪽 아래 숫자를 확인해 보세요.'));
+  };
+  $("v3Clear").onclick = function(){ V.n = 0; showCubes(); fillTo(0, 4); };
+  $("v3Row").onclick = function(){ const a = V.a, ab = V.a*V.b; const k = Math.floor(V.n); fillTo(Math.min(ab, (Math.floor(k/a) + 1)*a), a*3); };
+  $("v3Layer").onclick = function(){ fillTo(V.a*V.b, V.a*V.b*1.2); };
+  $("v3Chk").onclick = function(){
+    const ab = V.a*V.b, ok = +$("v3In").value === ab;
+    mark($("v3In"), ok);
+    fb("v3Fb", ok ? "ok" : "no", ok ? '맞아요! 1층 = ' + V.a + ' × ' + V.b + ' = ' + ab + '개. 단위정육면체 하나가 바닥 모눈 1칸(1 cm²)을 덮으니까 <b class="o">1층의 개수 = 밑넓이의 수</b>예요.' :
+      '한 줄에 몇 개인지, 그런 줄이 몇 줄인지 곱해 보세요.');
+  };
+  $("v4Add").onclick = function(){ const ab = V.a*V.b; const k = Math.floor(V.n); fillTo(Math.min(V.a*V.b*V.h, (Math.floor(k/ab) + 1)*ab), ab*1.6); };
+  $("v4Reset").onclick = function(){ V.n = Math.min(V.n, V.a*V.b); showCubes(); fillTo(V.a*V.b, 99); };
+  $("v4Chk").onclick = function(){
+    const ok = +$("v4In").value === V.h;
+    mark($("v4In"), ok);
+    fb("v4Fb", ok ? "ok" : "no", ok ? '맞아요! 한 층의 두께가 1 cm 이니까 <b class="g">층 수 = 높이(cm)</b>예요. 그래서 (전체 개수) = (1층의 개수) × (층 수) = (밑넓이) × (높이).' :
+      '끝까지 쌓아 보고, 높이와 비교해 보세요.');
+  };
+  $("vPrev").onclick = function(){ volGo(V.step - 1); };
+  $("vNext").onclick = function(){ volGo(V.step + 1); };
+}
+
+/* ============================================================
+   ③ 다른 기둥
+   ============================================================ */
+const KINDS = {
+  rtri:{name:"직각삼각기둥", poly:[[-2, 1.5], [2, 1.5], [-2, -1.5]], S:6, P:12,
+        Stxt:'½ × 4 × 3 = 6', box:[[-2, 1.5], [2, 1.5], [2, -1.5], [-2, -1.5]],
+        pieces:[[[-2, 1.5], [2, 1.5], [-2, -1.5]]], rest:[[2, 1.5], [2, -1.5], [-2, -1.5]]},
+  tri: {name:"삼각기둥", poly:[[-3.5, 3], [3.5, 3], [-1, -3]], S:21, P:21,
+        Stxt:'½ × 7 × 6 = 21 <span style="color:var(--sub);font-weight:600">(밑변 7, 높이 6)</span>',
+        pieces:[[[-3.5, 3], [-1, 3], [-1, -3]], [[-1, 3], [3.5, 3], [-1, -3]]],
+        boxes:[[[-3.5, 3], [-1, 3], [-1, -3], [-3.5, -3]], [[-1, 3], [3.5, 3], [3.5, -3], [-1, -3]]]},
+  trap:{name:"사다리꼴 기둥", poly:[[-7, 3], [7, 3], [7, -3], [1, -3]], S:60, P:36,
+        Stxt:'(6 + 14) × 6 ÷ 2 = 60 <span style="color:var(--sub);font-weight:600">(윗변 6, 아랫변 14, 높이 6)</span>',
+        pieces:[[[-7, 3], [7, 3], [1, -3]], [[7, 3], [7, -3], [1, -3]]], h0:9},
+  house:{name:"오각기둥", poly:[[-3, 4], [3, 4], [3, 0], [0, -4], [-3, 0]], S:36, P:24,
+        Stxt:'6 × 4 + ½ × 6 × 4 = 36 <span style="color:var(--sub);font-weight:600">(직사각형 + 삼각형)</span>',
+        pieces:[[[0, -4], [-3, 0], [-3, 4]], [[0, -4], [-3, 4], [3, 4]], [[0, -4], [3, 4], [3, 0]]]},
+  cyl: {name:"원기둥"}
+};
+const O = {kind:"rtri", mode:"area", h:5, r:2, n:6, t:0, view:"whole", explode:0, stackK:0, seen:{}, net:null, parts:[]};
+
+function circlePoly(r, n){ const P = []; for(let i = 0; i < n; i++){ const a = -PI/2 + (i + 0.5)*2*PI/n; P.push([r*Math.cos(a), r*Math.sin(a)]); } return P; }
+function regPoly(r, n){ const P = []; for(let i = 0; i < n; i++){ const a = PI/2 + i*2*PI/n; P.push([r*Math.cos(a), r*Math.sin(a)]); } return P; }
+
+function buildOther(){
+  resetWorld(); O.net = null; O.parts = [];
+  const K = KINDS[O.kind], h = O.h;
+  const cyl = O.kind === "cyl";
+  if(O.mode === "area"){
+    const poly = cyl ? circlePoly(O.r, 72) : K.poly;
+    const net = makeNet(poly, h, {sideColor:function(i){ return cyl ? C.side1 : (i%2 ? C.side2 : C.side1); }, baseColor:C.base, strip:cyl, attach:cyl ? 36 : 0});
+    O.net = net; world.add(net.root);
+    const segs = cyl ? null : net.len.map(fmt);
+    const P = cyl ? null : K.P;
+    O.bracket = net.bracket(segs, cyl ? "밑면의 둘레 2π × " + O.r + " = " + (2*O.r) + "π cm" : "밑면의 둘레 " + segs.join("+") + " = " + P + " cm", "높이 " + h);
+    O.plate = net.mergePlate();
+    net.setT(O.t);
+  }else{
+    const grp = new THREE.Group(); world.add(grp);
+    O.grp = grp;
+    const y0 = -h/2, y1 = h/2;
+    if(cyl){
+      const ghostC = prismMesh({circle:true, r:O.r}, y0, y1, 0x9fd8b6, 0.22, 0x2f9e63); grp.add(ghostC);
+    }
+    if(O.view === "stack"){
+      const base = cyl ? {circle:true, r:O.r} : K.poly;
+      for(let k = 0; k < h; k++){
+        const m = prismMesh(base, y0 + k + 0.02, y0 + k + 0.98, k === 0 ? C.layer1 : (k%2 ? C.cube2 : C.cube));
+        m.visible = k < O.stackK; grp.add(m); O.parts.push({m:m, k:k});
+      }
+    }else if(O.view === "split"){
+      if(cyl){
+        const R = regPoly(O.r, O.n);
+        for(let i = 0; i < O.n; i++){
+          const tri = [[0, 0], R[i], R[(i+1)%O.n]];
+          const m = prismMesh(tri, y0, y1, i%2 ? C.side2 : C.side1); grp.add(m);
+          const c = polyCentroid(tri); O.parts.push({m:m, dir:[c[0], c[1]], amp:0.5/Math.max(0.6, Math.hypot(c[0], c[1]))});
+        }
+      }else{
+        if(K.box){
+          const ghost = prismMesh(K.box, y0, y1, C.ghost, 0.12, 0x5b6b8c); grp.add(ghost);
+          const rest = prismMesh(K.rest, y0, y1, C.gray, 0.55, C.grayEdge); grp.add(rest);
+          O.parts.push({m:rest, dir:[1, -0.75], amp:1.4});
+        }
+        if(K.boxes) K.boxes.forEach(function(bx){ grp.add(prismMesh(bx, y0, y1, C.ghost, 0.1, 0x8a98b6)); });
+        const cc = polyCentroid(K.poly);
+        K.pieces.forEach(function(pc, i){
+          const m = prismMesh(pc, y0, y1, C.piece[i % C.piece.length]); grp.add(m);
+          const c = polyCentroid(pc);
+          O.parts.push({m:m, dir:[c[0] - cc[0], c[1] - cc[1]], amp:K.box ? 0 : 1.1/Math.max(0.5, Math.hypot(c[0] - cc[0], c[1] - cc[1]))});
+        });
+      }
+    }else{
+      const base = cyl ? {circle:true, r:O.r} : K.poly;
+      grp.add(prismMesh(base, y0, y1, cyl ? 0x8fd0aa : C.side1));
+    }
+    /* 높이 표시 */
+    const bb = new THREE.Box3().setFromObject(grp);
+    /* 기본 시점(th=0.62)에서 왼쪽 윤곽 바깥에 높이 막대를 세운다 */
+    const rad = Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z)*1.05 + 0.5;
+    const hx = -Math.cos(0.62)*rad, hz = Math.sin(0.62)*rad;
+    grp.add(seg3(V3(hx, y0, hz), V3(hx, y1, hz), C.green));
+    const hl = label("높이 " + h + " cm", "#2f9e63", 0.5); hl.position.set(hx - 0.2, 0, hz); hl.center.set(1, 0.5); grp.add(hl);
+    const w = bb.max.x - bb.min.x, d = bb.max.z - bb.min.z;
+    fitBox = {w:Math.max(w, d)*1.3 + 3, h:h + 2.5, d:Math.max(w, d)};
+    applyExplode();
+  }
+  refreshOther();
+}
+function applyExplode(){
+  O.parts.forEach(function(p){ if(p.dir){ p.m.position.set(p.dir[0]*p.amp*O.explode, 0, p.dir[1]*p.amp*O.explode); } });
+}
+function refreshOther(){
+  const K = KINDS[O.kind], h = O.h, cyl = O.kind === "cyl", r = O.r;
+  document.querySelectorAll("#oKinds .btn").forEach(function(b){
+    b.classList.toggle("on", b.dataset.k === O.kind);
+    const s = O.seen[b.dataset.k] || {};
+    b.querySelector(".ck").textContent = s.area && s.vol ? "✔" : (s.area || s.vol ? "½" : "");
+  });
+  document.querySelectorAll("#oModes .btn").forEach(function(b){ b.classList.toggle("on", b.dataset.m === O.mode); });
+  $("oAreaCtl").classList.toggle("hidden", O.mode !== "area");
+  $("oVolCtl").classList.toggle("hidden", O.mode !== "vol");
+  $("oRWrap").classList.toggle("hidden", !cyl);
+  $("oNWrap").classList.toggle("hidden", !(cyl && O.mode === "vol" && O.view === "split"));
+  $("oSplit").textContent = cyl ? "⬡ 정 n 각기둥으로" : (O.kind === "rtri" ? "✂ 직육면체의 반" : "✂ 삼각기둥으로 나누기");
+  setCounter("");
+  let txt = "", calc = "";
+  const Sv = cyl ? r*r : K.S;          /* 원기둥은 π 의 계수 */
+  const Stx = cyl ? 'π × ' + r + '² = ' + (r*r) + 'π' : K.Stxt;
+  const Sn = cyl ? (r*r) + 'π' : String(K.S);
+  if(O.mode === "area"){
+    const full = O.net && O.net.t > 0.97;
+    if(O.net){ O.bracket.visible = full; O.plate.visible = full; $("vOt").textContent = Math.round(O.net.t*100) + " %"; $("rOt").value = Math.round(O.net.t*100); }
+    const Pn = cyl ? (2*r) + 'π' : String(K.P);
+    const Lat = cyl ? (2*r*h) + 'π' : String(K.P*h);
+    const Tot = cyl ? (2*r*r + 2*r*h) + 'π' : String(2*K.S + K.P*h);
+    txt = '<div class="fb info">' + (cyl ?
+      '원기둥의 옆면을 펼치면 <b>직사각형</b>이 돼요. 가로는 밑면인 원의 둘레 <b>2π<span class="it">r</span></b>, 세로는 높이예요.' :
+      K.name + '도 옆면을 펼치면 <b>하나의 직사각형</b>이 되고, 그 가로는 <b>밑면의 둘레</b>예요. 사각기둥과 똑같죠?') + '</div>';
+    calc = '<span class="step">밑넓이</span><br><span class="o">' + Stx + ' cm²</span>' +
+      '<br><span class="step">옆넓이 = (밑면의 둘레) × (높이)</span><br><span class="b">' + (cyl ? '2π × ' + r : Pn) + ' × ' + h + ' = ' + Lat + ' cm²</span>' +
+      '<br><span class="step">겉넓이 = (밑넓이) × 2 + (옆넓이)</span><br>' + Sn + ' × 2 + ' + Lat + ' = <span class="res">' + Tot + ' cm²</span>' +
+      (cyl ? ' <span style="color:var(--sub);font-weight:600">(≈ ' + ((2*r*r + 2*r*h)*PI).toFixed(1) + ')</span>' : '');
+    setCaption(full ? '옆면 = 가로 <span class="b">' + (cyl ? '2π×' + r : Pn) + '</span>(밑면의 둘레) × 세로 <span class="g">' + h + '</span>(높이)' : K.name + ' 펼치기');
+    if(full){ O.seen[O.kind] = O.seen[O.kind] || {}; if(!O.seen[O.kind].area){ O.seen[O.kind].area = 1; checkAll(); } }
+  }else{
+    const Vn = cyl ? (r*r*h) + 'π' : String(K.S*h);
+    if(O.view === "stack"){
+      txt = '<div class="fb info">밑면과 똑같은 모양의 <b>두께 1 cm 판</b>을 쌓아요. 판 하나의 부피는 (밑넓이) × 1, 그런 판이 <b>높이만큼</b> 쌓이니까 부피 = (밑넓이) × (높이). 사각기둥에서 "1층 × 층 수" 와 같은 생각이에요.</div>';
+      setCaption('<span class="o">' + Sn + '</span> × <span class="g">' + O.stackK + '</span>층');
+      setCounter(O.stackK ? '판 <b>' + O.stackK + '</b>장 × ' + Sn + ' = <b>' + (cyl ? (r*r*O.stackK) + 'π' : K.S*O.stackK) + '</b> cm³' : "");
+    }else if(O.view === "split"){
+      if(cyl){
+        const Sn_ = O.n*0.5*r*r*Math.sin(2*PI/O.n);
+        txt = '<div class="fb info">원기둥 안에 꼭 맞는 <b>정 ' + O.n + '각기둥</b>이에요. 각기둥은 삼각기둥 ' + O.n + '개로 나뉘니 부피 = (밑넓이) × (높이). <b>n 을 키우면</b> 각기둥이 원기둥에 가까워지고 밑넓이는 원의 넓이 π<span class="it">r</span>² 에 가까워져요.</div>';
+        calc = '<span class="step">정 ' + O.n + '각기둥</span><br>밑넓이 <span class="o">' + Sn_.toFixed(2) + '</span> × <span class="g">' + h + '</span> = ' + (Sn_*h).toFixed(2) + ' cm³' +
+          '<br><span class="step">n 이 한없이 커지면 → 원기둥</span><br>밑넓이 <span class="o">π × ' + r + '² ≈ ' + (PI*r*r).toFixed(2) + '</span>, 부피 = <span class="res">' + (r*r*h) + 'π cm³</span>';
+        setCaption('정 <span class="b">' + O.n + '</span>각형의 넓이 <span class="o">' + Sn_.toFixed(2) + '</span> → 원의 넓이 <span class="o">' + (PI*r*r).toFixed(2) + '</span>');
+      }else if(O.kind === "rtri"){
+        txt = '<div class="fb info">가로 4 cm, 세로 3 cm 인 직육면체를 대각선으로 자르면 <b>똑같은 삼각기둥 2개</b>가 생겨요. 그래서 이 삼각기둥은 밑넓이도 반, 부피도 반이에요. (교과서 208쪽)</div>';
+        calc = '<span class="step">(삼각기둥의 부피) = ½ × (직육면체의 부피)</span><br>= ½ × (4 × 3) × ' + h + '<br>= <span class="o">6</span> × <span class="g">' + h + '</span> = <span class="res">' + (6*h) + ' cm³</span> ← (밑넓이) × (높이)';
+        setCaption('직육면체의 <span class="o">반</span>');
+      }else{
+        const ps = K.pieces.map(function(pc){ return polyArea(pc); });
+        txt = '<div class="fb info">' + (O.kind === "tri" ? '삼각기둥을 밑면의 높이를 따라 자르면 <b>직육면체의 반</b>인 삼각기둥 2개가 돼요.' : K.name + '을 <b>삼각기둥 ' + ps.length + '개</b>로 나눌 수 있어요.') +
+          ' 각 조각의 부피가 (밑넓이) × (높이)이니 합쳐도 (밑넓이의 합) × (높이)예요.</div>';
+        calc = '<span class="step">삼각기둥 ' + ps.length + '개의 부피의 합</span><br>' + ps.map(function(s){ return fmt(s) + '×' + h; }).join(' + ') +
+          '<br>= (' + ps.map(fmt).join(' + ') + ') × <span class="g">' + h + '</span><br>= <span class="o">' + K.S + '</span> × <span class="g">' + h + '</span> = <span class="res">' + Vn + ' cm³</span> ← (밑넓이) × (높이)';
+        setCaption('삼각기둥 <span class="b">' + ps.length + '</span>개로 나누기');
+      }
+      O.seen[O.kind] = O.seen[O.kind] || {}; if(!O.seen[O.kind].vol){ O.seen[O.kind].vol = 1; checkAll(); }
+    }else{
+      txt = '<div class="fb info">[▶ 1 cm 판 쌓기] 와 [' + (cyl ? '⬡ 정 n 각기둥으로' : '✂ 나누어 보기') + '] 로 부피가 (밑넓이) × (높이)인지 확인해 보세요.</div>';
+      setCaption(K.name + '의 부피는?');
+    }
+    if(O.view !== "split" || cyl){
+      if(!calc) calc = '<span class="step">밑넓이</span><br><span class="o">' + Stx + ' cm²</span><br><span class="step">부피 = (밑넓이) × (높이)</span><br>' + Sn + ' × ' + h + ' = <span class="res">' + Vn + ' cm³</span>';
+    }
+    if(O.view === "stack" && O.stackK === h){ O.seen[O.kind] = O.seen[O.kind] || {}; if(!O.seen[O.kind].vol){ O.seen[O.kind].vol = 1; checkAll(); } }
+  }
+  $("oText").innerHTML = txt; $("oCalc").innerHTML = calc;
+  $("vOh").textContent = h + " cm"; $("vOr").textContent = r + " cm"; $("vOn").textContent = "n = " + O.n;
+  $("tip").textContent = "끌어서 돌리기 · 휠로 확대";
+  document.querySelectorAll("#oKinds .btn").forEach(function(b){
+    const s = O.seen[b.dataset.k] || {};
+    b.querySelector(".ck").textContent = s.area && s.vol ? "✔" : (s.area || s.vol ? "½" : "");
+  });
+}
+function checkAll(){
+  const all = Object.keys(KINDS).every(function(k){ const s = O.seen[k]; return s && s.area && s.vol; });
+  if(all) score("otherAll", 10, "다섯 가지 기둥 모두 확인");
+}
+function otherUnfold(to){
+  const from = O.net.t; killTweens();
+  tween(2.4*Math.abs(to - from) + 0.2, function(e){ O.t = from + (to - from)*e; O.net.setT(O.t); refreshOther(); });
+  if(to > 0.5) camTo(0, 0.05, 1.6); else camTo(0.62, 0.42, 1.2);
+}
+function bindOther(){
+  document.querySelectorAll("#oKinds .btn").forEach(function(b){
+    b.onclick = function(){
+      O.kind = b.dataset.k; O.t = 0; O.view = "whole"; O.explode = 0; O.stackK = 0;
+      if(KINDS[O.kind].h0){ O.h = KINDS[O.kind].h0; $("rOh").value = O.h; }
+      killTweens(); camTo(0.62, 0.42, 0.6); buildOther();
+    };
+  });
+  document.querySelectorAll("#oModes .btn").forEach(function(b){
+    b.onclick = function(){ O.mode = b.dataset.m; O.t = 0; O.view = "whole"; O.explode = 0; killTweens(); camTo(0.62, 0.42, 0.6); buildOther(); };
+  });
+  $("rOh").addEventListener("input", function(){ O.h = +this.value; O.stackK = Math.min(O.stackK, O.h); buildOther(); });
+  $("rOr").addEventListener("input", function(){ O.r = +this.value; buildOther(); });
+  $("rOn").addEventListener("input", function(){ O.n = +this.value; buildOther(); });
+  $("rOt").addEventListener("input", function(){ killTweens(); O.t = this.value/100; O.net.setT(O.t); refreshOther(); });
+  $("oOpen").onclick = function(){ otherUnfold(1); };
+  $("oClose").onclick = function(){ otherUnfold(0); };
+  $("oStack").onclick = function(){
+    killTweens(); O.view = "stack"; O.stackK = 0; O.explode = 0; buildOther();
+    const H = O.h;
+    tween(0.45*H + 0.3, function(e, raw){
+      const k = Math.min(H, Math.floor(raw*(H + 0.6)));
+      if(k !== O.stackK){ O.stackK = k; O.parts.forEach(function(p){ p.m.visible = p.k < k; }); refreshOther(); }
+    }, function(){ O.stackK = H; O.parts.forEach(function(p){ p.m.visible = true; }); refreshOther(); });
+  };
+  $("oSplit").onclick = function(){
+    killTweens(); O.view = "split"; O.explode = 0; buildOther();
+    if(O.kind !== "cyl") tween(1.2, function(e){ O.explode = e; applyExplode(); });
+    else { O.explode = 1; applyExplode(); }
+  };
+  $("oWhole").onclick = function(){ killTweens(); O.view = "whole"; O.explode = 0; buildOther(); };
+}
+
+/* ============================================================
+   ④ 스스로 풀기
+   ============================================================ */
+const Q = {type:null, tried:false, ans:0, pi:false, how:"", try:0, ok:0, streak:0, last:"",
+           solid:null, spec:null, net:null, t:0, fit0:null};
+const RI = (a, b) => a + Math.floor(Math.random()*(b - a + 1));
+const QTYPES = ["boxA", "boxV", "rtriA", "triV", "trapV", "cylA", "cylV"];
+
+function dimLabel(grp, p, q, text, out, color){
+  const m = V3((p.x + q.x)/2 + out.x, (p.y + q.y)/2 + out.y, (p.z + q.z)/2 + out.z);
+  const sp = label(text, color || "#1d2433", 0.52); sp.position.copy(m); grp.add(sp);
+}
+function newQuiz(){
+  let t;
+  do{ t = QTYPES[RI(0, QTYPES.length - 1)]; }while(t === Q.type && Math.random() < 0.7);
+  Q.type = t; Q.tried = false; Q.pi = false;
+  resetWorld(); killTweens();
+  const g = new THREE.Group(); world.add(g);
+  Q.solid = g; Q.net = null; Q.t = 0; Q.spec = null;
+  let ask = "", how = "", size = 6, H;
+  if(t === "boxA" || t === "boxV"){
+    const a = RI(3, 9), b = RI(2, 7); H = RI(2, 8);
+    const P = [[-a/2, b/2], [a/2, b/2], [a/2, -b/2], [-a/2, -b/2]];
+    g.add(prismMesh(P, -H/2, H/2, C.side1));
+    dimLabel(g, V3(-a/2, -H/2, b/2), V3(a/2, -H/2, b/2), a + " cm", V3(0, -0.45, 0.3));
+    dimLabel(g, V3(a/2, -H/2, b/2), V3(a/2, -H/2, -b/2), b + " cm", V3(0.6, -0.35, 0));
+    dimLabel(g, V3(a/2, -H/2, b/2), V3(a/2, H/2, b/2), H + " cm", V3(0.65, 0, 0.2));
+    const S = a*b, Pm = 2*(a + b);
+    Q.spec = {poly:P, H:H, total:"밑면의 둘레 " + a + "+" + b + "+" + a + "+" + b + " = " + Pm + " cm"};
+    if(t === "boxA"){ ask = "다음 사각기둥(직육면체)의 <b>겉넓이</b>를 구하시오."; Q.ans = 2*S + Pm*H;
+      how = '(밑넓이) = ' + a + '×' + b + ' = ' + S + '<br>(옆넓이) = (' + a + '+' + b + '+' + a + '+' + b + ')×' + H + ' = ' + Pm + '×' + H + ' = ' + (Pm*H) + '<br>(겉넓이) = ' + S + '×2 + ' + (Pm*H) + ' = <b>' + Q.ans + ' cm²</b>'; }
+    else { ask = "다음 사각기둥(직육면체)의 <b>부피</b>를 구하시오."; Q.ans = S*H;
+      how = '(밑넓이) = ' + a + '×' + b + ' = ' + S + '<br>(부피) = (밑넓이)×(높이) = ' + S + '×' + H + ' = <b>' + Q.ans + ' cm³</b>'; }
+    size = Math.max(a, b, H);
+  }else if(t === "rtriA"){
+    const k = RI(1, 2); H = RI(3, 9);
+    const x = 2*k, z = 1.5*k;
+    const P = [[-x, z], [x, z], [-x, -z]];
+    g.add(prismMesh(P, -H/2, H/2, C.side1));
+    const y = H/2;
+    dimLabel(g, V3(-x, y, z), V3(x, y, z), (4*k) + " cm", V3(0, 0.1, 0.5));
+    dimLabel(g, V3(-x, y, z), V3(-x, y, -z), (3*k) + " cm", V3(-0.7, 0.1, 0));
+    dimLabel(g, V3(x, y, z), V3(-x, y, -z), (5*k) + " cm", V3(0.45, 0.3, -0.45));
+    dimLabel(g, V3(x, -y, z), V3(x, y, z), H + " cm", V3(0.65, 0, 0.2));
+    const S = 6*k*k, Pm = 12*k;
+    Q.spec = {poly:P, H:H, total:"밑면의 둘레 " + (3*k) + "+" + (4*k) + "+" + (5*k) + " = " + Pm + " cm"};
+    ask = "다음 삼각기둥의 <b>겉넓이</b>를 구하시오. (밑면은 직각삼각형)"; Q.ans = 2*S + Pm*H;
+    how = '(밑넓이) = ½×' + (4*k) + '×' + (3*k) + ' = ' + S + '<br>(옆넓이) = (' + (3*k) + '+' + (4*k) + '+' + (5*k) + ')×' + H + ' = ' + (Pm*H) + '<br>(겉넓이) = ' + S + '×2 + ' + (Pm*H) + ' = <b>' + Q.ans + ' cm²</b>';
+    size = Math.max(4*k, H);
+  }else if(t === "triV"){
+    let c, d; do{ c = RI(4, 10); d = RI(3, 8); }while((c*d) % 2);
+    H = RI(3, 10);
+    const ax = -c/2 + c*0.3;
+    const P = [[-c/2, d/2], [c/2, d/2], [ax, -d/2]];
+    g.add(prismMesh(P, -H/2, H/2, C.side1));
+    const y = H/2 + 0.01;
+    g.add(seg3(V3(ax, y, -d/2), V3(ax, y, d/2), 0xe5484d, true));
+    dimLabel(g, V3(-c/2, y, d/2), V3(c/2, y, d/2), c + " cm", V3(0, 0.1, 0.5));
+    dimLabel(g, V3(ax, y, -d/2), V3(ax, y, d/2), d + " cm", V3(0.55, 0.15, 0), "#e5484d");
+    dimLabel(g, V3(c/2, -H/2, d/2), V3(c/2, H/2, d/2), H + " cm", V3(0.65, 0, 0.2));
+    const S = c*d/2;
+    ask = "다음 삼각기둥의 <b>부피</b>를 구하시오. (빨간 점선은 밑면 삼각형의 높이)"; Q.ans = S*H;
+    how = '(밑넓이) = ½×' + c + '×' + d + ' = ' + S + '<br>(부피) = ' + S + '×' + H + ' = <b>' + Q.ans + ' cm³</b>';
+    size = Math.max(c, d, H);
+  }else if(t === "trapV"){
+    let p, q, d; do{ p = RI(3, 7); q = p + RI(2, 6); d = RI(3, 7); }while(((p + q)*d) % 2);
+    H = RI(3, 10);
+    const P = [[-q/2, d/2], [q/2, d/2], [p/2, -d/2], [-p/2, -d/2]];
+    g.add(prismMesh(P, -H/2, H/2, C.side1));
+    const y = H/2 + 0.01;
+    g.add(seg3(V3(p/2, y, -d/2), V3(p/2, y, d/2), 0xe5484d, true));
+    dimLabel(g, V3(-p/2, y, -d/2), V3(p/2, y, -d/2), p + " cm", V3(0, 0.15, -0.5));
+    dimLabel(g, V3(-q/2, y, d/2), V3(q/2, y, d/2), q + " cm", V3(0, 0.1, 0.5));
+    dimLabel(g, V3(p/2, y, -d/2), V3(p/2, y, d/2), d + " cm", V3(-0.6, 0.15, 0), "#e5484d");
+    dimLabel(g, V3(q/2, -H/2, d/2), V3(q/2, H/2, d/2), H + " cm", V3(0.65, 0, 0.2));
+    const S = (p + q)*d/2;
+    ask = "밑면이 사다리꼴인 다음 사각기둥의 <b>부피</b>를 구하시오."; Q.ans = S*H;
+    how = '(밑넓이) = (' + p + '+' + q + ')×' + d + '÷2 = ' + S + '<br>(부피) = ' + S + '×' + H + ' = <b>' + Q.ans + ' cm³</b>';
+    size = Math.max(q, d, H);
+  }else{
+    const r = RI(1, 6); H = RI(2, 10);
+    g.add(prismMesh({circle:true, r:r}, -H/2, H/2, 0x8fd0aa, 1, 0x1f6e45));
+    const y = H/2 + 0.01;
+    g.add(seg3(V3(0, y, 0), V3(r, y, 0), 0xe5484d));
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), new THREE.MeshBasicMaterial({color:0x1d2433})); dot.position.set(0, y, 0); g.add(dot);
+    dimLabel(g, V3(0, y, 0), V3(r, y, 0), r + " cm", V3(0, 0.35, 0), "#e5484d");
+    dimLabel(g, V3(r, -H/2, 0), V3(r, H/2, 0), H + " cm", V3(0.7, 0, 0));
+    Q.pi = true;
+    Q.spec = {poly:circlePoly(r, 72), H:H, cyl:true, total:"밑면의 둘레 2π × " + r + " = " + (2*r) + "π cm"};
+    if(t === "cylA"){ ask = "다음 원기둥의 <b>겉넓이</b>를 구하시오. (π 앞의 수만 쓰세요)"; Q.ans = 2*r*r + 2*r*H;
+      how = '(밑넓이) = π×' + r + '² = ' + (r*r) + 'π<br>(옆넓이) = (2π×' + r + ')×' + H + ' = ' + (2*r*H) + 'π<br>(겉넓이) = ' + (r*r) + 'π×2 + ' + (2*r*H) + 'π = <b>' + Q.ans + 'π cm²</b>'; }
+    else { ask = "다음 원기둥의 <b>부피</b>를 구하시오. (π 앞의 수만 쓰세요)"; Q.ans = r*r*H;
+      how = '(밑넓이) = π×' + r + '² = ' + (r*r) + 'π<br>(부피) = ' + (r*r) + 'π×' + H + ' = <b>' + Q.ans + 'π cm³</b>'; }
+    size = Math.max(2*r, H);
+  }
+  Q.how = how;
+  if(!/A$/.test(t)) Q.spec = null;                  /* 전개도는 겉넓이 문제에만 */
+  fitBox = {w:size*1.5 + 3, h:size*1.1 + 2, d:size};
+  Q.fit0 = Object.assign({}, fitBox);
+  paintQUnfold();
+  cam.zoom = 1; camTo(0.62, 0.42, 0.5);
+  $("qAsk").innerHTML = ask;
+  const vol = /V$/.test(t);
+  $("qUnit").textContent = (Q.pi ? "π " : "") + (vol ? "cm³" : "cm²");
+  $("qIn").value = ""; $("qIn").classList.remove("good", "bad"); fb("qFb");
+  setCaption(""); setCounter(""); $("tip").textContent = "끌어서 돌리기 · 휠로 확대";
+}
+/* 겉넓이 문제 : 왼쪽 기둥을 ①과 같은 경첩 전개도로 실제로 펼친다 */
+function paintQUnfold(){
+  $("qUnfoldRow").style.display = Q.spec ? "" : "none";
+  $("qUnfold").textContent = Q.t > 0.5 ? "🧊 다시 접기" : "📐 전개도로 펼치기";
+}
+function quizUnfold(to){
+  if(!Q.spec) return;
+  killTweens();
+  if(!Q.net){
+    const sp = Q.spec, cyl = !!sp.cyl;
+    const net = makeNet(sp.poly, sp.H, {sideColor:function(i){ return cyl ? C.side1 : (i%2 ? C.side2 : C.side1); },
+                                        baseColor:C.base, strip:cyl, attach:cyl ? 36 : 0});
+    net.bracket(cyl ? null : net.len.map(fmt), sp.total, "높이 " + sp.H);
+    world.add(net.root); Q.net = net; net.setT(0);
+  }
+  Q.solid.visible = false; Q.net.root.visible = true;
+  const from = Q.t;
+  $("qUnfold").textContent = to > 0.5 ? "🧊 다시 접기" : "📐 전개도로 펼치기";
+  tween(2.4*Math.abs(to - from) + 0.2, function(e){ Q.t = from + (to - from)*e; Q.net.setT(Q.t); },
+    function(){
+      if(to < 0.5){ Q.net.root.visible = false; Q.solid.visible = true; fitBox = Object.assign({}, Q.fit0); }
+      paintQUnfold();
+    });
+  if(to > 0.5){ camTo(0, 0.05, 1.6); setCaption('전개도 — <span class="o">밑면 2개</span> + <span class="b">옆면</span>'); }
+  else { camTo(0.62, 0.42, 1.2); setCaption(""); }
+}
+function bindQuiz(){
+  $("qUnfold").onclick = function(){ quizUnfold(Q.t > 0.5 ? 0 : 1); };
+  $("qChk").onclick = function(){
+    const raw = $("qIn").value.trim(); if(raw === "") return;
+    const val = window.MK && MK.num ? MK.num(raw) : +raw;
+    if(isNaN(val)){ fb("qFb", "warn", "숫자나 분수로 적어 주세요. (분모는 비우지 마세요)"); return; }
+    const ok = Math.abs(val - Q.ans) < 1e-6;
+    mark($("qIn"), ok);
+    if(!Q.tried){
+      Q.tried = true; Q.try++;
+      if(ok){ Q.ok++; Q.streak++; } else Q.streak = 0;
+      if(window.MKSCORE) MKSCORE.quiz(ok, "기둥 겉넓이·부피 문제");
+      $("qTry").textContent = Q.try; $("qOk").textContent = Q.ok; $("qStreak").textContent = Q.streak;
+    }
+    fb("qFb", ok ? "ok" : "no", ok ? '🎉 맞아요!<br>' + Q.how : (/V$/.test(Q.type) ? '부피 = (밑넓이) × (높이) 를 떠올려 보세요.' : '겉넓이 = (밑넓이) × 2 + (밑면의 둘레) × (높이) 를 떠올려 보세요.') + ' 막히면 [💡 풀이 보기]');
+  };
+  $("qIn").addEventListener("keydown", function(e){ if(e.key === "Enter") $("qChk").click(); });
+  $("qHow").onclick = function(){ fb("qFb", "info", Q.how); if(!Q.tried){ Q.tried = true; Q.try++; Q.streak = 0; $("qTry").textContent = Q.try; $("qStreak").textContent = 0; } };
+  $("qNext").onclick = newQuiz;
+}
+
+/* ============================================================
+   탭
+   ============================================================ */
+function openTab(t){
+  tab = t; killTweens(); cam.zoom = 1;
+  document.querySelectorAll("header nav button").forEach(function(b){ b.classList.toggle("on", b.dataset.tab === t); });
+  $("pArea").classList.toggle("hidden", t !== "area");
+  $("pVol").classList.toggle("hidden", t !== "vol");
+  $("pOther").classList.toggle("hidden", t !== "other");
+  $("pQuiz").classList.toggle("hidden", t !== "quiz");
+  A.net = null; O.net = null;
+  if(t === "area"){ cam.th = A.t > 0.5 ? 0 : 0.62; cam.ph = A.t > 0.5 ? 0.05 : 0.42; buildArea(); }
+  else if(t === "vol"){ cam.th = 0.62; cam.ph = 0.5; buildVol(); volGo(V.step); }
+  else if(t === "other"){ cam.th = 0.62; cam.ph = 0.42; O.t = 0; buildOther(); }
+  else newQuiz();
+}
+
+window.__lab = {A:A, V:V, O:O, Q:Q, scene:scene, camera:camera, cam:cam};
+function boot(){
+  if(window.MK && MK.mathInput) MK.mathInput($("qIn"));
+  if(window.MK && MK.zoomCtl) MK.zoomCtl(document.querySelector(".board-wrap"));
+  resize();
+  bindArea(); bindVol(); bindOther(); bindQuiz();
+  document.querySelectorAll("header nav button").forEach(function(b){ b.onclick = function(){ openTab(b.dataset.tab); }; });
+  openTab("area");
+  requestAnimationFrame(loop);
+}
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+else boot();
+})();
+</script>
+</body>
+</html>

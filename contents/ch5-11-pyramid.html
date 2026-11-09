@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>뿔 실험실 — 겉넓이와 3분의 1 부피</title>
-<link rel="stylesheet" href="../assets/common.css?v=4">
-<script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
+<link rel="stylesheet" href="../assets/common.css?v=5">
+<script src="../assets/common.js?v=5" data-home="../index.html?unit=5" defer></script>
 <script src="../assets/track.js?v=13" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
@@ -191,6 +191,10 @@
           <span class="unit" id="unit">cm³</span>
         </div>
         <p style="margin-top:7px;font-size:12.5px;" id="hintPi">π 가 있는 답은 π 를 빼고 <b>숫자만</b> 적어 주세요.</p>
+        <p style="margin-top:5px;font-size:12.5px;color:var(--sub);">분수는 <b>[분수]</b> 단추를 누르거나 <b>/</b> 키를 눌러 분자·분모를 따로 적어요.</p>
+        <div class="row" id="unfoldRow" style="margin-top:9px;">
+          <button class="btn sm" id="btnUnfold">📐 전개도로 펼치기</button>
+        </div>
         <div id="quizFb"></div>
         <div class="row" style="margin-top:10px;">
           <button class="btn primary" id="btnCheck">✅ 확인</button>
@@ -223,7 +227,7 @@ const clamp01 = v => Math.max(0, Math.min(1, v));
 const cv = $("board"), ctx = cv.getContext("2d");
 function view(){
   const W = cv.clientWidth, H = cv.clientHeight;
-  const s = Math.min(W/DW, H/DH);
+  const s = Math.min(W/DW, H/DH)*(window.MKZ || 1);     /* 도형 크기 단추(가운데 기준) */
   return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
 }
 function seg(a, b, color, w, dash){
@@ -262,7 +266,7 @@ const r2 = v => Math.round(v*100)/100;
 let tab = "net";
 let rr = 3, ll = 9, tOpen = 0, openAnim = null;          /* ① */
 let shape = "cone", poured = 0, pourAnim = null, pourT = 0;   /* ② */
-let Q = {kind:"coneV", r:0, h:0, l:0, b:0, ans:0, pi:false, done:false, tries:0, ok:0, streak:0};
+let Q = {kind:"coneV", r:0, h:0, l:0, b:0, t:0, ans:0, pi:false, done:false, tries:0, ok:0, streak:0};
 
 /* ============================================================
    ① 원뿔 펼치기
@@ -554,7 +558,35 @@ $("btnReset").addEventListener("click", function(){ stopPour(); poured = 0; pain
 /* ============================================================
    ③ 스스로 풀기
    ============================================================ */
+/* 겉넓이 문제 : 왼쪽 원뿔을 ①과 같은 방법으로 실제로 펼친다 (Q.t : 0 원뿔 → 1 전개도) */
+let qAnim = null;
+function stopUnfold(){ if(qAnim){ cancelAnimationFrame(qAnim); qAnim = null; } }
+function paintUnfold(){
+  $("unfoldRow").style.display = Q.kind === "coneS" ? "" : "none";
+  $("btnUnfold").textContent = Q.t > 0.5 ? "🧊 다시 접기" : "📐 전개도로 펼치기";
+}
+function unfoldTo(to){
+  stopUnfold();
+  const from = Q.t, t0 = performance.now(), DUR = 3200*Math.abs(to - from) + 1;
+  $("btnUnfold").textContent = to > 0.5 ? "🧊 다시 접기" : "📐 전개도로 펼치기";
+  (function step(now){
+    const u = Math.min(1, (now - t0)/DUR);
+    Q.t = from + (to - from)*u;
+    draw();
+    if(u < 1) qAnim = requestAnimationFrame(step); else { qAnim = null; paintUnfold(); }
+  })(performance.now());
+}
+function drawQuizNet(){
+  const keep = [rr, ll, tOpen];
+  rr = Q.r; ll = Q.l; tOpen = Q.t;
+  try{ drawNet(); }
+  finally{ rr = keep[0]; ll = keep[1]; tOpen = keep[2]; }
+  ctx.save(); ctx.fillStyle = "#fff"; ctx.fillRect(250, 30, 400, 46); ctx.restore();
+  txt(Q.t > 0.93 ? "전개도 — 겉넓이 = 밑넓이 + 옆넓이(부채꼴)" : "펼치는 중…", 450, 52, Q.t > 0.93 ? BLUE : INK, 20, true);
+  $("tip").textContent = Q.t > 0.93 ? "부채꼴의 반지름 = 모선, 호의 길이 = 밑면의 둘레" : "";
+}
 function drawQuiz(){
+  if(Q.kind === "coneS" && Q.t > 0.001){ drawQuizNet(); return; }
   const cx = 430, by = 490, H = 290, R = 112;
   if(Q.kind.indexOf("cone") === 0){
     poly([{x:cx, y:by - H}, {x:cx - R, y:by}, {x:cx + R, y:by}], BLUE + "26", BLUE, 2.6);
@@ -596,7 +628,7 @@ const QKINDS = ["coneV", "coneS", "pyrV", "pyrV"];
 function newQuestion(){
   let k, guard = 0;
   do{ k = QKINDS[Math.floor(Math.random()*QKINDS.length)]; guard++; }while(guard < 12 && k === Q.kind);
-  Q.kind = k; Q.done = false;
+  Q.kind = k; Q.done = false; Q.t = 0; stopUnfold();
   if(k.indexOf("cone") === 0){
     Q.r = 2 + Math.floor(Math.random()*5);
     Q.h = 3*(1 + Math.floor(Math.random()*4));           /* 3·6·9·12 — 답이 깔끔하게 */
@@ -625,13 +657,16 @@ function newQuestion(){
   $("hintPi").style.display = Q.pi ? "" : "none";
   const inp = $("ansIn"); inp.value = ""; inp.className = "";
   $("quizFb").innerHTML = "";
+  paintUnfold();
   draw();
 }
 $("btnCheck").addEventListener("click", function(){
   if(Q.done) return;
   const inp = $("ansIn");
   if(inp.value === ""){ $("quizFb").innerHTML = '<div class="fb warn">답을 적어 주세요.</div>'; return; }
-  const ok = Math.abs(+inp.value - Q.ans) < 1e-6;
+  const val = window.MK && MK.num ? MK.num(inp.value) : +inp.value;
+  if(isNaN(val)){ $("quizFb").innerHTML = '<div class="fb warn">숫자나 분수로 적어 주세요. (분모는 비우지 마세요)</div>'; return; }
+  const ok = Math.abs(val - Q.ans) < 1e-6;
   Q.done = true; Q.tries++;
   if(ok){ Q.ok++; Q.streak++; } else { Q.streak = 0; }
   inp.className = ok ? "good" : "bad";
@@ -650,6 +685,7 @@ $("btnCheck").addEventListener("click", function(){
   if(window.MKSCORE) MKSCORE.quiz(ok, "뿔 겉넓이·부피");
 });
 $("btnNext").addEventListener("click", newQuestion);
+$("btnUnfold").addEventListener("click", function(){ unfoldTo(Q.t > 0.5 ? 0 : 1); });
 $("ansIn").addEventListener("keydown", function(e){ if(e.key === "Enter") $("btnCheck").click(); });
 
 /* ============================================================
@@ -674,7 +710,7 @@ document.querySelectorAll("header nav button").forEach(function(b){
     document.querySelectorAll("header nav button").forEach(function(x){ x.classList.remove("on"); });
     b.classList.add("on");
     tab = b.dataset.tab;
-    stopOpen(); stopPour();
+    stopOpen(); stopPour(); stopUnfold();
     $("pNet") .classList.toggle("hidden", tab !== "net");
     $("pPour").classList.toggle("hidden", tab !== "pour");
     $("pQuiz").classList.toggle("hidden", tab !== "quiz");
@@ -682,6 +718,8 @@ document.querySelectorAll("header nav button").forEach(function(b){
   });
 });
 function boot(){
+  if(window.MK && MK.mathInput) MK.mathInput($("ansIn"));
+  if(window.MK && MK.zoomCtl) MK.zoomCtl(document.querySelector(".board-wrap"), function(){ draw(); });
   paintNet();
   paintPour();
   newQuestion();

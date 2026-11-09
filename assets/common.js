@@ -25,6 +25,7 @@
 
   /* ---------- 1. 목차로 돌아가기 버튼 ---------- */
   function addHomeButton(){
+    if(window.MK_NO_HOME) return;          /* 단일 파일판(목차 없이 혼자 여는 판) */
     // 이미 콘텐츠가 직접 넣어 두었으면 링크만 채우고 끝낸다
     var made = document.querySelector(".home-btn");
     if(made){
@@ -41,16 +42,78 @@
   }
 
   /* ---------- 1-2. 글자 크기 조절 (교실 TV 대응) ----------
-     · 머리글과 오른쪽 패널은 css 의 zoom 으로 통째로 키운다.
-       (각 콘텐츠가 <style> 에 박아 둔 px 값을 하나하나 고치지 않아도 된다)
-     · 오른쪽 패널의 폭도 같은 비율로 넓힌다. 폭은 콘텐츠마다 336~360px 로 다르므로
-       **처음 한 번 읽어 둔 값**을 기준으로 곱한다.
+     · (11/9 바꿈) 화면 나눔(왼쪽 도형 영역 · 오른쪽 패널 폭)은 그대로 두고 **글자만** 키운다.
+       예전에는 zoom 으로 패널을 통째로 키우고 패널 폭까지 넓혀서 도형 영역이 줄어들었다.
+     · 각 콘텐츠의 <style> 에 적힌 font-size / font 의 px 값을 처음 값 기준으로 곱해 다시 써 넣는다.
+       style="font-size:…px" 처럼 요소에 직접 적은 글자도 같이 키운다(나중에 생긴 요소 포함).
+     · 목차(허브)는 캔버스가 없으므로 예전처럼 통째로 키운다(body.mk-zoom).
      · 캔버스 글자는 css 가 닿지 않으므로 ctx.font 의 px 값을 가로채 곱한다.
      · 고른 값은 localStorage 에 남겨 다른 콘텐츠로 넘어가도 유지된다.
      ---------------------------------------------------------- */
   var FS_KEY  = "mk.fs";
   var FS_STEP = [1, 1.15, 1.3, 1.5, 1.75, 2];
-  var fsBaseAside = null;                       /* zoom 을 걸기 전 패널 폭 */
+  var fsOnHub = /(^|\/)index\.html?$/.test(location.pathname) || /\/$/.test(location.pathname);
+  var fsRules = null;                           /* [{st, prop, orig}] — 처음 읽어 둔 글자 크기 */
+
+  /* "800 14px/1 var(--font)" 같은 값에서 px 하나(글자 크기)만 곱한다. var() 로 이미 --fs 를 곱한 값은 건드리지 않는다 */
+  function fsScaleVal(v, f, firstOnly){
+    if(!v || v.indexOf("--fs") >= 0) return v;
+    var done = false;
+    return v.replace(/(\d*\.?\d+)px/g, function(all, num){
+      if(firstOnly && done) return all;
+      done = true;
+      return (Math.round(parseFloat(num)*f*100)/100) + "px";
+    });
+  }
+  function fsCollect(){
+    fsRules = [];
+    function walk(rules){
+      for(var i = 0; i < rules.length; i++){
+        var r = rules[i];
+        if(r.cssRules && !r.style){ walk(r.cssRules); continue; }     /* @media 안쪽 */
+        if(!r.style) continue;
+        var fsz = r.style.getPropertyValue("font-size");
+        if(fsz && /px/.test(fsz)) fsRules.push({st:r.style, prop:"font-size", orig:fsz, pr:r.style.getPropertyPriority("font-size")});
+        var fnt = r.style.getPropertyValue("font");
+        if(fnt && /px/.test(fnt)) fsRules.push({st:r.style, prop:"font", orig:fnt, pr:r.style.getPropertyPriority("font")});
+        else if(!fsz && /font\s*:[^;]*\dpx/.test(r.cssText)){
+          /* font 단축에 var() 가 섞이면 getPropertyValue 가 빈 값을 준다 → 글자로 꺼낸다 */
+          var m = r.cssText.match(/font\s*:\s*([^;}]+)/);
+          if(m) fsRules.push({st:r.style, prop:"font", orig:m[1].trim().replace(/\s*!important$/, ""), pr:/!important/.test(m[1]) ? "important" : ""});
+        }
+      }
+    }
+    for(var s = 0; s < document.styleSheets.length; s++){
+      try{ walk(document.styleSheets[s].cssRules || []); }catch(e){ /* 다른 곳 글꼴 css 는 못 읽는다 */ }
+    }
+  }
+  /* 요소에 직접 적은 글자 크기 */
+  function fsInline(el, f){
+    if(!el || el.nodeType !== 1 || !el.style) return;
+    var o = el.getAttribute("data-mkfs");
+    if(o === null){
+      var cur = el.style.fontSize;
+      if(!cur || !/px/.test(cur)) return;
+      o = cur; el.setAttribute("data-mkfs", o);
+    }
+    el.style.fontSize = fsScaleVal(o, f, true);
+  }
+  function fsInlineAll(root, f){
+    if(!root || !root.querySelectorAll) return;
+    if(root.nodeType === 1 && root.hasAttribute("style")) fsInline(root, f);
+    var list = root.querySelectorAll("[style*='font-size'],[data-mkfs]");
+    for(var i = 0; i < list.length; i++) fsInline(list[i], f);
+  }
+  var fsObs = null;
+  function fsWatch(){
+    if(fsObs || !window.MutationObserver) return;
+    fsObs = new MutationObserver(function(muts){
+      var f = window.MKFS || 1;
+      if(f === 1) return;
+      muts.forEach(function(m){ for(var i = 0; i < m.addedNodes.length; i++) fsInlineAll(m.addedNodes[i], f); });
+    });
+    fsObs.observe(document.body, {childList:true, subtree:true});
+  }
 
   function fsRead(){
     try{
@@ -93,20 +156,14 @@
     document.documentElement.style.setProperty("--fs", v);
     document.documentElement.classList.toggle("mk-fs-big", v > 1);
 
-    /* 오른쪽 패널 폭도 같이 넓힌다 (좁은 화면 1열 배치일 때는 그대로 둔다) */
-    var mainEl = document.querySelector("#app main");
-    if(mainEl){
-      var narrow = window.matchMedia("(max-width:900px)").matches;
-      if(narrow){
-        mainEl.style.gridTemplateColumns = "";
-      }else{
-        if(fsBaseAside === null){
-          var cols = getComputedStyle(mainEl).gridTemplateColumns.split(/\s+/);
-          var last = parseFloat(cols[cols.length - 1]);
-          fsBaseAside = (last > 120 && last < 600) ? last : 350;
-        }
-        mainEl.style.gridTemplateColumns = "1fr " + Math.round(fsBaseAside*v) + "px";
-      }
+    /* 글자만 키운다 — 화면 나눔(패널 폭)은 건드리지 않는다. 허브는 body zoom 으로 통째로 */
+    if(!fsOnHub){
+      if(fsRules === null) fsCollect();
+      fsRules.forEach(function(R){
+        R.st.setProperty(R.prop, v === 1 ? R.orig : fsScaleVal(R.orig, v, R.prop === "font"), R.pr);
+      });
+      fsInlineAll(document.body, v);
+      fsWatch();
     }
 
     var val = document.querySelector(".mk-fs .mk-fs-val");
@@ -156,10 +213,6 @@
       else { fsSave(1); fsApply(1, true); }          /* 가운데를 누르면 원래대로 */
     });
 
-    window.addEventListener("resize", function(){
-      /* 좁은 화면 ↔ 넓은 화면을 오갈 때 패널 폭 처리를 다시 맞춘다 */
-      fsApply(window.MKFS || 1, false);
-    });
   }
 
   /* ---------- 2. 학습 기록(목차의 '학습함' 표시용) ---------- */
@@ -239,6 +292,174 @@
     visited: function(){
       try{ return JSON.parse(localStorage.getItem(KEY) || "[]"); }
       catch(e){ return []; }
+    },
+
+    /**
+     * 답 글자 → 수.  "12", "10.5", "32/3", "-4/6" 를 받는다. 못 읽으면 NaN.
+     */
+    num: function(t){
+      t = String(t == null ? "" : t).replace(/\s/g, "").replace(/[−–]/g, "-");
+      if(t === "") return NaN;
+      var m = t.match(/^(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)$/);
+      if(m) return +m[2] === 0 ? NaN : (+m[1])/(+m[2]);
+      return /^-?\d+(?:\.\d+)?$/.test(t) ? +t : (/^-?\.\d+$/.test(t) ? +t : NaN);
+    },
+
+    /**
+     * 수식 입력기 — 답 칸(input)에서 분수를 쓸 수 있게 한다.
+     *   MK.mathInput(inputEl)
+     *   · [분수] 단추를 누르거나 '/' 를 치면 분자 / 분모 두 칸으로 바뀐다(분모 칸 아래 위로 쌓임).
+     *   · 콘텐츠 쪽 코드는 그대로 inputEl.value 를 읽으면 된다 → 분수일 때 "32/3" 같은 글자를 준다.
+     *     inputEl.value = "" 로 비우면 다시 보통 칸으로 돌아간다. good / bad 꾸밈도 그대로 따라간다.
+     *   · 분자·분모 칸에서 Enter 를 치면 원래 칸에서 Enter 를 친 것과 같다.
+     */
+    mathInput: function(inp){
+      if(!inp || inp.__mkMI) return inp;
+      inp.__mkMI = true;
+      try{ inp.type = "text"; }catch(e){}
+      inp.setAttribute("inputmode", "decimal");
+      inp.setAttribute("autocomplete", "off");
+      inp.removeAttribute("step");
+
+      var wrap = document.createElement("span"); wrap.className = "mk-mi";
+      inp.parentNode.insertBefore(wrap, inp);
+      wrap.appendChild(inp);
+      var fr = document.createElement("span"); fr.className = "mk-mi-frac hidden";
+      fr.innerHTML = '<input type="text" inputmode="decimal" autocomplete="off" aria-label="분자" placeholder="분자">' +
+                     '<span class="mk-mi-bar"></span>' +
+                     '<input type="text" inputmode="decimal" autocomplete="off" aria-label="분모" placeholder="분모">';
+      wrap.appendChild(fr);
+      var nIn = fr.children[0], dIn = fr.children[2];
+      var btn = document.createElement("button");
+      btn.type = "button"; btn.className = "mk-mi-btn";
+      wrap.appendChild(btn);
+
+      var proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+      var isFrac = false;
+      function paintBtn(){
+        btn.innerHTML = isFrac ? "정수·소수로"
+                               : '<span class="ico"><i></i><b></b><i></i></span>분수';
+        btn.title = isFrac ? "분수 칸을 닫고 보통 칸으로 돌아가요" : "분수로 답을 적어요 (/ 키를 눌러도 돼요)";
+      }
+      function setMode(f, focus){
+        isFrac = f;
+        inp.style.display = f ? "none" : "";
+        fr.classList.toggle("hidden", !f);
+        paintBtn();
+        if(focus) (f ? (nIn.value === "" ? nIn : dIn) : inp).focus();
+      }
+      Object.defineProperty(inp, "value", {
+        configurable:true,
+        get: function(){
+          if(!isFrac) return proto.get.call(inp);
+          var n = nIn.value.trim(), d = dIn.value.trim();
+          if(n === "" && d === "") return "";
+          return n + "/" + d;
+        },
+        set: function(v){
+          v = v == null ? "" : String(v);
+          if(v.indexOf("/") >= 0){
+            var p = v.split("/");
+            nIn.value = p[0]; dIn.value = p.slice(1).join("/");
+            proto.set.call(inp, "");
+            setMode(true, false);
+          }else{
+            nIn.value = ""; dIn.value = "";
+            proto.set.call(inp, v);
+            setMode(false, false);
+          }
+        }
+      });
+      function enter(){
+        inp.dispatchEvent(new KeyboardEvent("keydown", {key:"Enter", code:"Enter", bubbles:true}));
+      }
+      inp.addEventListener("keydown", function(e){
+        if(e.key === "/"){
+          e.preventDefault();
+          nIn.value = proto.get.call(inp).trim(); dIn.value = "";
+          proto.set.call(inp, "");
+          setMode(true, false);
+          (nIn.value === "" ? nIn : dIn).focus();
+        }
+      });
+      /* 숫자 키판 없는 글자(π 등)는 그대로 두고, 붙여 넣은 "32/3" 은 분수로 */
+      inp.addEventListener("input", function(){
+        var v = proto.get.call(inp);
+        if(v.indexOf("/") >= 0) inp.value = v;
+        if(isFrac) dIn.focus();
+      });
+      nIn.addEventListener("keydown", function(e){
+        if(e.key === "Enter"){ e.preventDefault(); if(dIn.value.trim() === "") dIn.focus(); else enter(); }
+        else if(e.key === "/" || e.key === "ArrowDown"){ e.preventDefault(); dIn.focus(); }
+        else if(e.key === "Backspace" && nIn.value === "" && dIn.value === ""){ e.preventDefault(); setMode(false, true); }
+      });
+      dIn.addEventListener("keydown", function(e){
+        if(e.key === "Enter"){ e.preventDefault(); enter(); }
+        else if(e.key === "ArrowUp" || e.key === "/"){ e.preventDefault(); nIn.focus(); }
+        else if(e.key === "Backspace" && dIn.value === ""){ e.preventDefault(); nIn.focus(); }
+      });
+      btn.addEventListener("click", function(){
+        if(isFrac){
+          var n = nIn.value.trim(); nIn.value = ""; dIn.value = "";
+          proto.set.call(inp, n);
+          setMode(false, true);
+        }else{
+          nIn.value = proto.get.call(inp).trim(); dIn.value = "";
+          proto.set.call(inp, "");
+          setMode(true, true);
+        }
+      });
+      /* 맞음/틀림 꾸밈을 분수 칸에도 */
+      function syncCls(){
+        wrap.classList.toggle("good", inp.classList.contains("good"));
+        wrap.classList.toggle("bad", inp.classList.contains("bad"));
+      }
+      if(window.MutationObserver) new MutationObserver(syncCls).observe(inp, {attributes:true, attributeFilter:["class"]});
+      setMode(false, false);
+      return inp;
+    },
+
+    /**
+     * 도형 크기 단추 — 왼쪽 도형 영역(boardWrap) 왼쪽 위에 [－ 100% ＋] 를 단다.
+     *   MK.zoomCtl(boardWrap, onChange)   → 고른 배수는 window.MKZ (1 = 원래 크기)
+     *   콘텐츠의 view() 에서 배율에 MKZ 를 곱하고, onChange 에서 다시 그리면 된다.
+     *   고른 값은 다른 콘텐츠로 넘어가도 유지된다.
+     */
+    zoomCtl: function(wrap, onChange){
+      var STEP = [0.8, 1, 1.15, 1.3, 1.5, 1.75, 2], ZK = "mk.zoom";
+      var z = 1;
+      try{ var sv = parseFloat(localStorage.getItem(ZK)); if(STEP.indexOf(sv) >= 0) z = sv; }catch(e){}
+      window.MKZ = z;
+      if(!wrap || wrap.querySelector(".mk-zm")) return z;
+      var box = document.createElement("div");
+      box.className = "mk-zm";
+      box.title = "도형 크기 (글자 크기와 따로 움직여요)";
+      box.innerHTML = '<button type="button" data-z="-" aria-label="도형 작게">－</button>' +
+                      '<button type="button" data-z="0" class="mk-zm-val" aria-label="도형 크기 원래대로"></button>' +
+                      '<button type="button" data-z="+" aria-label="도형 크게">＋</button>';
+      wrap.appendChild(box);
+      function paint(){
+        box.querySelector(".mk-zm-val").textContent = "🔍 " + Math.round(z*100) + "%";
+        box.querySelector("[data-z='-']").disabled = z === STEP[0];
+        box.querySelector("[data-z='+']").disabled = z === STEP[STEP.length - 1];
+      }
+      box.addEventListener("click", function(ev){
+        var b = ev.target.closest("button"); if(!b) return;
+        var i = STEP.indexOf(z), k = b.dataset.z;
+        if(k === "+") i = Math.min(STEP.length - 1, i + 1);
+        else if(k === "-") i = Math.max(0, i - 1);
+        else i = 1;
+        z = STEP[i]; window.MKZ = z;
+        try{ localStorage.setItem(ZK, String(z)); }catch(e){}
+        paint();
+        if(onChange) onChange(z);
+      });
+      /* 도형을 끌어 돌리는 화면에서 단추를 눌러도 끌기가 시작되지 않게 */
+      ["pointerdown", "mousedown", "touchstart", "wheel"].forEach(function(t){
+        box.addEventListener(t, function(e){ e.stopPropagation(); }, {passive:true});
+      });
+      paint();
+      return z;
     },
 
     HOME_KEY: KEY

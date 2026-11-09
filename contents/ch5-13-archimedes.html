@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>아르키메데스의 원기둥 — 원뿔 : 구 : 원기둥 = 1 : 2 : 3</title>
-<link rel="stylesheet" href="../assets/common.css?v=4">
-<script src="../assets/common.js?v=4" data-home="../index.html?unit=5" defer></script>
+<link rel="stylesheet" href="../assets/common.css?v=5">
+<script src="../assets/common.js?v=5" data-home="../index.html?unit=5" defer></script>
 <script src="../assets/track.js?v=13" defer></script>
 <style>
   *{box-sizing:border-box; margin:0; padding:0;}
@@ -210,7 +210,7 @@
           <span class="unit">π cm³</span>
         </div>
         <p style="margin-top:7px;font-size:12.5px;">π 를 빼고 <b>숫자만</b> 적어 주세요.
-           분수는 <b>16/3</b> 처럼 적어도 되고 <b>5.33</b> 처럼 소수로 적어도 돼요.</p>
+           분수는 <b>[분수]</b> 단추(또는 <b>/</b> 키)를 눌러 분자·분모를 적고, <b>5.33</b> 처럼 소수로 적어도 돼요.</p>
         <div id="quizFb"></div>
         <div class="row" style="margin-top:10px;">
           <button class="btn primary" id="btnCheck">✅ 확인</button>
@@ -244,7 +244,7 @@ const sm = x => { x = clamp01(x); return x*x*(3 - 2*x); };
 const cv = $("board"), ctx = cv.getContext("2d");
 function view(){
   const W = cv.clientWidth, H = cv.clientHeight;
-  const s = Math.min(W/DW, H/DH);
+  const s = Math.min(W/DW, H/DH)*(window.MKZ || 1);     /* 도형 크기 단추(가운데 기준) */
   return {s, ox:(W - DW*s)/2, oy:(H - DH*s)/2, W, H};
 }
 function seg(a, b, color, w, dash){
@@ -715,7 +715,7 @@ function parseAns(t){
 $("btnCheck").addEventListener("click", function(){
   if(Q.done) return;
   const inp = $("ansIn"), val = parseAns(inp.value);
-  if(isNaN(val)){ $("quizFb").innerHTML = '<div class="fb warn">숫자 또는 <b>16/3</b> 같은 분수로 적어 주세요.</div>'; return; }
+  if(isNaN(val)){ $("quizFb").innerHTML = '<div class="fb warn">숫자 또는 분수로 적어 주세요. 분수는 <b>[분수]</b> 단추를 눌러 분자·분모를 모두 적어요.</div>'; return; }
   const ok = Math.abs(val - Q.ans) < 0.1;
   Q.done = true; Q.tries++;
   if(ok){ Q.ok++; Q.streak++; } else Q.streak = 0;
@@ -771,6 +771,8 @@ document.querySelectorAll("header nav button").forEach(function(b){
   });
 });
 function boot(){
+  if(window.MK && MK.mathInput) MK.mathInput($("ansIn"));
+  if(window.MK && MK.zoomCtl) MK.zoomCtl(document.querySelector(".board-wrap"), function(){ draw(); });
   paintRatio();
   paintWater();
   cutSeen[cutH] = 1;
